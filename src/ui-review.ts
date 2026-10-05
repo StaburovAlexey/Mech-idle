@@ -7,7 +7,7 @@ const root=document.querySelector<HTMLDivElement>('#app')!;
 const params=new URLSearchParams(location.search);
 if(!params.has('embed')){
  document.body.style.cssText='padding:18px;overflow:auto;background:#10232c';
- root.innerHTML='<header style="margin:0 0 14px;max-width:900px"><h1 style="font:700 19px system-ui;margin:0 0 8px">Проверка UI-компонентов · без WebGL</h1><p style="font:13px system-ui;margin:0 0 12px;color:#bed1d7">Те же HTML-компоненты, CSS и Kenney-изображения, что в игре. В центре показан размер поля, без 3D и симуляции.</p><nav style="display:flex;gap:8px;flex-wrap:wrap"></nav></header><iframe title="Реальные компоненты боевого интерфейса" style="display:block;border:1px solid #4c6970;background:#152d34" src="?embed=1"></iframe>';
+ root.innerHTML='<header style="margin:0 0 14px;max-width:900px"><h1 style="font:700 19px system-ui;margin:0 0 8px">Проверка UI-компонентов · без WebGL</h1><p style="font:13px system-ui;margin:0 0 12px;color:#bed1d7">Те же HTML-компоненты, CSS и Kenney-изображения, что в игре. В центре показан размер поля, без 3D и симуляции.</p><nav style="display:flex;gap:8px;flex-wrap:wrap"></nav></header><iframe title="Реальные компоненты боевого интерфейса" style="display:block;box-sizing:content-box;border:1px solid #4c6970;background:#152d34" src="?embed=1"></iframe>';
  const frame=root.querySelector<HTMLIFrameElement>('iframe')!;
  for(const [w,h] of [[320,568],[390,844],[1280,720]]){const button=document.createElement('button');button.className='small-button';button.textContent=`${w} × ${h}`;button.onclick=()=>{frame.style.width=`${w}px`;frame.style.height=`${h}px`;};root.querySelector('nav')!.append(button);}
  frame.style.width='390px';frame.style.height='844px';
@@ -24,6 +24,6 @@ if(!params.has('embed')){
  get('#battle-menu-close').onclick=close;get('#battle-menu-return').onclick=close;
  get('#battle-menu-overlay').onclick=event=>{if(event.target===get('#battle-menu-overlay'))close();};
  document.addEventListener('keydown',event=>{if(event.key==='Escape')close();});
- const resize=()=>{const stage=get('#review-scene'),v=containedGameplayViewport(stage.clientWidth,stage.clientHeight),field=get('#review-field');Object.assign(field.style,{left:`${v.x}px`,top:`${v.y}px`,width:`${v.width}px`,height:`${v.height}px`});};
+ const resize=()=>{const stage=get('#review-scene'),size=stage.getBoundingClientRect(),v=containedGameplayViewport(size.width,size.height),field=get('#review-field');Object.assign(field.style,{left:`${v.x}px`,top:`${v.y}px`,width:`${v.width}px`,height:`${v.height}px`});};
  new ResizeObserver(resize).observe(get('#review-scene'));resize();
 }

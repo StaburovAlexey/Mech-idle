@@ -2,7 +2,8 @@ import type { PauseManager } from './persistence';
 import {STAT_KEYS,type StatKey} from './game';
 
 export const STAT_LABELS:Record<StatKey,{title:string,icon:string,unit:string}>={damage:{title:'Сила атаки',icon:'↗',unit:'урона'},maxHp:{title:'Бронекорпус',icon:'⬡',unit:'HP'},attackSpeed:{title:'Темп стрельбы',icon:'⌁',unit:'/с'},regen:{title:'Ремонт',icon:'✚',unit:'HP/с'}};
-export function upgradeButtonsMarkup(){return STAT_KEYS.map(stat=>`<button class="upgrade" data-stat="${stat}" id="upgrade-${stat}"><div class="upgrade-top"><span class="upgrade-title"><span class="stat-icon" aria-hidden="true">${STAT_LABELS[stat].icon}</span>${STAT_LABELS[stat].title}</span><span class="upgrade-level"></span></div><div class="upgrade-data"><span class="upgrade-value"></span><span class="upgrade-price"></span></div><div class="upgrade-sub"></div></button>`).join('');}
+export const SHORT_STAT_LABELS:Record<StatKey,string>={damage:'Атака',maxHp:'Корпус',attackSpeed:'Темп',regen:'Ремонт'};
+export function upgradeButtonsMarkup(){return STAT_KEYS.map(stat=>`<button class="upgrade" data-stat="${stat}" id="upgrade-${stat}"><div class="upgrade-top"><span class="upgrade-title"><span class="stat-icon" aria-hidden="true">${STAT_LABELS[stat].icon}</span><span class="stat-label-full">${STAT_LABELS[stat].title}</span><span class="stat-label-short" aria-hidden="true">${SHORT_STAT_LABELS[stat]}</span></span><span class="upgrade-level"></span></div><div class="upgrade-data"><span class="upgrade-value"></span><span class="upgrade-price"></span></div><div class="upgrade-sub"></div></button>`).join('');}
 export const bossBarMarkup=`<div id="boss" class="boss-bar hidden"><b>КОЛОСС / ТЯЖЁЛЫЙ МЕХ</b><div class="boss-track"><div class="boss-fill" id="boss-fill"></div></div></div>`;
 
 /** Owns only the battle drawer pause. Never removes user/hidden/dialog pauses. */

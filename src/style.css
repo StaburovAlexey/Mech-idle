@@ -309,3 +309,6 @@ body.battle-active{overflow:hidden;overscroll-behavior:none}
   .battle-menu-panel{padding:8px;gap:10px}
 }
 @media(prefers-reduced-motion:reduce){.shell.in-battle .upgrade,.battle-resource .health-fill,.boss-fill{transition:none}}
+
+.stat-label-short{display:none}
+@media(max-width:600px){.shell.in-battle .stat-label-full{display:none}.shell.in-battle .stat-label-short{display:inline}}

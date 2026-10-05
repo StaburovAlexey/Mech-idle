@@ -341,7 +341,8 @@ export class SceneView {
 
   resize() {
     if (this.disposed) return;
-    const width = Math.max(1, this.container.clientWidth), height = Math.max(1, this.container.clientHeight);
+    const bounds=this.container.getBoundingClientRect();
+    const width = Math.max(1, bounds.width), height = Math.max(1, bounds.height);
     this.renderer.setSize(width, height, false);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     configureArenaCamera(this.camera);
