@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import type { SpawnGeometry } from './spawnGeometry';
+import { arenaViewport, cameraSpawnGeometry, configureArenaCamera } from './viewport';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 export interface SceneEnemy { id: number | string; kind: 'normal' | 'fast' | 'boss'; x: number; y: number; hp: number; maxHp: number }
@@ -11,6 +13,7 @@ export interface SceneFrame {
   phase?: string;
   elapsed?: number;
   shooting?: boolean;
+  range?: number;
 }
 type Kind = SceneEnemy['kind'];
 type Piece = { g: THREE.BufferGeometry; color: THREE.ColorRepresentation; p?: number[]; r?: number[]; s?: number[] };
@@ -73,7 +76,7 @@ function seeded(n: number) { return (Math.sin(n * 127.1 + 311.7) * 43758.5453) %
 export class SceneView {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
-  readonly camera = new THREE.OrthographicCamera(-16, 16, 10, -10, .1, 100);
+  readonly camera = new THREE.OrthographicCamera(-16, 16, 10, -10, .1, 2000);
   private container: HTMLElement;
   private material = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: .28, roughness: .78, flatShading: true });
   private glowMaterial = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false });
@@ -90,6 +93,7 @@ export class SceneView {
   private hpFront: THREE.InstancedMesh;
   private targetRing: THREE.Mesh;
   private turretRing: THREE.Mesh;
+  private rangeRing: THREE.Mesh;
   private particles: Particle[] = [];
   private previous = new Map<number | string, SceneEnemy>();
   private lastBulletIds = new Set<number | string>();
@@ -98,6 +102,7 @@ export class SceneView {
   private angle = -.5;
   private prevHp = 1;
   private disposed = false;
+  private fieldViewport = arenaViewport(390, 844);
   private observer: ResizeObserver;
   private allGeometries = new Set<THREE.BufferGeometry>();
   private allMaterials = new Set<THREE.Material>();
@@ -121,6 +126,7 @@ export class SceneView {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.3;
     this.renderer.shadowMap.enabled = false;
+    this.renderer.autoClear = false;
     this.renderer.domElement.setAttribute('aria-label', '3D reactor defense arena');
     this.renderer.domElement.style.cssText = 'display:block;width:100%;height:100%;outline:none;touch-action:manipulation';
     container.appendChild(this.renderer.domElement);
@@ -145,6 +151,9 @@ export class SceneView {
     this.targetRing.position.y = .10; this.targetRing.visible = false; this.scene.add(this.targetRing);
     this.turretRing = new THREE.Mesh(ring(1.40, 1.45, 64), new THREE.MeshBasicMaterial({ color: C.cyan, transparent: true, opacity: .62, toneMapped: false, depthWrite: false }));
     this.turretRing.position.y = .095; this.scene.add(this.turretRing);
+    // Centerline is exactly the simulation's firing radius, with subtle ground paint.
+    this.rangeRing = new THREE.Mesh(ring(.9982, 1.0018, 256), new THREE.MeshBasicMaterial({ color: 0xe6faff, transparent: true, opacity: .38, toneMapped: false, depthWrite: false, side: THREE.DoubleSide }));
+    this.rangeRing.position.y = .076; this.rangeRing.scale.set(10, 1, 10); this.scene.add(this.rangeRing);
     this.observer = new ResizeObserver(() => this.resize()); this.observer.observe(container);
     this.resize();
   }
@@ -217,7 +226,7 @@ export class SceneView {
       trim.push(part(box(.22, .018, .19), C.hazard, x, h + .03, z, 0, ang));
     }
     // Angular far-ground silhouettes and a dark sand plinth visually ground the diorama.
-    const ground = new THREE.Mesh(new THREE.CircleGeometry(38, 64), new THREE.MeshStandardMaterial({ color: 0x24363b, roughness: 1 })); ground.rotation.x = -Math.PI / 2; ground.position.y = -.62; this.scene.add(ground);
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshStandardMaterial({ color: 0x24363b, roughness: 1 })); ground.rotation.x = -Math.PI / 2; ground.position.y = .006; this.scene.add(ground);
     for (let i = 0; i < 16; i++) {
       const ang = i * Math.PI * 2 / 16 + .15, r = 14.7 + (i % 3) * 1.6;
       a.push({ g: new THREE.DodecahedronGeometry(1, 0), color: i % 2 ? 0x435158 : 0x526067, p: [Math.sin(ang) * r, -.5, Math.cos(ang) * r], s: [1.3 + (i % 3) * .4, .8 + (i % 4) * .35, 1.4], r: [0, ang, .18] });
@@ -352,10 +361,15 @@ export class SceneView {
     if (this.disposed) return;
     const width = Math.max(1, this.container.clientWidth), height = Math.max(1, this.container.clientHeight);
     this.renderer.setSize(width, height, false);
-    const aspect = width / height;
-    const halfH = Math.max(9.6, 12.35 / aspect);
-    this.camera.left = -halfH * aspect; this.camera.right = halfH * aspect; this.camera.top = halfH; this.camera.bottom = -halfH; this.camera.updateProjectionMatrix();
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    configureArenaCamera(this.camera);
+    this.fieldViewport = arenaViewport(width, height);
+    // Camera depth changes must not change the visual fog over the central arena.
+    (this.scene.fog as THREE.FogExp2).density = .31 / this.camera.position.distanceTo(new THREE.Vector3(0, .4, 0));
   }
+
+  /** Fixed field camera; canvas dimensions and DPR never affect the simulation. */
+  getSpawnGeometry(): SpawnGeometry { return cameraSpawnGeometry(this.camera); }
 
   private sparks(x: number, z: number, death: boolean) {
     const count = death ? 15 : 4;
@@ -369,6 +383,8 @@ export class SceneView {
   render(frame: SceneFrame, dt: number) {
     if (this.disposed) return;
     dt = Math.max(0, Math.min(dt || 0, .05)); this.clock += dt;
+    const range = Number.isFinite(frame.range) && frame.range! > 0 ? frame.range! : 10;
+    this.rangeRing.scale.set(range, 1, range);
     const playing = frame.phase === 'playing' || frame.phase === 'active' || frame.phase === 'combat' || frame.phase === 'wave';
     const menu = frame.phase === 'menu' || frame.phase === 'ready' || frame.phase === 'title';
     const enemies = menu && !frame.enemies.length ? this.showcase : frame.enemies;
@@ -444,7 +460,16 @@ export class SceneView {
       this.particleMesh.setColorAt(pIndex++, new THREE.Color(p.color)); return true;
     });
     this.particleMesh.count = pIndex; this.particleMesh.instanceMatrix.needsUpdate = true; if (this.particleMesh.instanceColor) this.particleMesh.instanceColor.needsUpdate = true;
+    // Clear the full transparent canvas, then render only the fixed-aspect field.
+    // Scissoring prevents animated meshes from leaking into decorative side space.
+    this.renderer.setScissorTest(false);
+    this.renderer.clear();
+    const field = this.fieldViewport;
+    this.renderer.setViewport(field.x, field.y, field.width, field.height);
+    this.renderer.setScissor(field.x, field.y, field.width, field.height);
+    this.renderer.setScissorTest(true);
     this.renderer.render(this.scene, this.camera);
+    this.renderer.setScissorTest(false);
   }
 
   stats() { return { drawCalls: this.renderer.info.render.calls, triangles: this.renderer.info.render.triangles, geometries: this.renderer.info.memory.geometries, textures: this.renderer.info.memory.textures, pixelRatio: this.renderer.getPixelRatio(), units: Object.values(this.batches).reduce((sum, b) => sum + b.count, 0), particles: this.particles.length }; }

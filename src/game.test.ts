@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import { defaultSpawnGeometry, isFullyOffscreen, WORLD_LIMIT } from './spawnGeometry';
 import {
-  DT, STAT_KEYS, createState, startRun, step, setPaused, buyRunUpgrade, buyMetaUpgrade,
+  DT, STAT_KEYS, createState, startRun, step, setPaused, setSpawnGeometry, buyRunUpgrade, buyMetaUpgrade,
   runPrice, metaPrice, getStats, enemyStats, waveConfig, serializeState, parseState,
   type GameState, type Enemy, type StatKey,
 } from './game';
@@ -48,24 +49,36 @@ describe('stat and economy rules', () => {
     expect(purchased.run?.gold).toBe(0); expect(ready.run?.gold).toBe(10);
     expect(buyRunUpgrade(purchased, 'damage')).toBe(purchased);
   });
-  it('queues all four run stats until the next completed-wave boundary', () => {
-    let s = funded();
-    for (const k of STAT_KEYS) s = buyRunUpgrade(s, k);
-    expect(getStats(s)).toEqual({ damage: 10, maxHp: 100, attackSpeed: 1, regen: 0, range: 10 });
-    expect(getStats(s, true)).toEqual({ damage: 12, maxHp: 120, attackSpeed: 1.1, regen: .5, range: 10 });
-    s = clearAtNextTick(s);
-    expect(s.run?.phase).toBe('interwave');
-    expect(getStats(s)).toEqual(getStats(s, true));
-    expect(s.run?.hp).toBe(100); // max-HP upgrade gives capacity, never a heal
+  it.each([false, true])('applies all four stats atomically at purchase, including with paused=%s', paused => {
+    const original = funded(100);
+    original.run!.paused = paused; original.run!.hp = 47.125; original.run!.shotCooldown = .6;
+    const before = serializeState(original);
+    let s = original;
+    for (const k of STAT_KEYS) {
+      const gold = s.run!.gold, cost = runPrice(k, s.run!.levels[k]);
+      s = buyRunUpgrade(s, k);
+      expect(s.run!.gold).toBe(gold - cost);
+      expect(s.run!.levels[k]).toBe(1); expect(s.run!.activeLevels[k]).toBe(1);
+      expect(getStats(s)).toEqual(getStats(s, true));
+    }
+    expect(getStats(s)).toEqual({ damage: 12, maxHp: 120, attackSpeed: 1.1, regen: .5, range: 10 });
+    expect(s.run!.gold).toBe(53); expect(s.run!.earnedGold).toBe(100);
+    expect(s.run!.hp).toBe(47.125); expect(s.run!.paused).toBe(paused);
+    expect(s.run!.tick).toBe(0); expect(s.run!.rngState).toBe(original.run!.rngState);
+    expect(s.run!.shotCooldown).toBeCloseTo(.6 / 1.1, 12);
+    expect(serializeState(original)).toBe(before);
+    expect(serializeState(parseState(serializeState(s))!)).toBe(serializeState(s));
   });
-  it('interwave purchases activate only after the following combat wave', () => {
+  it('applies all interwave purchases immediately and keeps them at the next wave', () => {
     let s = clearAtNextTick(funded());
-    s = buyRunUpgrade(s, 'damage');
-    expect(getStats(s).damage).toBe(10);
+    s.run!.hp = 61;
+    for (const k of STAT_KEYS) s = buyRunUpgrade(s, k);
+    const upgraded = { damage: 12, maxHp: 120, attackSpeed: 1.1, regen: .5, range: 10 };
+    expect(getStats(s)).toEqual(upgraded); expect(s.run!.hp).toBe(61);
+    expect(s.run!.phaseTime).toBe(0); expect(s.run!.activeLevels).toEqual(s.run!.levels);
     s = step(s, 59); expect(s.run?.phase).toBe('interwave');
     s = step(s); expect(s.run?.wave).toBe(2); expect(s.run?.phase).toBe('combat');
-    expect(getStats(s).damage).toBe(10);
-    s = clearAtNextTick(s); expect(getStats(s).damage).toBe(12);
+    expect(getStats(s)).toEqual(upgraded); expect(s.run!.hp).toBeCloseTo(62, 10);
   });
   it('permanent levels charge crystals, apply multiplicatively, and cannot be bought mid-run', () => {
     let s = createState(); s.profile.crystals = 100;
@@ -75,7 +88,7 @@ describe('stat and economy rules', () => {
     expect(s.run?.hp).toBeCloseTo(110);
     expect(getStats(s)).toEqual({ damage: 11, maxHp: 110.00000000000001, attackSpeed: 1.1, regen: .2, range: 10 });
     expect(buyMetaUpgrade(s, 'damage')).toBe(s);
-    s.run!.gold = 100; s = buyRunUpgrade(s, 'damage'); s = clearAtNextTick(s);
+    s.run!.gold = 100; s = buyRunUpgrade(s, 'damage');
     expect(getStats(s).damage).toBeCloseTo(13.2);
   });
   it('enforces independent level caps and insufficient crystal checks', () => {
@@ -84,6 +97,82 @@ describe('stat and economy rules', () => {
     const hangar = createState(); expect(buyMetaUpgrade(hangar, 'regen')).toBe(hangar);
     hangar.profile.crystals = 100000; hangar.profile.meta.damage = 10;
     expect(buyMetaUpgrade(hangar, 'damage')).toBe(hangar);
+  });
+});
+
+describe('immediate upgrade timing', () => {
+  it.each([100, 37.25])('raises max HP without healing current HP %s', hp => {
+    const s = funded(); s.run!.hp = hp; s.run!.shotCooldown = .7;
+    const upgraded = buyRunUpgrade(s, 'maxHp');
+    expect(getStats(upgraded).maxHp).toBe(120); expect(upgraded.run!.hp).toBe(hp);
+    expect(upgraded.run!.shotCooldown).toBe(.7);
+    expect(step(upgraded).run!.hp).toBe(hp);
+  });
+  it('starts fractional regeneration on the next unpaused tick and retains it across reload', () => {
+    let s = funded(); s.run!.hp = 50.125;
+    s = buyRunUpgrade(setPaused(s, true), 'regen');
+    expect(getStats(s).regen).toBe(.5); expect(s.run!.hp).toBe(50.125);
+    expect(serializeState(step(s, 30000))).toBe(serializeState(s));
+    s = step(setPaused(s, false));
+    expect(s.run!.hp).toBeCloseTo(50.125 + .5 * DT, 12);
+    const loaded = parseState(serializeState(s))!;
+    expect(loaded.run!.hp).toBe(s.run!.hp);
+    expect(step(loaded).run!.hp).toBeCloseTo(50.125 + 2 * .5 * DT, 12);
+  });
+  it.each([0, 3])('rescales only the remaining shot cycle with meta speed level %s', metaSpeed => {
+    let s = funded(); s.profile.meta.attackSpeed = metaSpeed;
+    s.run!.enemies = [enemy(s, 'ordinary', 8)]; s.run!.spawned = waveConfig(1).count;
+    const oldSpeed = getStats(s).attackSpeed;
+    s.run!.shotCooldown = .6 / oldSpeed;
+    const before = s.run!.shotCooldown;
+    s = buyRunUpgrade(s, 'attackSpeed');
+    const speed = getStats(s).attackSpeed, remaining = before * oldSpeed / speed;
+    expect(s.run!.shotCooldown).toBeCloseTo(remaining, 12);
+    expect(s.run!.shotCooldown * speed).toBeCloseTo(.6, 12);
+    expect(s.run!.bullets).toHaveLength(0); expect(s.events.some(e => e.type === 'shot')).toBe(false);
+    const ticksUntilShot = Math.ceil(remaining / DT);
+    s = step(s, ticksUntilShot - 1);
+    expect(s.events.some(e => e.type === 'shot')).toBe(false); expect(s.run!.bullets).toHaveLength(0);
+    s = step(s);
+    expect(s.events.filter(e => e.type === 'shot')).toHaveLength(1);
+    expect(s.run!.shotCooldown).toBeCloseTo(remaining - ticksUntilShot * DT + 1 / speed, 12);
+  });
+  it('preserves firing-cycle progress through repeated paused purchases without a free burst', () => {
+    let s = funded(); s.run!.shotCooldown = .8;
+    s.run!.enemies = [enemy(s, 'ordinary', 8)]; s.run!.spawned = waveConfig(1).count;
+    s = setPaused(s, true);
+    for (let i = 0; i < 4; i++) s = buyRunUpgrade(s, 'attackSpeed');
+    expect(s.run!.shotCooldown).toBeCloseTo(.8 / 1.4, 12);
+    expect(s.run!.bullets).toHaveLength(0);
+    const json = serializeState(s);
+    s = parseState(json)!;
+    expect(serializeState(s)).toBe(json); expect(serializeState(step(s, 30000))).toBe(json);
+    s = step(setPaused(s, false), 17);
+    expect(s.events.some(e => e.type === 'shot')).toBe(false);
+    s = step(s); expect(s.events.filter(e => e.type === 'shot')).toHaveLength(1);
+  });
+  it('keeps an already-ready shot ready, without firing as a side effect of purchase', () => {
+    const s = funded(); s.run!.enemies = [enemy(s, 'ordinary', 8)];
+    const upgraded = buyRunUpgrade(s, 'attackSpeed');
+    expect(upgraded.run!.shotCooldown).toBe(0); expect(upgraded.run!.bullets).toHaveLength(0);
+    expect(step(upgraded).events.filter(e => e.type === 'shot')).toHaveLength(1);
+  });
+  it('uses new damage for the next shot while in-flight projectiles retain their captured damage', () => {
+    let s = funded(); s.run!.enemies = [enemy(s, 'ordinary', 8)]; s.run!.spawned = waveConfig(1).count;
+    s = step(s);
+    const bullet = structuredClone(s.run!.bullets[0]), remaining = s.run!.shotCooldown;
+    expect(bullet.damage).toBe(10);
+    s = buyRunUpgrade(s, 'damage');
+    expect(getStats(s).damage).toBe(12); expect(s.run!.bullets[0]).toEqual(bullet);
+    expect(s.run!.shotCooldown).toBe(remaining);
+    s = parseState(serializeState(s))!;
+    expect(s.run!.bullets[0]).toEqual(bullet);
+    s = step(s, 20);
+    expect(s.events.find(e => e.type === 'hit')).toMatchObject({ amount: 10 });
+    expect(s.run!.enemies[0].hp).toBe(10);
+    s = step(s, 10);
+    expect(s.events.filter(e => e.type === 'shot')).toHaveLength(1);
+    expect(s.run!.bullets[0].damage).toBe(12);
   });
 });
 
@@ -98,10 +187,10 @@ describe('deterministic combat and timing', () => {
     expect(waveConfig(30).count).toBe(1);
     expect(enemyStats('boss', 30)).toEqual({ maxHp: 624, damage: 42, speed: .7, attackInterval: 2, reward: 50 });
   });
-  it('warns for exactly half a second before spawn, at radius8–10', () => {
+  it('stages the first mech offscreen for half a second before it starts walking', () => {
     let s = step(startRun(createState(), 77));
     expect(s.run?.warnings).toHaveLength(1); expect(s.run?.enemies).toHaveLength(0);
-    const w = s.run!.warnings[0]; expect(Math.hypot(w.x, w.y)).toBeGreaterThanOrEqual(8); expect(Math.hypot(w.x, w.y)).toBeLessThanOrEqual(10);
+    const w = s.run!.warnings[0]; expect(isFullyOffscreen(w, s.run!.spawnGeometry!, w.kind)).toBe(true); expect(Math.hypot(w.x, w.y)).toBeGreaterThan(10);
     s = step(s, 14); expect(s.run?.enemies).toHaveLength(0);
     s = step(s); expect(s.run?.warnings).toHaveLength(0); expect(s.events.some(e => e.type === 'spawn' && e.id === w.id)).toBe(true);
   });
@@ -194,14 +283,76 @@ describe('boundaries, outcomes, and persistence', () => {
     expect(saved.run?.tick).toBe(s.run?.tick); expect(saved.run?.rngState).toBe(s.run?.rngState);
     expect(serializeState(step(setPaused(saved, false), 130))).toBe(serializeState(step(setPaused(s, false), 130)));
   });
+  it.each([
+    ['combat', false], ['combat', true], ['interwave', false], ['interwave', true],
+  ] as const)('activates already-paid legacy v1 upgrades safely during %s with paused=%s', (phase, paused) => {
+    let legacy = funded(300);
+    for (const k of STAT_KEYS) legacy = buyRunUpgrade(legacy, k);
+    if (phase === 'interwave') legacy = clearAtNextTick(legacy);
+    else {
+      legacy.run!.enemies = [enemy(legacy, 'ordinary', 8)];
+      legacy.run!.spawned = waveConfig(1).count;
+      legacy = step(legacy);
+      expect(legacy.run!.bullets[0].damage).toBe(12);
+    }
+    legacy = setPaused(legacy, paused);
+    const r = legacy.run!;
+    r.hp = 47.125; r.shotCooldown = .51;
+    // Reproduce the old release: currency spent and levels purchased, activation still pending.
+    for (const k of STAT_KEYS) { r.gold -= runPrice(k, r.levels[k]); r.levels[k]++; }
+    const json = serializeState(legacy), loaded = parseState(json)!;
+    expect(loaded).not.toBeNull(); expect(loaded.version).toBe(1);
+    expect(getStats(loaded)).toEqual({ damage: 14, maxHp: 140, attackSpeed: 1.2, regen: 1, range: 10 });
+    const expected = structuredClone(legacy); expected.events = [];
+    expected.run!.activeLevels = { ...r.levels }; expected.run!.shotCooldown *= 1.1 / 1.2;
+    expect(loaded).toEqual(expected);
+    expect(loaded.run!.gold).toBe(183); expect(loaded.run!.earnedGold).toBe(300);
+    expect(loaded.run!.hp).toBe(47.125); expect(loaded.run!.paused).toBe(paused);
+    expect(loaded.run!.bullets).toEqual(r.bullets);
+    const migrated = serializeState(loaded);
+    expect(serializeState(parseState(migrated)!)).toBe(migrated);
+    expect(serializeState(parseState(json)!)).toBe(migrated);
+    expect(serializeState(legacy)).toBe(json);
+    expect(step(setPaused(loaded, false)).run!.hp).toBeCloseTo(47.125 + DT, 12);
+  });
+  it('validates legacy saves before activating upgrades, so migration cannot legitimize invalid HP or projectiles', () => {
+    const legacy = funded(); legacy.run!.enemies = [enemy(legacy, 'ordinary', 8)];
+    const withBullet = step(legacy);
+    withBullet.run!.levels.maxHp = 1; withBullet.run!.levels.damage = 1;
+    const json = serializeState(withBullet), invalidHp = JSON.parse(json), invalidBullet = JSON.parse(json);
+    invalidHp.run.hp = 110; invalidBullet.run.bullets[0].damage = 12;
+    expect(parseState(JSON.stringify(invalidHp))).toBeNull();
+    expect(parseState(JSON.stringify(invalidBullet))).toBeNull();
+    expect(parseState(json)).not.toBeNull();
+  });
+  it('loads original v1 viewport-less saves and relocates only pending spawns, without changing RNG or live entities', () => {
+    const original = startRun(createState(), 100), r = original.run!;
+    r.enemies = [enemy(original, 'ordinary', 7)];
+    r.warnings = [{ id: `${r.id}:${r.nextEntityId++}`, kind: 'ordinary', x: 9, y: 0, remaining: .4, sector: 0 }];
+    r.spawned = 2;
+    delete r.spawnGeometry; delete r.nextArrival;
+    const loaded = parseState(serializeState(original))!;
+    expect(loaded).not.toBeNull(); expect(loaded.run!.enemies).toEqual(r.enemies);
+    expect(loaded.run!.rngState).toBe(r.rngState);
+    expect(isFullyOffscreen(loaded.run!.warnings[0], loaded.run!.spawnGeometry!, 'ordinary')).toBe(true);
+    expect(parseState(serializeState(loaded))).not.toBeNull();
+  });
+  it('rejects invalid projection data rather than silently replacing it', () => {
+    const s = startRun(createState());
+    expect(() => setSpawnGeometry(s, { horizontal: { x: 0, y: 0, height: 0, offset: 0 }, vertical: { x: 0, y: 0, height: 0, offset: 0 } })).toThrow();
+    const json = JSON.parse(serializeState(s)); json.run.spawnGeometry.horizontal.extra = true;
+    expect(parseState(JSON.stringify(json))).toBeNull();
+    expect(setSpawnGeometry(s, defaultSpawnGeometry())).toBe(s);
+  });
   it('rejects malformed, extra-field, non-finite, out-of-bounds and duplicate saves', () => {
     expect(parseState('{bad')).toBeNull(); expect(parseState('null')).toBeNull();
-    const valid = JSON.parse(serializeState(step(startRun(createState(), 66), 17)));
+    const fixture = startRun(createState(), 66); fixture.run!.enemies = [enemy(fixture, 'ordinary', 8)];
+    const valid = JSON.parse(serializeState(step(fixture)));
     const reject = (mutate: (s: any) => void) => { const s = structuredClone(valid); mutate(s); expect(parseState(JSON.stringify(s))).toBeNull(); };
     reject(s => s.profile.crystals = -1); reject(s => s.profile.meta.damage = 11);
     reject(s => s.run.hp = Infinity); reject(s => s.run.rngState = 0); reject(s => s.run.wave = 31);
     reject(s => s.run.levels.damage = 16); reject(s => s.run.extra = true); reject(s => s.run.enemies.push(s.run.enemies[0]));
-    reject(s => s.run.enemies[0].kind = 'boss'); reject(s => s.run.bullets[0].targetId = 'missing');
+    reject(s => s.run.enemies[0].kind = 'boss'); reject(s => s.run.enemies[0].x = WORLD_LIMIT + 1); reject(s => s.run.bullets[0].targetId = 'missing');
     reject(s => { s.run.kills = 2; s.run.paidKillIds = ['same', 'same']; });
   });
   it.each([1, 3, 17, 42, 2026])('known zero-meta strategy wins all30waves on seed %s', seed => {

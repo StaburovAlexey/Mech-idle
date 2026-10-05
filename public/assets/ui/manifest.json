@@ -1,0 +1,30 @@
+[
+  {
+    "file": "kenney-sci-fi/panel_glass_notches.png",
+    "source": "https://kenney.nl/assets/ui-pack-sci-fi",
+    "original": "PNG/Extra/Default/panel_glass_notches.png",
+    "license": "CC0-1.0",
+    "sha256": "a795f82da6da7bcc984f50d6550e31ea8224d4eb859d435faa0a7cd1647e156e"
+  },
+  {
+    "file": "kenney-sci-fi/bar_round_gloss_small.png",
+    "source": "https://kenney.nl/assets/ui-pack-sci-fi",
+    "original": "PNG/Blue/Default/bar_round_gloss_small.png",
+    "license": "CC0-1.0",
+    "sha256": "63a3c8127a0734418d8c3059ba77b83e6617a42fc7a3b592590b3f83f989df20"
+  },
+  {
+    "file": "kenney-ui/button_rectangle_depth_border.png",
+    "source": "https://kenney.nl/assets/ui-pack",
+    "original": "PNG/Blue/Default/button_rectangle_depth_border.png",
+    "license": "CC0-1.0",
+    "sha256": "19dd881d5c38d58e93db451152356a8ecb1375b247615d4e340b678233398b01"
+  },
+  {
+    "file": "kenney-ui/button_rectangle_depth_flat.png",
+    "source": "https://kenney.nl/assets/ui-pack",
+    "original": "PNG/Blue/Default/button_rectangle_depth_flat.png",
+    "license": "CC0-1.0",
+    "sha256": "6c709a45aae0330ffff5b060d9f14cc2297839f664e0a4c9e516d90ad085ec0b"
+  }
+]
