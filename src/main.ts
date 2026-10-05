@@ -1,5 +1,5 @@
 import './style.css';
-import {createState,startRun,step,setSpawnGeometry,buyRunUpgrade,buyMetaUpgrade,setPaused,getStats,calculateStats,runPrice,metaPrice,STAT_KEYS,RUN_CAP,META_CAP,DT,type GameState,type StatKey} from './game';
+import {createState,startRun,step,buyRunUpgrade,buyMetaUpgrade,setPaused,getStats,calculateStats,runPrice,metaPrice,STAT_KEYS,RUN_CAP,META_CAP,DT,type GameState,type StatKey} from './game';
 import {SceneView,type SceneFrame} from './scene';
 import {SaveRepository,PauseManager,TabLock} from './persistence';
 import {LocalPlatformAdapter} from './platform';
@@ -133,7 +133,6 @@ function frameForScene():SceneFrame{
 }
 function animate(now:number){
  const delta=Math.min((now-last)/1000,.15);last=now;
- if(scene&&state.run&&screen==='combat')state=setSpawnGeometry(state,scene.getSpawnGeometry());
  if(state.run&&screen==='combat'&&!pause.paused&&!fatal&&writable){
   state=setPaused(state,false);accumulator=Math.min(accumulator+delta,.15);
   let ticks=0;while(accumulator>=DT&&ticks<5&&state.run){state=step(state);accumulator-=DT;ticks++;

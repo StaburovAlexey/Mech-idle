@@ -1,5 +1,4 @@
-import { defaultSpawnGeometry, keepSpawnOffscreen, sameSpawnGeometry, spawnPoint, validSpawnGeometry, WORLD_LIMIT, type SpawnGeometry } from './spawnGeometry';
-export type { SpawnGeometry } from './spawnGeometry';
+import { clampToSpawnCircle, onSpawnCircle, SPAWN_RADIUS, spawnPoint, validSpawnGeometry, WORLD_LIMIT, type SpawnGeometry } from './spawnGeometry';
 /** Deterministic, fixed-step game simulation. No wall clock, browser, or renderer dependencies. */
 export const TICK_RATE = 30;
 export const DT = 1 / TICK_RATE;
@@ -21,6 +20,8 @@ export interface Run {
   shotCooldown: number; targetId: string | null; nextEntityId: number;
   lastSector: number; sectorStreak: number; paidKillIds: string[]; lastPaidWave: number;
   kills: number; earnedGold: number; earnedCrystals: number;
+  spawnMode?: 'circle';
+  /** Read only by the one-time migration of old viewport-based saves. */
   spawnGeometry?: SpawnGeometry; nextArrival?: number;
 }
 export interface RunResult { outcome: 'defeat' | 'victory'; runId: string; wave: number; completedWaves: number; kills: number; earnedGold: number; earnedCrystals: number; duration: number; finalStats: Stats }
@@ -77,26 +78,10 @@ export function startRun(state: GameState, seed = 1): GameState {
     gold: 0, levels: emptyLevels(), activeLevels: emptyLevels(), enemies: [], bullets: [], warnings: [], spawned: 0,
     spawnCooldown: 0, shotCooldown: 0, targetId: null, nextEntityId: 1,
     lastSector: -1, sectorStreak: 0, paidKillIds: [], lastPaidWave: 0, kills: 0, earnedGold: 0, earnedCrystals: 0,
-    spawnGeometry: defaultSpawnGeometry(), nextArrival: 0,
+    spawnMode: 'circle',
   };
   next.result = null;
   next.events = [{ type: 'waveStart', wave: 1 }];
-  return next;
-}
-/** Supply the actual full-canvas camera projection before advancing a run. Existing
- * enemies retain their positions; only unspawned warnings move outward on resize. */
-export function setSpawnGeometry(state: GameState, geometry: SpawnGeometry): GameState {
-  if (!validSpawnGeometry(geometry)) throw new Error('Invalid spawn geometry');
-  if (!state.run || state.run.spawnGeometry && sameSpawnGeometry(state.run.spawnGeometry, geometry)) return state;
-  const next = clone(state), r = next.run!;
-  r.spawnGeometry = clone(geometry);
-  for (const warning of r.warnings) {
-    const point = keepSpawnOffscreen(warning, geometry, warning.kind);
-    warning.x = point.x; warning.y = point.y;
-  }
-  // A larger viewport can lengthen an existing approach. New arrivals must not pile
-  // up behind it, but movement speed and positions of live enemies never change.
-  r.nextArrival = Math.max(r.nextArrival ?? 0, ...r.warnings.map(w => r.phaseTime + w.remaining + Math.max(0, Math.hypot(w.x, w.y) - getStats(next).range) / enemyStats(w.kind, r.wave).speed + waveConfig(r.wave).interval));
   return next;
 }
 /** Activates purchased levels without healing, firing, or changing existing projectiles. */
@@ -140,35 +125,15 @@ function newId(run: Run): string { return `${run.id}:${run.nextEntityId++}`; }
 function queueSpawn(state: GameState): void {
   const r = state.run!, config = waveConfig(r.wave);
   let sector = Math.floor(random(r) * 12);
-  // Open each wave at one of the two nearest canvas edges. This gets action on
-  // screen promptly in portrait; later entries still cover all twelve segments.
-  if (r.spawned === 0) {
-    const geometry = r.spawnGeometry ?? defaultSpawnGeometry();
-    const nearestEdges = [1, 4, 7, 10].sort((a, b) => {
-      const p = spawnPoint(geometry, config.boss ? 'boss' : 'ordinary', a, .5), q = spawnPoint(geometry, config.boss ? 'boss' : 'ordinary', b, .5);
-      return Math.hypot(p.x, p.y) - Math.hypot(q.x, q.y);
-    });
-    sector = nearestEdges[sector < 6 ? 0 : 1];
-    if (sector === r.lastSector && r.sectorStreak >= 2) sector = nearestEdges.slice(0, 2).find(candidate => candidate !== r.lastSector)!;
-  }
   if (sector === r.lastSector && r.sectorStreak >= 2) sector = (sector + 1 + Math.floor(random(r) * 11)) % 12;
   r.sectorStreak = sector === r.lastSector ? r.sectorStreak + 1 : 1;
   r.lastSector = sector;
   const kind: EnemyKind = config.boss ? 'boss' : config.fastEvery > 0 && (r.spawned + 1) % config.fastEvery === 0 ? 'fast' : 'ordinary';
-  const along = random(r);
-  const point = spawnPoint(r.spawnGeometry ?? defaultSpawnGeometry(), kind, sector, r.spawned === 0 ? .4 + along * .2 : along);
-  const approachTicks = Math.max(0, Math.ceil((Math.hypot(point.x, point.y) - getStats(state).range) / (enemyStats(kind, r.wave).speed * DT) - 1e-9));
-  // Movement already runs on the materialization tick.
-  const approach = Math.max(0, approachTicks - 1) * DT;
-  // Preserve spacing at the actual attack perimeter, rather than letting a nearby
-  // fast unit coincide with a previously dispatched, distant portrait-edge unit.
-  // Staging happens entirely offscreen; once created, every mech walks at base speed.
-  const remaining = Math.max(15, Math.ceil(((r.nextArrival ?? 0) - r.phaseTime - approach) / DT - 1e-9)) * DT;
-  const warning: Warning = { id: newId(r), kind, ...point, remaining, sector };
+  const point = spawnPoint((sector + random(r)) * Math.PI / 6);
+  const warning: Warning = { id: newId(r), kind, ...point, remaining: .5, sector };
   r.warnings.push(warning);
   r.spawned++;
   r.spawnCooldown = config.interval + (random(r) * 2 - 1) * config.jitter;
-  r.nextArrival = r.phaseTime + remaining + approach + Math.ceil(r.spawnCooldown / DT - 1e-9) * DT;
   state.events.push({ type: 'warning', id: warning.id, kind, x: warning.x, y: warning.y });
 }
 function endRun(state: GameState, outcome: 'defeat' | 'victory'): void {
@@ -188,19 +153,17 @@ function advanceTick(state: GameState): void {
     // Healing continues in the mandatory two-second rest; fractional healing is retained.
     heal(state, stats);
     if (r.phaseTime + 1e-9 >= 2) {
-      r.wave++; r.phase = 'combat'; r.phaseTime = 0; r.spawned = 0; r.spawnCooldown = 0; r.shotCooldown = 0; r.nextArrival = 0;
+      r.wave++; r.phase = 'combat'; r.phaseTime = 0; r.spawned = 0; r.spawnCooldown = 0; r.shotCooldown = 0;
       state.events.push({ type: 'waveStart', wave: r.wave });
     }
     return;
   }
-  // Offscreen staging ages before new warnings are queued, guaranteeing at least 0.5s.
+  // Existing warnings age before new ones are queued, guaranteeing the full 0.5s.
   for (const w of r.warnings) w.remaining -= DT;
   const ready = r.warnings.filter(w => w.remaining <= 1e-9);
   r.warnings = r.warnings.filter(w => w.remaining > 1e-9);
   for (const w of ready) {
     const s = enemyStats(w.kind, r.wave);
-    const point = keepSpawnOffscreen(w, r.spawnGeometry ?? defaultSpawnGeometry(), w.kind);
-    w.x = point.x; w.y = point.y;
     r.enemies.push({ id: w.id, kind: w.kind, x: w.x, y: w.y, hp: s.maxHp, maxHp: s.maxHp, damage: s.damage, speed: s.speed, attackInterval: s.attackInterval, attackCooldown: 0 });
     state.events.push({ type: 'spawn', id: w.id, kind: w.kind, x: w.x, y: w.y });
   }
@@ -290,10 +253,31 @@ export function parseState(json: string): GameState | null {
     // Activate them once, preserving HP, currency, projectiles, and firing-cycle progress.
     if (state.run) applyRunLevels(state);
     state.events = [];
-    // Original v1 snapshots have no viewport data. Preserve all live entities, but
-    // re-stage any old radius8–10 warnings beyond the default portrait viewport.
-    return state.run && !state.run.spawnGeometry ? setSpawnGeometry(state, defaultSpawnGeometry()) : state;
+    if (state.run && state.run.spawnMode !== 'circle') migrateCircleSpawns(state.run);
+    // Check the migrated shape too; malformed legacy data cannot become a new save.
+    return validateState(state) ? state : null;
   } catch { return null; }
+}
+/** Remove the retired offscreen arrival schedule once, without replaying rewards.
+ * Keep the oldest warning; recycle later unmaterialized slots through normal cadence.
+ * Canceled warning IDs stay consumed, and neither RNG nor the reward ledger changes. */
+function migrateCircleSpawns(run: Run): void {
+  if (run.warnings.length) {
+    const first = run.warnings.reduce((a, b) => Number(a.id.split(':').pop()) < Number(b.id.split(':').pop()) ? a : b);
+    run.spawned -= run.warnings.length - 1;
+    const point = onSpawnCircle(first);
+    first.x = point.x; first.y = point.y; first.remaining = Math.min(.5, first.remaining);
+    run.warnings = [first];
+    // The next materialization follows this one by a normal interval, including
+    // when the retained warning was already partly through its half-second timer.
+    run.spawnCooldown = waveConfig(run.wave).interval + first.remaining - .5;
+  }
+  for (const entity of [...run.enemies, ...run.bullets]) {
+    const point = clampToSpawnCircle(entity);
+    entity.x = point.x; entity.y = point.y;
+  }
+  delete run.spawnGeometry; delete run.nextArrival;
+  run.spawnMode = 'circle';
 }
 const object = (v: unknown): v is Record<string, any> => !!v && typeof v === 'object' && !Array.isArray(v);
 const num = (v: unknown, min = 0, max = 1e9): v is number => typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max;
@@ -313,15 +297,17 @@ export function validateState(value: unknown): value is GameState {
   if (value.run === null) return true;
   if (value.result !== null) return false;
   const r = value.run;
-  if (!object(r) || !keys(r, ['id','seed','rngState','wave','phase','paused','time','tick','phaseTime','hp','gold','levels','activeLevels','enemies','bullets','warnings','spawned','spawnCooldown','shotCooldown','targetId','nextEntityId','lastSector','sectorStreak','paidKillIds','lastPaidWave','kills','earnedGold','earnedCrystals', ...(Object.hasOwn(r, 'spawnGeometry') ? ['spawnGeometry'] : []), ...(Object.hasOwn(r, 'nextArrival') ? ['nextArrival'] : [])])) return false;
+  if (!object(r) || !keys(r, ['id','seed','rngState','wave','phase','paused','time','tick','phaseTime','hp','gold','levels','activeLevels','enemies','bullets','warnings','spawned','spawnCooldown','shotCooldown','targetId','nextEntityId','lastSector','sectorStreak','paidKillIds','lastPaidWave','kills','earnedGold','earnedCrystals', ...(Object.hasOwn(r, 'spawnMode') ? ['spawnMode'] : []), ...(Object.hasOwn(r, 'spawnGeometry') ? ['spawnGeometry'] : []), ...(Object.hasOwn(r, 'nextArrival') ? ['nextArrival'] : [])])) return false;
+  const circle = Object.hasOwn(r, 'spawnMode');
+  if (circle && (r.spawnMode !== 'circle' || Object.hasOwn(r, 'spawnGeometry') || Object.hasOwn(r, 'nextArrival'))) return false;
   if (Object.hasOwn(r, 'spawnGeometry') !== Object.hasOwn(r, 'nextArrival')) return false;
   if (Object.hasOwn(r, 'spawnGeometry') && !validSpawnGeometry(r.spawnGeometry) || Object.hasOwn(r, 'nextArrival') && !num(r.nextArrival, 0, 1e7)) return false;
   if (!str(r.id) || r.id !== `run-${p.runCounter}-${r.seed}` || !int(r.seed,1,0xffffffff) || !int(r.rngState,1,0xffffffff) || !int(r.wave,1,30) || !['combat','interwave'].includes(r.phase) || typeof r.paused !== 'boolean' || !num(r.time,0,1e7) || !int(r.tick,0,3e8) || Math.abs(r.time-r.tick*DT)>1e-6 || !num(r.phaseTime,0,1e7) || !validLevels(r.levels,RUN_CAP) || !validLevels(r.activeLevels,RUN_CAP) || STAT_KEYS.some(k=>r.activeLevels[k]>r.levels[k])) return false;
   const stats = calculateStats(p.meta,r.activeLevels);
   if (!num(r.hp,Number.MIN_VALUE,stats.maxHp + 1e-6) || !int(r.gold,0,4000) || !int(r.spawned,0,waveConfig(r.wave).count) || !num(r.spawnCooldown,-1e7,1.71) || !num(r.shotCooldown,0,1.01) || !int(r.nextEntityId,1,100000) || !int(r.lastSector,-1,11) || !int(r.sectorStreak,0,2) || !int(r.lastPaidWave,0,29) || !int(r.kills,0,1000) || !int(r.earnedGold,0,4000) || !int(r.earnedCrystals,0,29) || r.lastPaidWave!==r.earnedCrystals || r.gold>r.earnedGold || r.lastPaidWave !== (r.phase === 'combat' ? r.wave-1 : r.wave) || (r.phase === 'interwave' && (r.wave===30 || r.phaseTime>=2.000001))) return false;
-  if (!Array.isArray(r.enemies) || r.enemies.length>30 || !Array.isArray(r.warnings) || r.warnings.length>30 || !Array.isArray(r.bullets) || r.bullets.length>100 || !Array.isArray(r.paidKillIds) || r.paidKillIds.length!==r.kills || new Set(r.paidKillIds).size!==r.paidKillIds.length) return false;
+  if (!Array.isArray(r.enemies) || r.enemies.length>30 || !Array.isArray(r.warnings) || r.warnings.length>(circle ? 1 : 30) || r.warnings.length>r.spawned || !Array.isArray(r.bullets) || r.bullets.length>100 || !Array.isArray(r.paidKillIds) || r.paidKillIds.length!==r.kills || new Set(r.paidKillIds).size!==r.paidKillIds.length) return false;
   const validId = (id: unknown): id is string => str(id) && id.startsWith(`${r.id}:`) && /^[1-9]\d*$/.test(id.slice(r.id.length+1)) && int(Number(id.slice(r.id.length+1)),1,r.nextEntityId-1);
-  const positionLimit = r.spawnGeometry ? WORLD_LIMIT : 10.000001;
+  const positionLimit = circle ? SPAWN_RADIUS + 1e-6 : r.spawnGeometry ? WORLD_LIMIT : 10.000001;
   const position = (e: Record<string, any>) => num(e.x,-positionLimit,positionLimit) && num(e.y,-positionLimit,positionLimit) && Math.hypot(e.x,e.y)<=positionLimit;
   const validKind = (kind: any) => ['ordinary','fast','boss'].includes(kind) && (r.wave===30 ? kind==='boss' : kind!=='boss') && (kind!=='fast'||r.wave>=4);
   if (!r.paidKillIds.every(validId)) return false;
@@ -333,7 +319,7 @@ export function validateState(value: unknown): value is GameState {
     if (e.maxHp!==base.maxHp || e.damage!==base.damage || e.speed!==base.speed || e.attackInterval!==base.attackInterval || !num(e.hp,Number.MIN_VALUE,e.maxHp) || !num(e.attackCooldown,0,2)) return false;
   }
   for (const w of r.warnings) {
-    if (!object(w) || !keys(w,['id','kind','x','y','remaining','sector']) || !validId(w.id) || ids.has(w.id) || !validKind(w.kind) || !position(w) || Math.hypot(w.x,w.y)<7.999999 || !num(w.remaining,Number.MIN_VALUE,r.spawnGeometry ? 1e6 : .5) || !int(w.sector,0,11)) return false;
+    if (!object(w) || !keys(w,['id','kind','x','y','remaining','sector']) || !validId(w.id) || ids.has(w.id) || !validKind(w.kind) || !position(w) || Math.hypot(w.x,w.y)<7.999999 || (circle && Math.abs(Math.hypot(w.x,w.y) - SPAWN_RADIUS)>1e-6) || !num(w.remaining,Number.MIN_VALUE,r.spawnGeometry ? 1e6 : .5) || !int(w.sector,0,11)) return false;
     ids.add(w.id);
   }
   for (const b of r.bullets) {

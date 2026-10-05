@@ -1,10 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { defaultSpawnGeometry, isFullyOffscreen, WORLD_LIMIT } from './spawnGeometry';
+import { SPAWN_RADIUS, WORLD_LIMIT, type SpawnGeometry } from './spawnGeometry';
 import {
-  DT, STAT_KEYS, createState, startRun, step, setPaused, setSpawnGeometry, buyRunUpgrade, buyMetaUpgrade,
+  DT, STAT_KEYS, createState, startRun, step, setPaused, buyRunUpgrade, buyMetaUpgrade,
   runPrice, metaPrice, getStats, enemyStats, waveConfig, serializeState, parseState,
   type GameState, type Enemy, type StatKey,
 } from './game';
+
+function legacyGeometry(): SpawnGeometry {
+  return { horizontal: { x: .1, y: 0, height: 0, offset: 0 }, vertical: { x: 0, y: .1, height: .03, offset: 0 } };
+}
 
 function funded(gold = 1000): GameState {
   const s = startRun(createState(), 123); s.run!.gold = gold; s.run!.earnedGold = gold; return s;
@@ -187,10 +191,10 @@ describe('deterministic combat and timing', () => {
     expect(waveConfig(30).count).toBe(1);
     expect(enemyStats('boss', 30)).toEqual({ maxHp: 624, damage: 42, speed: .7, attackInterval: 2, reward: 50 });
   });
-  it('stages the first mech offscreen for half a second before it starts walking', () => {
+  it('shows a warning on the radius12 circle for half a second before the mech walks', () => {
     let s = step(startRun(createState(), 77));
     expect(s.run?.warnings).toHaveLength(1); expect(s.run?.enemies).toHaveLength(0);
-    const w = s.run!.warnings[0]; expect(isFullyOffscreen(w, s.run!.spawnGeometry!, w.kind)).toBe(true); expect(Math.hypot(w.x, w.y)).toBeGreaterThan(10);
+    const w = s.run!.warnings[0]; expect(Math.hypot(w.x, w.y)).toBeCloseTo(SPAWN_RADIUS, 12); expect(w.remaining).toBe(.5);
     s = step(s, 14); expect(s.run?.enemies).toHaveLength(0);
     s = step(s); expect(s.run?.warnings).toHaveLength(0); expect(s.events.some(e => e.type === 'spawn' && e.id === w.id)).toBe(true);
   });
@@ -325,24 +329,129 @@ describe('boundaries, outcomes, and persistence', () => {
     expect(parseState(JSON.stringify(invalidBullet))).toBeNull();
     expect(parseState(json)).not.toBeNull();
   });
-  it('loads original v1 viewport-less saves and relocates only pending spawns, without changing RNG or live entities', () => {
+  it('loads original v1 saves onto the circle without changing RNG or nearby live entities', () => {
     const original = startRun(createState(), 100), r = original.run!;
     r.enemies = [enemy(original, 'ordinary', 7)];
     r.warnings = [{ id: `${r.id}:${r.nextEntityId++}`, kind: 'ordinary', x: 9, y: 0, remaining: .4, sector: 0 }];
     r.spawned = 2;
-    delete r.spawnGeometry; delete r.nextArrival;
+    delete r.spawnMode; delete r.spawnGeometry; delete r.nextArrival;
     const loaded = parseState(serializeState(original))!;
     expect(loaded).not.toBeNull(); expect(loaded.run!.enemies).toEqual(r.enemies);
     expect(loaded.run!.rngState).toBe(r.rngState);
-    expect(isFullyOffscreen(loaded.run!.warnings[0], loaded.run!.spawnGeometry!, 'ordinary')).toBe(true);
+    expect(loaded.run!.warnings[0]).toMatchObject({ x: 12, y: 0, remaining: .4 });
+    expect(loaded.run!.spawnMode).toBe('circle'); expect(loaded.run!.spawnGeometry).toBeUndefined();
     expect(parseState(serializeState(loaded))).not.toBeNull();
   });
-  it('rejects invalid projection data rather than silently replacing it', () => {
-    const s = startRun(createState());
-    expect(() => setSpawnGeometry(s, { horizontal: { x: 0, y: 0, height: 0, offset: 0 }, vertical: { x: 0, y: 0, height: 0, offset: 0 } })).toThrow();
-    const json = JSON.parse(serializeState(s)); json.run.spawnGeometry.horizontal.extra = true;
-    expect(parseState(JSON.stringify(json))).toBeNull();
-    expect(setSpawnGeometry(s, defaultSpawnGeometry())).toBe(s);
+  it.each([false, true])('removes long legacy staging once, preserving state and exact wave rewards with paused=%s', paused => {
+    const legacy = startRun(createState(), 771), r = legacy.run!;
+    delete r.spawnMode; r.spawnGeometry = legacyGeometry(); r.nextArrival = 130;
+    legacy.profile.meta.damage = 10; legacy.profile.meta.attackSpeed = 10;
+    r.paused = paused; r.hp = 76.25; r.phaseTime = 18; r.tick = 540; r.time = 18;
+    const paid = `${r.id}:${r.nextEntityId++}`;
+    r.paidKillIds = [paid]; r.kills = 1; r.gold = 3; r.earnedGold = 3;
+    const near = enemy(legacy, 'ordinary', 7, 10), far = enemy(legacy, 'ordinary', 40);
+    near.attackCooldown = .75; far.attackCooldown = 1.25;
+    r.enemies = [near, far]; r.targetId = near.id; r.shotCooldown = .4;
+    const bullet = { id: `${r.id}:${r.nextEntityId++}`, targetId: near.id, x: 5, y: 0, damage: 20, speed: 16 };
+    r.bullets = [bullet];
+    const warnings = [20, 50, 80].map((remaining, sector) => ({ id: `${r.id}:${r.nextEntityId++}`, kind: 'ordinary' as const, x: 20 + sector, y: -30, remaining, sector }));
+    r.warnings = [warnings[2], warnings[0], warnings[1]]; r.spawned = 6;
+    const before = serializeState(legacy), restored = parseState(before)!;
+    expect(restored).not.toBeNull(); const migrated = restored.run!;
+    expect(migrated.paused).toBe(paused); expect(migrated.hp).toBe(76.25);
+    expect(migrated.tick).toBe(540); expect(migrated.time).toBe(18); expect(migrated.phaseTime).toBe(18);
+    expect(migrated.rngState).toBe(r.rngState); expect(migrated.nextEntityId).toBe(r.nextEntityId);
+    expect(migrated.enemies[0]).toEqual(near);
+    expect(migrated.enemies[1]).toEqual({ ...far, x: 12, y: 0 });
+    expect(migrated.bullets).toEqual([bullet]); expect(migrated.targetId).toBe(near.id); expect(migrated.shotCooldown).toBe(.4);
+    expect(migrated.gold).toBe(3); expect(migrated.earnedGold).toBe(3); expect(migrated.paidKillIds).toEqual([paid]);
+    expect(migrated.warnings).toHaveLength(1); expect(migrated.warnings[0]).toMatchObject({ id: warnings[0].id, kind: 'ordinary', remaining: .5 });
+    expect(Math.hypot(migrated.warnings[0].x, migrated.warnings[0].y)).toBeCloseTo(12, 12);
+    expect(migrated.warnings[0].x / migrated.warnings[0].y).toBeCloseTo(warnings[0].x / warnings[0].y, 12);
+    expect(migrated.spawned).toBe(4); expect(migrated.spawnCooldown).toBe(1.5);
+    expect(migrated.spawnGeometry).toBeUndefined(); expect(migrated.nextArrival).toBeUndefined(); expect(restored.events).toEqual([]);
+    const migratedJson = serializeState(restored);
+    expect(serializeState(parseState(migratedJson)!)).toBe(migratedJson);
+    expect(serializeState(parseState(before)!)).toBe(migratedJson);
+    expect(serializeState(legacy)).toBe(before);
+    let playing = setPaused(restored, false), spawnTimes: number[] = [], spawnIds: string[] = [];
+    while (playing.run!.phase === 'combat' && playing.run!.tick < 3000) {
+      playing = step(playing);
+      for (const event of playing.events) if (event.type === 'spawn') { spawnTimes.push(playing.run!.tick); spawnIds.push(event.id); }
+      expect(playing.run!.warnings.every(w => w.remaining <= .5)).toBe(true);
+    }
+    expect(playing.run!.phase).toBe('interwave'); expect(playing.run!.spawned).toBe(6);
+    expect(spawnTimes).toHaveLength(3); expect((spawnTimes[1] - spawnTimes[0]) * DT).toBeCloseTo(1.5, 12);
+    expect(spawnIds).toContain(warnings[0].id); expect(spawnIds).not.toContain(warnings[1].id); expect(spawnIds).not.toContain(warnings[2].id);
+    expect(spawnIds.slice(1).every(id => Number(id.split(':').pop()) >= r.nextEntityId)).toBe(true);
+    expect(playing.run!.kills).toBe(6); expect(new Set(playing.run!.paidKillIds).size).toBe(6);
+    expect(playing.run!.gold).toBe(18); expect(playing.run!.earnedGold).toBe(18);
+    expect(playing.profile.crystals).toBe(1); expect(playing.run!.earnedCrystals).toBe(1);
+    expect(step(parseState(serializeState(playing))!, 30).profile.crystals).toBe(1);
+  });
+  it('migrates a long-staged final boss and awards only its50 gold and final crystal', () => {
+    const legacy = startRun(createState(), 314), r = legacy.run!;
+    delete r.spawnMode; r.spawnGeometry = legacyGeometry(); r.nextArrival = 140;
+    r.wave = 30; r.lastPaidWave = 29; r.earnedCrystals = 29; legacy.profile.crystals = 29;
+    legacy.profile.meta.damage = 10; legacy.profile.meta.attackSpeed = 10;
+    r.levels.damage = 15; r.activeLevels.damage = 15; r.levels.attackSpeed = 15; r.activeLevels.attackSpeed = 15;
+    const id = `${r.id}:${r.nextEntityId++}`;
+    r.warnings = [{ id, kind: 'boss', x: 0, y: -50, remaining: 100, sector: 9 }]; r.spawned = 1;
+    const migrated = parseState(serializeState(legacy))!;
+    expect(migrated.run!.warnings).toEqual([{ id, kind: 'boss', x: 0, y: -12, remaining: .5, sector: 9 }]);
+    expect(migrated.run!.spawned).toBe(1); expect(migrated.run!.earnedCrystals).toBe(29);
+    const final = step(migrated, 600);
+    expect(final.result).toMatchObject({ outcome: 'victory', wave: 30, completedWaves: 30, kills: 1, earnedGold: 50, earnedCrystals: 30 });
+    expect(final.profile.crystals).toBe(30); expect(final.run).toBeNull();
+    const restored = parseState(serializeState(final))!;
+    expect(serializeState(step(restored, 600))).toBe(serializeState(restored));
+  });
+  it('clamps distant legacy projectiles along their existing direction without changing their damage or target', () => {
+    const legacy = startRun(createState(), 41), r = legacy.run!;
+    delete r.spawnMode; r.spawnGeometry = legacyGeometry(); r.nextArrival = 35;
+    const target = enemy(legacy, 'ordinary', 30); r.enemies = [target]; r.spawned = 1;
+    const bullet = { id: `${r.id}:${r.nextEntityId++}`, targetId: target.id, x: 18, y: 24, damage: 10, speed: 16 };
+    r.bullets = [bullet];
+    const loaded = parseState(serializeState(legacy))!;
+    expect(loaded.run!.bullets[0]).toMatchObject({ id: bullet.id, targetId: bullet.targetId, damage: 10, speed: 16 });
+    expect(Math.hypot(loaded.run!.bullets[0].x, loaded.run!.bullets[0].y)).toBeCloseTo(12, 12);
+    expect(loaded.run!.bullets[0].x / loaded.run!.bullets[0].y).toBeCloseTo(.75, 12);
+    expect(loaded.run!.spawnCooldown).toBe(r.spawnCooldown); expect(loaded.run!.rngState).toBe(r.rngState);
+  });
+  it('migrates an already-paid interwave save without replaying its crystal or changing the rest timer', () => {
+    const legacy = clearAtNextTick(startRun(createState(), 13)), r = legacy.run!;
+    delete r.spawnMode; r.spawnGeometry = legacyGeometry(); r.nextArrival = 100;
+    r.phaseTime = 1; r.tick = 400; r.time = r.tick * DT;
+    const loaded = parseState(serializeState(legacy))!;
+    expect(loaded.profile.crystals).toBe(1); expect(loaded.run!.phaseTime).toBe(1);
+    expect(loaded.run!.earnedCrystals).toBe(1); expect(loaded.run!.lastPaidWave).toBe(1);
+    const continued = step(loaded, 30);
+    expect(continued.run!.wave).toBe(2); expect(continued.profile.crystals).toBe(1);
+  });
+  it('rejects malformed legacy projection data before removing retired fields', () => {
+    const legacy = startRun(createState()); delete legacy.run!.spawnMode;
+    legacy.run!.spawnGeometry = legacyGeometry(); legacy.run!.nextArrival = 100;
+    const valid = JSON.parse(serializeState(legacy));
+    const reject = (mutate: (s: any) => void) => { const s = structuredClone(valid); mutate(s); expect(parseState(JSON.stringify(s))).toBeNull(); };
+    reject(s => s.run.spawnGeometry.horizontal.extra = true);
+    reject(s => s.run.spawnGeometry.horizontal.x = 0);
+    reject(s => s.run.spawnGeometry.horizontal.offset = .6);
+    reject(s => s.run.nextArrival = -1);
+    reject(s => delete s.run.nextArrival);
+    reject(s => s.run.spawnMode = 'circle');
+    const loaded = parseState(JSON.stringify(valid))!;
+    expect(loaded.run!.spawnMode).toBe('circle');
+    expect(loaded.run!.spawnGeometry).toBeUndefined(); expect(loaded.run!.nextArrival).toBeUndefined();
+  });
+  it('rejects circle saves containing long waits, distant units, or unknown spawn modes', () => {
+    const valid = JSON.parse(serializeState(step(startRun(createState(), 1))));
+    const reject = (mutate: (s: any) => void) => { const s = structuredClone(valid); mutate(s); expect(parseState(JSON.stringify(s))).toBeNull(); };
+    reject(s => s.run.warnings[0].remaining = .6);
+    reject(s => s.run.spawned = 0);
+    reject(s => { s.run.warnings[0].x = 11; s.run.warnings[0].y = 0; });
+    reject(s => { s.run.warnings[0].x = 13; s.run.warnings[0].y = 0; });
+    reject(s => s.run.spawnMode = 'screen');
+    reject(s => s.run.nextArrival = 100);
   });
   it('rejects malformed, extra-field, non-finite, out-of-bounds and duplicate saves', () => {
     expect(parseState('{bad')).toBeNull(); expect(parseState('null')).toBeNull();
@@ -360,5 +469,6 @@ describe('boundaries, outcomes, and persistence', () => {
     expect(s.result?.outcome).toBe('victory'); expect(s.result?.completedWaves).toBe(30);
     expect(s.profile.crystals).toBe(30); expect(s.result?.earnedCrystals).toBe(30); expect(s.run).toBeNull();
     expect(parseState(serializeState(s))?.result?.outcome).toBe('victory');
+    expect(s.result!.duration).toBeLessThan(20 * 60);
   }, 20000);
 });

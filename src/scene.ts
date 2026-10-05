@@ -1,6 +1,5 @@
 import * as THREE from 'three';
-import type { SpawnGeometry } from './spawnGeometry';
-import { arenaViewport, cameraSpawnGeometry, configureArenaCamera } from './viewport';
+import { arenaViewport, configureArenaCamera } from './viewport';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { createWastelandLayout, WASTELAND_LIMITS, type GroundPoint } from './decoration';
 
@@ -345,14 +344,11 @@ export class SceneView {
     const width = Math.max(1, bounds.width), height = Math.max(1, bounds.height);
     this.renderer.setSize(width, height, false);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
-    configureArenaCamera(this.camera);
     this.fieldViewport = arenaViewport(width, height);
+    configureArenaCamera(this.camera, this.fieldViewport.width, this.fieldViewport.height);
     // Camera depth changes must not change the visual fog over the central arena.
     (this.scene.fog as THREE.FogExp2).density = .31 / this.camera.position.distanceTo(new THREE.Vector3(0, .4, 0));
   }
-
-  /** Fixed field camera; canvas dimensions and DPR never affect the simulation. */
-  getSpawnGeometry(): SpawnGeometry { return cameraSpawnGeometry(this.camera); }
 
   private sparks(x: number, z: number, death: boolean) {
     const count = death ? 15 : 4;
@@ -443,7 +439,7 @@ export class SceneView {
       this.particleMesh.setColorAt(pIndex++, new THREE.Color(p.color)); return true;
     });
     this.particleMesh.count = pIndex; this.particleMesh.instanceMatrix.needsUpdate = true; if (this.particleMesh.instanceColor) this.particleMesh.instanceColor.needsUpdate = true;
-    // Clear the full transparent canvas, then render only the fixed-aspect field.
+    // Clear the canvas; phone scenes use its whole width, wide desktops are centered.
     // Scissoring prevents animated meshes from leaking into decorative side space.
     this.renderer.setScissorTest(false);
     this.renderer.clear();

@@ -11,12 +11,10 @@ const fakes = vi.hoisted(() => ({
   pause: null as null | { reasons: Set<string>; readonly paused: boolean },
 }));
 vi.mock('./scene', async () => {
-  const { defaultSpawnGeometry } = await import('./spawnGeometry');
   return { SceneView: class {
     constructor(root: HTMLElement) { root.append(document.createElement('canvas')); }
     render(frame: SceneFrame, delta: number) { fakes.render(frame, delta); }
     resize() {}
-    getSpawnGeometry() { return defaultSpawnGeometry(); }
   }};
 });
 vi.mock('./audio', () => ({
