@@ -1,12 +1,17 @@
 import * as THREE from 'three';
 import { arenaViewport, configureArenaCamera } from './viewport';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { createEnemyModel, type EnemyModel, type EnemyModelPart, type EnemyModelKind, type EnemyPartName } from './enemyModels';
+import { computeEnemyPose, type AttackPhase, type PartPose } from './enemyAnimation';
 import { createWastelandLayout, WASTELAND_LIMITS, type GroundPoint } from './decoration';
+import { createOuterScenery } from './outerScenery';
 
-export interface SceneEnemy { id: number | string; kind: 'normal' | 'fast' | 'boss'; x: number; y: number; hp: number; maxHp: number }
+export interface SceneEnemy { id: number | string; kind: EnemyModelKind; x: number; y: number; hp: number; maxHp: number; attackPhase?: AttackPhase; attackTime?: number; attackDuration?: number }
 export interface SceneFrame {
   enemies: SceneEnemy[];
   bullets: { id: number | string; x: number; y: number }[];
+  enemyProjectiles?: { id: number | string; sourceId?: string; x: number; y: number }[];
+  paused?: boolean;
   target: { x: number; y: number } | null;
   turretHPfraction: number;
   warnings?: { x: number; y: number }[];
@@ -18,9 +23,11 @@ export interface SceneFrame {
 type Kind = SceneEnemy['kind'];
 type Piece = { g: THREE.BufferGeometry; color: THREE.ColorRepresentation; p?: number[]; r?: number[]; s?: number[] };
 type Particle = { x: number; y: number; z: number; vx: number; vy: number; vz: number; life: number; max: number; color: number };
-type UnitBatch = { body: THREE.InstancedMesh; leftLeg: THREE.InstancedMesh; rightLeg: THREE.InstancedMesh; leftArm: THREE.InstancedMesh; rightArm: THREE.InstancedMesh; glow: THREE.InstancedMesh; count: number; scale: number; hips: number; shoulders: number };
+type UnitPartBatch = { definition: EnemyModelPart; mesh: THREE.InstancedMesh; world: THREE.Matrix4 };
+type UnitBatch = { model: EnemyModel; parts: UnitPartBatch[]; byName: Partial<Record<EnemyPartName, UnitPartBatch>>; count: number };
 const C = { cream: 0xe8dbc0, creamLight: 0xf8ecd4, teal: 0x21666a, tealLight: 0x398c8c, cyan: 0x40eeff, charcoal: 0x343d40, dark: 0x1c292e, black: 0x151e21, steel: 0x637075, red: 0xd04d3c, redLight: 0xf47754, amber: 0xffbb43, hazard: 0xdcae43 };
-const MAX_UNITS = 50;
+const MAX_UNITS = 24;
+const MAX_ENEMY_PROJECTILES = 32;
 const MAX_BULLETS = 80;
 const MAX_PARTICLES = 100;
 const v3 = new THREE.Vector3();
@@ -77,7 +84,7 @@ export class SceneView {
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.OrthographicCamera(-16, 16, 10, -10, .1, 2000);
   private container: HTMLElement;
-  private material = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: .28, roughness: .78, flatShading: true });
+  private material = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: .34, roughness: .68, flatShading: true });
   private glowMaterial = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false });
   private turretHead = new THREE.Group();
   private turretGlow = new THREE.Group();
@@ -85,6 +92,8 @@ export class SceneView {
   private flash: THREE.Mesh;
   private batches = {} as Record<Kind, UnitBatch>;
   private bulletMesh: THREE.InstancedMesh;
+  private enemyProjectileMesh: THREE.InstancedMesh;
+  private impactMesh: THREE.InstancedMesh;
   private shadowMesh: THREE.InstancedMesh;
   private particleMesh: THREE.InstancedMesh;
   private warningMesh: THREE.InstancedMesh;
@@ -108,7 +117,7 @@ export class SceneView {
   private allTextures = new Set<THREE.Texture>();
   private showcase: SceneEnemy[] = [
     { id: 'show-a', kind: 'normal', x: -5.5, y: 3.7, hp: 100, maxHp: 100 },
-    { id: 'show-b', kind: 'normal', x: 5.8, y: -2.8, hp: 100, maxHp: 100 },
+    { id: 'show-b', kind: 'ranged', x: 5.8, y: -2.8, hp: 100, maxHp: 100 },
     { id: 'show-c', kind: 'fast', x: 3.3, y: 5.9, hp: 60, maxHp: 60 },
     { id: 'show-d', kind: 'boss', x: -4.7, y: -6.1, hp: 300, maxHp: 300 },
   ];
@@ -138,9 +147,17 @@ export class SceneView {
     this.barrel = this.buildTurret();
     this.flash = new THREE.Mesh(new THREE.OctahedronGeometry(.24, 0), new THREE.MeshBasicMaterial({ color: 0xfff1ad, toneMapped: false, transparent: true, opacity: 1 }));
     this.flash.position.set(0, 1.66, 2.36); this.flash.scale.set(1, 1, 2.8); this.flash.visible = false; this.turretHead.add(this.flash);
-    (['normal', 'fast', 'boss'] as Kind[]).forEach(kind => this.batches[kind] = this.buildMech(kind));
+    (['normal', 'fast', 'ranged', 'boss'] as Kind[]).forEach(kind => this.batches[kind] = this.buildMech(kind));
     this.bulletMesh = this.instances(new THREE.SphereGeometry(.065, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffe69b, toneMapped: false }), MAX_BULLETS);
-    this.shadowMesh = this.instances(new THREE.CircleGeometry(.66, 24), new THREE.MeshBasicMaterial({ color: 0x0a151b, transparent: true, opacity: .24, depthWrite: false }), MAX_UNITS + 5);
+    this.enemyProjectileMesh = this.instances(new THREE.SphereGeometry(.105, 6, 4), new THREE.MeshBasicMaterial({ color: 0xff5e31, toneMapped: false }), MAX_ENEMY_PROJECTILES);
+    this.impactMesh = this.instances(ring(.65, .77, 24), new THREE.MeshBasicMaterial({ color: 0xffac39, transparent: true, opacity: .76, depthWrite: false, toneMapped: false }), MAX_UNITS);
+    const shadowCanvas = document.createElement('canvas'); shadowCanvas.width = shadowCanvas.height = 32;
+    const shadowContext = shadowCanvas.getContext('2d')!;
+    const gradient = shadowContext.createRadialGradient(16, 16, 2, 16, 16, 16);
+    gradient.addColorStop(0, 'rgba(0,0,0,.75)'); gradient.addColorStop(.45, 'rgba(0,0,0,.45)'); gradient.addColorStop(1, 'rgba(0,0,0,0)');
+    shadowContext.fillStyle = gradient; shadowContext.fillRect(0, 0, 32, 32);
+    const shadowTexture = new THREE.CanvasTexture(shadowCanvas); this.allTextures.add(shadowTexture);
+    this.shadowMesh = this.instances(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: shadowTexture, transparent: true, opacity: .57, depthWrite: false }), MAX_UNITS);
     this.shadowMesh.geometry.rotateX(-Math.PI / 2);
     this.particleMesh = this.instances(new THREE.OctahedronGeometry(.10, 0), new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }), MAX_PARTICLES);
     this.warningMesh = this.instances(ring(.48, .52, 32), new THREE.MeshBasicMaterial({ color: 0xff7352, transparent: true, opacity: .75, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }), 32);
@@ -164,6 +181,7 @@ export class SceneView {
     const mesh = new THREE.InstancedMesh(g, material, n); mesh.count = 0; mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); mesh.frustumCulled = false; this.scene.add(mesh); return mesh;
   }
   private buildArena() {
+    this.scene.add(createOuterScenery());
     const layout = createWastelandLayout();
     const surfaces: Piece[] = [], rubble: Piece[] = [], vegetation: Piece[] = [];
     // Ground meshes use matte earth colors, preserving the turquoise / red unit contrast.
@@ -273,69 +291,19 @@ export class SceneView {
   }
 
   private buildMech(kind: Kind): UnitBatch {
-    const fast = kind === 'fast', boss = kind === 'boss';
-    const scale = boss ? 1.48 : fast ? .77 : 1;
-    const width = boss ? 1.17 : fast ? .64 : .88;
-    const hips = fast ? .21 : boss ? .39 : .29;
-    const shoulders = fast ? .42 : boss ? .77 : .60;
-    const red = boss ? 0xbb4437 : C.red;
-    const b: Piece[] = [], gl: Piece[] = [];
-    b.push(part(bevelBox(width, .52, .52, .09), C.charcoal, 0, 1.40));
-    b.push(part(bevelBox(width * .88, .30, .20, .05), C.steel, 0, 1.34, .29, -.13));
-    b.push(part(bevelBox(width * .69, .18, .48, .055), C.dark, 0, 1.02));
-    b.push(part(bevelBox(width * .67, .15, .43, .045), C.red, 0, 1.13, .03));
-    b.push(part(bevelBox(width * .51, .32, .37, .065), C.dark, 0, 1.77, .045));
-    b.push(part(bevelBox(width * .57, .09, .42, .03), red, 0, 1.96, .035));
-    gl.push(part(bevelBox(width * .32, .10, .035, .015), C.amber, 0, 1.79, .25));
-    b.push(part(bevelBox(width * .30, .16, .04, .02), red, 0, 1.33, .407, 0, 0, .1));
-    for (const s of [-1, 1]) {
-      b.push(part(bevelBox(fast ? .36 : boss ? .58 : .48, .43, .60, .075), red, s * shoulders, 1.65, -.005, 0, 0, s * -.29));
-      b.push(part(bevelBox(.16, .10, .43), C.redLight, s * shoulders, 1.86, .07, 0, 0, s * -.29));
-      b.push(part(cyl(.105, .05, 8), C.dark, s * (shoulders + .12), 1.59, .32, Math.PI / 2));
-      b.push(part(bevelBox(.12, .39, .20, .025), C.dark, s * width * .31, 1.48, -.35));
-    }
-    if (fast) {
-      b.push(part(bevelBox(.15, .46, .09, .018), red, -.20, 2.00, -.12, 0, 0, -.28));
-      b.push(part(bevelBox(.12, .35, .09, .018), red, .20, 1.98, -.12, 0, 0, .30));
-    }
-    if (boss) {
-      b.push(part(bevelBox(.37, .50, .22, .06), C.charcoal, 0, 1.47, .38));
-      gl.push(part(bevelBox(.115, .31, .025, .025), C.amber, 0, 1.48, .505));
-      b.push(part(bevelBox(.48, .36, .39, .07), red, -.39, 1.91, -.22, 0, 0, -.12));
-      b.push(part(bevelBox(.48, .36, .39, .07), red, .39, 1.91, -.22, 0, 0, .12));
-      b.push(part(bevelBox(.29, .16, .30), C.dark, 0, 2.10, -.28));
-    }
-    const leg = (s: number) => {
-      const w = fast ? .13 : boss ? .34 : .23;
-      return merge([
-        part(bevelBox(w, .40, .25, .035), C.dark, 0, -.20),
-        part(bevelBox(w + .10, .27, .18, .045), red, s * .025, -.15, .13, -.15, 0, s * -.08),
-        part(cyl(w * .6, w + .08, 8), C.steel, 0, -.40, .035, 0, 0, Math.PI / 2),
-        part(bevelBox(w * 1.12, .37, .28, .045), C.charcoal, 0, -.62, -.015, .16),
-        part(bevelBox(w * .82, .22, .09, .025), boss ? red : C.steel, 0, -.59, .15, .16),
-        part(bevelBox(w + .12, .15, .48, .045), C.dark, 0, -.86, .10),
-        part(bevelBox(w + .09, .10, .21, .025), C.steel, 0, -.88, .285),
-      ]);
-    };
-    const arm = (s: number) => {
-      const w = fast ? .13 : boss ? .31 : .23;
-      return merge([
-        part(bevelBox(w, .36, .24, .035), C.dark, 0, -.24),
-        part(cyl(w * .61, w + .065, 8), C.steel, 0, -.39, .055, 0, 0, Math.PI / 2),
-        part(bevelBox(w + .09, .40, .32, .06), red, s * .025, -.59, .075, -.12, 0, s * .10),
-        part(bevelBox(w, .22, .28, .04), C.charcoal, 0, -.85, .10),
-        part(bevelBox(w * .75, .07, .09, .018), C.steel, 0, -.82, .265),
-      ]);
-    };
-    return {
-      body: this.instances(merge(b), this.material, MAX_UNITS),
-      glow: this.instances(merge(gl), this.glowMaterial, MAX_UNITS),
-      leftLeg: this.instances(leg(-1), this.material, MAX_UNITS),
-      rightLeg: this.instances(leg(1), this.material, MAX_UNITS),
-      leftArm: this.instances(arm(-1), this.material, MAX_UNITS),
-      rightArm: this.instances(arm(1), this.material, MAX_UNITS),
-      count: 0, scale, hips, shoulders,
-    };
+    const model = createEnemyModel(kind);
+    const parts = model.parts.map(definition => ({ definition, mesh: this.instances(definition.geometry, definition.glow ? this.glowMaterial : this.material, MAX_UNITS), world: new THREE.Matrix4() }));
+    const byName: UnitBatch['byName'] = {};
+    for (const part of parts) byName[part.definition.name] = part;
+    return { model, parts, byName, count: 0 };
+  }
+
+  /** Compose the same local pose consumed by the standalone CPU model preview. */
+  private poseMatrix(pivot: readonly [number, number, number], pose: PartPose = {}) {
+    const p = pose.position ?? [0, 0, 0], r = pose.rotation ?? [0, 0, 0], s = pose.scale ?? [1, 1, 1];
+    v3.set(pivot[0] + p[0], pivot[1] + p[1], pivot[2] + p[2]);
+    q4.setFromEuler(eul.set(r[0], r[1], r[2])); sc.set(s[0], s[1], s[2]);
+    return mLocal.compose(v3, q4, sc);
   }
 
   resize() {
@@ -361,7 +329,7 @@ export class SceneView {
 
   render(frame: SceneFrame, dt: number) {
     if (this.disposed) return;
-    dt = Math.max(0, Math.min(dt || 0, .05)); this.clock += dt;
+    dt = frame.paused ? 0 : Math.max(0, Math.min(dt || 0, .05)); this.clock += dt;
     const range = Number.isFinite(frame.range) && frame.range! > 0 ? frame.range! : 10;
     this.rangeRing.scale.set(range, 1, range);
     const playing = frame.phase === 'playing' || frame.phase === 'active' || frame.phase === 'combat' || frame.phase === 'wave';
@@ -369,7 +337,7 @@ export class SceneView {
     const enemies = menu && !frame.enemies.length ? this.showcase : frame.enemies;
     for (const b of Object.values(this.batches)) b.count = 0;
     const next = new Map<number | string, SceneEnemy>();
-    let shadowIndex = 0, hpIndex = 0;
+    let shadowIndex = 0, hpIndex = 0, impactIndex = 0;
     const t = frame.elapsed ?? this.clock;
     const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(this.camera.quaternion);
     const cameraFacing = new THREE.Vector3(0, 0, 1).applyQuaternion(this.camera.quaternion);
@@ -377,24 +345,24 @@ export class SceneView {
       const b = this.batches[enemy.kind] || this.batches.normal;
       const index = b.count++;
       const angle = Math.atan2(-enemy.x, -enemy.y);
-      const seed = typeof enemy.id === 'number' ? enemy.id : String(enemy.id).length * 3;
-      const gait = t * (enemy.kind === 'fast' ? 13 : enemy.kind === 'boss' ? 5 : 8) + seed * 1.4;
-      const walk = menu ? .05 : .32;
-      const bob = Math.abs(Math.sin(gait)) * (menu ? .012 : .040);
-      mRoot.copy(matrix(enemy.x, .09 + bob * b.scale, enemy.y, angle, b.scale));
-      b.body.setMatrixAt(index, mRoot); b.glow.setMatrixAt(index, mRoot);
-      const limb = (mesh: THREE.InstancedMesh, x: number, y: number, rx: number, rz: number) => {
-        q4.setFromEuler(eul.set(rx, 0, rz)); v3.set(x, y, 0); sc.set(1, 1, 1); mLocal.compose(v3, q4, sc); m4.multiplyMatrices(mRoot, mLocal); mesh.setMatrixAt(index, m4);
-      };
-      limb(b.leftLeg, -b.hips, .93, Math.sin(gait) * walk, -.04);
-      limb(b.rightLeg, b.hips, .93, -Math.sin(gait) * walk, .04);
-      limb(b.leftArm, -b.shoulders, 1.59, -Math.sin(gait) * walk * .65 - .12, -.10);
-      limb(b.rightArm, b.shoulders, 1.59, Math.sin(gait) * walk * .65 - .12, .10);
-      this.shadowMesh.setMatrixAt(shadowIndex++, matrix(enemy.x + .15, .067, enemy.y + .15, 0, b.scale, 1, b.scale * .75));
+      const pose = computeEnemyPose(menu ? { ...enemy, attackPhase: 'recovery', attackTime: 1, attackDuration: 1 } : enemy, t);
+      mRoot.copy(matrix(enemy.x, .09, enemy.y, angle));
+      mRoot.multiply(this.poseMatrix([0, 0, 0], pose.root));
+      for (const part of b.parts) {
+        const def = part.definition, parent = def.parent ? b.byName[def.parent]!.world : mRoot;
+        part.world.multiplyMatrices(parent, this.poseMatrix(def.pivot, pose.parts[def.name]));
+        part.mesh.setMatrixAt(index, part.world);
+      }
+      const [shadowWidth, shadowDepth] = b.model.footprint;
+      this.shadowMesh.setMatrixAt(shadowIndex++, matrix(enemy.x + .11, .067, enemy.y + .11, angle, shadowWidth * 1.25, 1, shadowDepth * 1.45));
+      if (pose.impact > 0 && !menu) {
+        const reach = enemy.kind === 'boss' ? .90 : .72, size = (enemy.kind === 'boss' ? 1.15 : .48) * (.5 + pose.impact * .5);
+        this.impactMesh.setMatrixAt(impactIndex++, matrix(enemy.x + Math.sin(angle) * reach, .08, enemy.y + Math.cos(angle) * reach, 0, size, 1, size));
+      }
       if (!menu && enemy.hp < enemy.maxHp) {
         const fraction = Math.max(.01, enemy.hp / Math.max(1, enemy.maxHp));
         const width = enemy.kind === 'boss' ? 1.55 : .8;
-        v3.set(enemy.x, 2.32 * b.scale, enemy.y); sc.set(width, 1, 1); m4.compose(v3, this.camera.quaternion, sc); this.hpBack.setMatrixAt(hpIndex, m4);
+        v3.set(enemy.x, b.model.height + .25, enemy.y); sc.set(width, 1, 1); m4.compose(v3, this.camera.quaternion, sc); this.hpBack.setMatrixAt(hpIndex, m4);
         v3.addScaledVector(cameraRight, -(1 - fraction) * width / 2); v3.addScaledVector(cameraFacing, .012);
         sc.set(width * fraction, 1, 1); m4.compose(v3, this.camera.quaternion, sc); this.hpFront.setMatrixAt(hpIndex++, m4);
       }
@@ -404,7 +372,8 @@ export class SceneView {
     }
     if (playing) for (const [id, old] of this.previous) if (!next.has(id)) this.sparks(old.x, old.y, true);
     this.previous = menu ? new Map() : next;
-    for (const b of Object.values(this.batches)) for (const mesh of [b.body, b.glow, b.leftLeg, b.rightLeg, b.leftArm, b.rightArm]) { mesh.count = b.count; mesh.instanceMatrix.needsUpdate = true; }
+    for (const b of Object.values(this.batches)) for (const { mesh } of b.parts) { mesh.count = b.count; mesh.instanceMatrix.needsUpdate = true; }
+    this.impactMesh.count = impactIndex; this.impactMesh.instanceMatrix.needsUpdate = true;
     this.shadowMesh.count = shadowIndex; this.shadowMesh.instanceMatrix.needsUpdate = true;
     this.hpBack.count = this.hpFront.count = hpIndex; this.hpBack.instanceMatrix.needsUpdate = this.hpFront.instanceMatrix.needsUpdate = true;
     let desired = this.angle;
@@ -420,7 +389,12 @@ export class SceneView {
       this.bulletMesh.setMatrixAt(bulletIndex++, matrix(bullet.x, 1.55, bullet.y, angle, 1, 1, 4));
     }
     this.lastBulletIds = ids; this.bulletMesh.count = bulletIndex; this.bulletMesh.instanceMatrix.needsUpdate = true;
-    if (frame.shooting) this.pulse = Math.max(this.pulse, .045);
+    let enemyProjectileIndex = 0;
+    for (const bullet of (frame.enemyProjectiles ?? []).slice(0, MAX_ENEMY_PROJECTILES)) {
+      this.enemyProjectileMesh.setMatrixAt(enemyProjectileIndex++, matrix(bullet.x, 1.47, bullet.y, Math.atan2(-bullet.x, -bullet.y), 1, 1, 2.6));
+    }
+    this.enemyProjectileMesh.count = enemyProjectileIndex; this.enemyProjectileMesh.instanceMatrix.needsUpdate = true;
+    if (frame.shooting && !frame.paused) this.pulse = Math.max(this.pulse, .045);
     this.pulse = Math.max(0, this.pulse - dt); this.flash.visible = this.pulse > 0; this.flash.rotation.z = this.clock * 19; this.barrel.position.z = -this.pulse * 1.25;
     if (frame.turretHPfraction < this.prevHp) this.sparks(0, 0, false); this.prevHp = frame.turretHPfraction;
     (this.turretRing.material as THREE.MeshBasicMaterial).color.setHex(frame.turretHPfraction < .25 ? C.redLight : C.cyan);
@@ -451,7 +425,7 @@ export class SceneView {
     this.renderer.setScissorTest(false);
   }
 
-  stats() { return { drawCalls: this.renderer.info.render.calls, triangles: this.renderer.info.render.triangles, geometries: this.renderer.info.memory.geometries, textures: this.renderer.info.memory.textures, pixelRatio: this.renderer.getPixelRatio(), units: Object.values(this.batches).reduce((sum, b) => sum + b.count, 0), particles: this.particles.length }; }
+  stats() { return { drawCalls: this.renderer.info.render.calls, triangles: this.renderer.info.render.triangles, geometries: this.renderer.info.memory.geometries, textures: this.renderer.info.memory.textures, pixelRatio: this.renderer.getPixelRatio(), enemyDrawCalls: Object.values(this.batches).reduce((sum, b) => sum + (b.count ? b.parts.length : 0), 0), enemyProjectiles: this.enemyProjectileMesh.count, units: Object.values(this.batches).reduce((sum, b) => sum + b.count, 0), particles: this.particles.length }; }
 
   dispose() {
     if (this.disposed) return; this.disposed = true; this.observer.disconnect();

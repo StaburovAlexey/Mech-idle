@@ -6,21 +6,25 @@ export const WAVE_COUNT = 30;
 export const STAT_KEYS = ['damage', 'maxHp', 'attackSpeed', 'regen'] as const;
 export type StatKey = typeof STAT_KEYS[number];
 export type Levels = Record<StatKey, number>;
-export type EnemyKind = 'ordinary' | 'fast' | 'boss';
+export type EnemyKind = 'ordinary' | 'fast' | 'ranged' | 'boss';
+export type AttackPhase = 'approach' | 'windup' | 'strike' | 'recovery';
 export interface Profile { crystals: number; meta: Levels; runCounter: number }
 export interface Stats { damage: number; maxHp: number; attackSpeed: number; regen: number; range: number }
-export interface Enemy { id: string; kind: EnemyKind; x: number; y: number; hp: number; maxHp: number; damage: number; speed: number; attackInterval: number; attackCooldown: number }
+export interface Enemy { id: string; kind: EnemyKind; x: number; y: number; hp: number; maxHp: number; damage: number; speed: number; attackInterval: number; attackCooldown: number; attackPhase: AttackPhase; attackTime: number; attackDuration: number }
 export interface Bullet { id: string; targetId: string; x: number; y: number; damage: number; speed: number }
+/** Fixed target at the turret origin. A fired bolt survives its source's death. */
+export interface EnemyProjectile { id: string; sourceId: string; x: number; y: number; damage: number; speed: number }
 export interface Warning { id: string; kind: EnemyKind; x: number; y: number; remaining: number; sector: number }
-export interface WaveConfig { count: number; interval: number; jitter: number; fastEvery: number; boss: boolean }
+export interface WaveConfig { count: number; interval: number; jitter: number; fastEvery: number; rangedEvery: number; burstSize: number; boss: boolean }
 export interface Run {
   id: string; seed: number; rngState: number; wave: number; phase: 'combat' | 'interwave'; paused: boolean;
   time: number; tick: number; phaseTime: number; hp: number; gold: number; levels: Levels; activeLevels: Levels;
-  enemies: Enemy[]; bullets: Bullet[]; warnings: Warning[]; spawned: number; spawnCooldown: number;
+  enemies: Enemy[]; bullets: Bullet[]; enemyProjectiles: EnemyProjectile[]; warnings: Warning[]; spawned: number; spawnCooldown: number;
   shotCooldown: number; targetId: string | null; nextEntityId: number;
   lastSector: number; sectorStreak: number; paidKillIds: string[]; lastPaidWave: number;
   kills: number; earnedGold: number; earnedCrystals: number;
   spawnMode?: 'circle';
+  combatMode?: 'telegraphed';
   /** Read only by the one-time migration of old viewport-based saves. */
   spawnGeometry?: SpawnGeometry; nextArrival?: number;
 }
@@ -28,6 +32,9 @@ export interface RunResult { outcome: 'defeat' | 'victory'; runId: string; wave:
 export type GameEvent =
   | { type: 'warning' | 'spawn'; id: string; kind: EnemyKind; x: number; y: number }
   | { type: 'shot'; id: string; targetId: string; x: number; y: number; targetX: number; targetY: number }
+  | { type: 'enemyWindup'; id: string; kind: EnemyKind; x: number; y: number }
+  | { type: 'enemyStrike'; id: string; kind: EnemyKind; x: number; y: number; hitIndex: number }
+  | { type: 'enemyShot'; id: string; sourceId: string; x: number; y: number; targetX: number; targetY: number }
   | { type: 'hit' | 'kill'; id: string; kind: EnemyKind; x: number; y: number; amount: number }
   | { type: 'turretHit' | 'heal'; amount: number }
   | { type: 'waveComplete' | 'waveStart'; wave: number }
@@ -40,8 +47,23 @@ const START_PRICE: Record<StatKey, number> = { damage: 10, maxHp: 10, attackSpee
 const BASE_ENEMIES = {
   ordinary: { hp: 20, damage: 10, speed: 1, attackInterval: 2, reward: 3 },
   fast: { hp: 12, damage: 7, speed: 1.8, attackInterval: 2, reward: 4 },
+  ranged: { hp: 14, damage: 5, speed: 1, attackInterval: 3.2, reward: 4 },
   boss: { hp: 624, damage: 42, speed: 0.7, attackInterval: 2, reward: 50 },
 } as const;
+// Accommodates every live unit in an old wave while bounding new spawn queues.
+export const MAX_ENEMIES = 24;
+export const MAX_ENEMY_PROJECTILES = 32;
+export const ENEMY_PROJECTILE_SPEED = 6;
+export const RANGED_MUZZLE_OFFSET = 1.6;
+export interface AttackConfig { range: number; windup: number; strike: number; recovery: number; hitOffsets: readonly number[] }
+const ATTACKS: Record<EnemyKind, AttackConfig> = {
+  ordinary: { range: 1.2, windup: .45, strike: .2, recovery: 1.35, hitOffsets: [0] },
+  fast: { range: 1.2, windup: .3, strike: .2, recovery: 1.5, hitOffsets: [0] },
+  boss: { range: 1.2, windup: .75, strike: .55, recovery: .7, hitOffsets: [0, .3] },
+  ranged: { range: 7.5, windup: .8, strike: .2, recovery: 2.2, hitOffsets: [0] },
+};
+/** Simulation and rig animation share the exact strike times. */
+export function attackConfig(kind: EnemyKind): Readonly<AttackConfig> { return ATTACKS[kind]; }
 const clone = <T>(value: T): T => structuredClone(value);
 export function createProfile(): Profile { return { crystals: 0, meta: emptyLevels(), runCounter: 0 }; }
 /** Creates the hangar state. Call startRun explicitly to launch. */
@@ -60,8 +82,8 @@ export function getStats(state: GameState, includePending = false): Stats {
   return calculateStats(state.profile.meta, state.run ? (includePending ? state.run.levels : state.run.activeLevels) : emptyLevels());
 }
 export function waveConfig(wave: number): WaveConfig {
-  if (wave === 30) return { count: 1, interval: 1.5, jitter: .2, fastEvery: 0, boss: true };
-  return { count: 6 + Math.floor((wave - 1) * .55), interval: 1.5, jitter: .2, fastEvery: wave >= 4 ? 4 : 0, boss: false };
+  if (wave === 30) return { count: 1, interval: 1.5, jitter: .2, fastEvery: 0, rangedEvery: 0, burstSize: 1, boss: true };
+  return { count: 6 + Math.floor((wave - 1) * .55), interval: 1.5, jitter: .2, fastEvery: wave >= 4 ? 4 : 0, rangedEvery: wave >= 6 ? 5 : 0, burstSize: wave % 5 === 0 ? Math.min(5, 3 + Math.floor(wave / 10)) : 1, boss: false };
 }
 export function enemyStats(kind: EnemyKind, wave: number) {
   const b = BASE_ENEMIES[kind];
@@ -75,10 +97,10 @@ export function startRun(state: GameState, seed = 1): GameState {
   next.run = {
     id: `run-${next.profile.runCounter}-${normalizedSeed}`, seed: normalizedSeed, rngState: normalizedSeed, wave: 1,
     phase: 'combat', paused: false, time: 0, tick: 0, phaseTime: 0, hp: calculateStats(next.profile.meta).maxHp,
-    gold: 0, levels: emptyLevels(), activeLevels: emptyLevels(), enemies: [], bullets: [], warnings: [], spawned: 0,
+    gold: 0, levels: emptyLevels(), activeLevels: emptyLevels(), enemies: [], bullets: [], enemyProjectiles: [], warnings: [], spawned: 0,
     spawnCooldown: 0, shotCooldown: 0, targetId: null, nextEntityId: 1,
     lastSector: -1, sectorStreak: 0, paidKillIds: [], lastPaidWave: 0, kills: 0, earnedGold: 0, earnedCrystals: 0,
-    spawnMode: 'circle',
+    spawnMode: 'circle', combatMode: 'telegraphed',
   };
   next.result = null;
   next.events = [{ type: 'waveStart', wave: 1 }];
@@ -124,17 +146,95 @@ function random(run: Run): number {
 function newId(run: Run): string { return `${run.id}:${run.nextEntityId++}`; }
 function queueSpawn(state: GameState): void {
   const r = state.run!, config = waveConfig(r.wave);
+  const remaining = config.count - r.spawned;
+  // Keep the final crowd together: eight units are 3+5, never 3+3+2.
+  const size = config.burstSize === 1 ? 1 : remaining <= 5 ? remaining : Math.min(config.burstSize, remaining - 3);
+  if (r.enemies.length + r.warnings.length + size > MAX_ENEMIES) return;
   let sector = Math.floor(random(r) * 12);
   if (sector === r.lastSector && r.sectorStreak >= 2) sector = (sector + 1 + Math.floor(random(r) * 11)) % 12;
-  r.sectorStreak = sector === r.lastSector ? r.sectorStreak + 1 : 1;
-  r.lastSector = sector;
-  const kind: EnemyKind = config.boss ? 'boss' : config.fastEvery > 0 && (r.spawned + 1) % config.fastEvery === 0 ? 'fast' : 'ordinary';
-  const point = spawnPoint((sector + random(r)) * Math.PI / 6);
-  const warning: Warning = { id: newId(r), kind, ...point, remaining: .5, sector };
-  r.warnings.push(warning);
-  r.spawned++;
-  r.spawnCooldown = config.interval + (random(r) * 2 - 1) * config.jitter;
-  state.events.push({ type: 'warning', id: warning.id, kind, x: warning.x, y: warning.y });
+  const offset = random(r);
+  for (let i = 0; i < size; i++) {
+    const spawnSector = (sector + Math.floor(i * 12 / size)) % 12;
+    r.sectorStreak = spawnSector === r.lastSector ? r.sectorStreak + 1 : 1;
+    r.lastSector = spawnSector;
+    const ordinal = r.spawned + 1;
+    const kind: EnemyKind = config.boss ? 'boss' : config.fastEvery > 0 && ordinal % config.fastEvery === 0 ? 'fast' : config.rangedEvery > 0 && ordinal % config.rangedEvery === 0 ? 'ranged' : 'ordinary';
+    const point = spawnPoint((spawnSector + offset) * Math.PI / 6);
+    const warning: Warning = { id: newId(r), kind, ...point, remaining: .5, sector: spawnSector };
+    r.warnings.push(warning); r.spawned++;
+    state.events.push({ type: 'warning', id: warning.id, kind, x: warning.x, y: warning.y });
+  }
+  // Bursts retain the same average spawn budget as the ordinary cadence.
+  r.spawnCooldown = config.interval * size + (random(r) * 2 - 1) * config.jitter;
+}
+
+function enterAttackPhase(state: GameState, enemy: Enemy, phase: AttackPhase, duration: number): void {
+  enemy.attackPhase = phase; enemy.attackTime = 0; enemy.attackDuration = duration;
+  enemy.attackCooldown = phase === 'recovery' ? duration : 0;
+  if (phase === 'windup') state.events.push({ type: 'enemyWindup', id: enemy.id, kind: enemy.kind, x: enemy.x, y: enemy.y });
+  if (phase === 'strike') strike(state, enemy, 0);
+}
+function strike(state: GameState, enemy: Enemy, hitIndex: number): void {
+  const r = state.run!;
+  state.events.push({ type: 'enemyStrike', id: enemy.id, kind: enemy.kind, x: enemy.x, y: enemy.y, hitIndex });
+  if (enemy.kind === 'ranged') {
+    // A saturated pool skips this shot; no queued shot can fire later without a telegraph.
+    if (r.enemyProjectiles.length >= MAX_ENEMY_PROJECTILES) return;
+    const distance = Math.hypot(enemy.x, enemy.y), scale = Math.max(0, distance - RANGED_MUZZLE_OFFSET) / (distance || 1);
+    const projectile: EnemyProjectile = { id: newId(r), sourceId: enemy.id, x: enemy.x * scale, y: enemy.y * scale, damage: enemy.damage, speed: ENEMY_PROJECTILE_SPEED };
+    r.enemyProjectiles.push(projectile);
+    state.events.push({ type: 'enemyShot', id: projectile.id, sourceId: enemy.id, x: projectile.x, y: projectile.y, targetX: 0, targetY: 0 });
+  } else {
+    const amount = enemy.damage / attackConfig(enemy.kind).hitOffsets.length;
+    r.hp -= amount;
+    state.events.push({ type: 'turretHit', amount });
+  }
+}
+function advanceEnemy(state: GameState, enemy: Enemy): void {
+  const config = attackConfig(enemy.kind), d = Math.hypot(enemy.x, enemy.y);
+  if (enemy.attackPhase === 'approach') {
+    enemy.attackCooldown = Math.max(0, enemy.attackCooldown - DT);
+    if (d > config.range) {
+      const move = Math.min(enemy.speed * DT, d - config.range);
+      enemy.x -= enemy.x / d * move; enemy.y -= enemy.y / d * move;
+    }
+    if (Math.hypot(enemy.x, enemy.y) <= config.range + 1e-7) {
+      if (enemy.attackCooldown > 1e-9) enterAttackPhase(state, enemy, 'recovery', enemy.attackCooldown);
+      else enterAttackPhase(state, enemy, 'windup', config.windup);
+    }
+    return;
+  }
+  let remaining = DT;
+  while (remaining > 1e-9) {
+    const prior = enemy.attackTime, elapsed = Math.min(remaining, enemy.attackDuration - prior);
+    enemy.attackTime += elapsed; remaining -= elapsed;
+    if (enemy.attackPhase === 'strike') {
+      for (let i = 1; i < config.hitOffsets.length; i++) {
+        if (prior < config.hitOffsets[i] - 1e-9 && enemy.attackTime >= config.hitOffsets[i] - 1e-9) strike(state, enemy, i);
+      }
+    }
+    if (enemy.attackPhase === 'recovery') enemy.attackCooldown = Math.max(0, enemy.attackDuration - enemy.attackTime);
+    if (enemy.attackTime < enemy.attackDuration - 1e-9) break;
+    if (enemy.attackPhase === 'windup') enterAttackPhase(state, enemy, 'strike', config.strike);
+    else if (enemy.attackPhase === 'strike') enterAttackPhase(state, enemy, 'recovery', config.recovery);
+    else enterAttackPhase(state, enemy, 'windup', config.windup);
+  }
+}
+
+function advanceEnemyProjectiles(state: GameState): void {
+  const r = state.run!, surviving: EnemyProjectile[] = [];
+  for (const projectile of r.enemyProjectiles) {
+    const distance = Math.hypot(projectile.x, projectile.y);
+    if (distance <= projectile.speed * DT + .15) {
+      r.hp -= projectile.damage;
+      state.events.push({ type: 'turretHit', amount: projectile.damage });
+    } else {
+      projectile.x -= projectile.x / distance * projectile.speed * DT;
+      projectile.y -= projectile.y / distance * projectile.speed * DT;
+      surviving.push(projectile);
+    }
+  }
+  r.enemyProjectiles = surviving;
 }
 function endRun(state: GameState, outcome: 'defeat' | 'victory'): void {
   const r = state.run!;
@@ -164,25 +264,15 @@ function advanceTick(state: GameState): void {
   r.warnings = r.warnings.filter(w => w.remaining > 1e-9);
   for (const w of ready) {
     const s = enemyStats(w.kind, r.wave);
-    r.enemies.push({ id: w.id, kind: w.kind, x: w.x, y: w.y, hp: s.maxHp, maxHp: s.maxHp, damage: s.damage, speed: s.speed, attackInterval: s.attackInterval, attackCooldown: 0 });
+    r.enemies.push({ id: w.id, kind: w.kind, x: w.x, y: w.y, hp: s.maxHp, maxHp: s.maxHp, damage: s.damage, speed: s.speed, attackInterval: s.attackInterval, attackCooldown: 0, attackPhase: 'approach', attackTime: 0, attackDuration: 0 });
     state.events.push({ type: 'spawn', id: w.id, kind: w.kind, x: w.x, y: w.y });
   }
   r.spawnCooldown -= DT;
   if (r.spawned < waveConfig(r.wave).count && r.spawnCooldown <= 1e-9) queueSpawn(state);
-  // Movement and melee damage happen before projectile deaths: simultaneous boss/turret death is defeat.
-  for (const enemy of r.enemies) {
-    enemy.attackCooldown = Math.max(0, enemy.attackCooldown - DT);
-    const d = Math.hypot(enemy.x, enemy.y);
-    if (d > 1.2) {
-      const move = Math.min(enemy.speed * DT, d - 1.2);
-      enemy.x -= enemy.x / d * move; enemy.y -= enemy.y / d * move;
-    }
-    if (Math.hypot(enemy.x, enemy.y) <= 1.2000001 && enemy.attackCooldown <= 1e-9) {
-      r.hp -= enemy.damage;
-      enemy.attackCooldown = enemy.attackInterval;
-      state.events.push({ type: 'turretHit', amount: enemy.damage });
-    }
-  }
+  // Resolve already-fired bolts, then animation strikes, before friendly projectile deaths.
+  // New bolts begin traveling next tick. Simultaneous boss/turret death remains defeat.
+  advanceEnemyProjectiles(state);
+  for (const enemy of r.enemies) advanceEnemy(state, enemy);
   const nearest = r.enemies.filter(e => e.hp > 0 && Math.hypot(e.x, e.y) <= stats.range)
     .sort((a, b) => Math.hypot(a.x, a.y) - Math.hypot(b.x, b.y) || Number(a.id.split(':').pop()) - Number(b.id.split(':').pop()))[0];
   r.targetId = nearest?.id ?? null;
@@ -214,7 +304,7 @@ function advanceTick(state: GameState): void {
   if (r.targetId && !r.enemies.some(e => e.id === r.targetId)) r.targetId = null;
   if (r.hp <= 0) { endRun(state, 'defeat'); return; }
   heal(state, stats);
-  if (r.spawned >= waveConfig(r.wave).count && r.enemies.length === 0 && r.warnings.length === 0) {
+  if (r.spawned >= waveConfig(r.wave).count && r.enemies.length === 0 && r.warnings.length === 0 && r.enemyProjectiles.length === 0) {
     if (r.lastPaidWave < r.wave) {
       state.profile.crystals++; r.earnedCrystals++; r.lastPaidWave = r.wave;
       state.events.push({ type: 'waveComplete', wave: r.wave });
@@ -254,9 +344,20 @@ export function parseState(json: string): GameState | null {
     if (state.run) applyRunLevels(state);
     state.events = [];
     if (state.run && state.run.spawnMode !== 'circle') migrateCircleSpawns(state.run);
+    if (state.run && state.run.combatMode !== 'telegraphed') migrateTelegraphedCombat(state.run);
     // Check the migrated shape too; malformed legacy data cannot become a new save.
     return validateState(state) ? state : null;
   } catch { return null; }
+}
+/** Old cooldowns resume as recovery, never as a strike or an already-fired bolt. */
+function migrateTelegraphedCombat(run: Run): void {
+  for (const enemy of run.enemies) {
+    const recovering = enemy.attackCooldown > 0 && Math.hypot(enemy.x, enemy.y) <= attackConfig(enemy.kind).range + 1e-7;
+    enemy.attackPhase = recovering ? 'recovery' : 'approach';
+    enemy.attackTime = 0; enemy.attackDuration = recovering ? enemy.attackCooldown : 0;
+  }
+  run.enemyProjectiles = [];
+  run.combatMode = 'telegraphed';
 }
 /** Remove the retired offscreen arrival schedule once, without replaying rewards.
  * Keep the oldest warning; recycle later unmaterialized slots through normal cadence.
@@ -297,26 +398,42 @@ export function validateState(value: unknown): value is GameState {
   if (value.run === null) return true;
   if (value.result !== null) return false;
   const r = value.run;
-  if (!object(r) || !keys(r, ['id','seed','rngState','wave','phase','paused','time','tick','phaseTime','hp','gold','levels','activeLevels','enemies','bullets','warnings','spawned','spawnCooldown','shotCooldown','targetId','nextEntityId','lastSector','sectorStreak','paidKillIds','lastPaidWave','kills','earnedGold','earnedCrystals', ...(Object.hasOwn(r, 'spawnMode') ? ['spawnMode'] : []), ...(Object.hasOwn(r, 'spawnGeometry') ? ['spawnGeometry'] : []), ...(Object.hasOwn(r, 'nextArrival') ? ['nextArrival'] : [])])) return false;
+  if (!object(r) || !keys(r, ['id','seed','rngState','wave','phase','paused','time','tick','phaseTime','hp','gold','levels','activeLevels','enemies','bullets','warnings','spawned','spawnCooldown','shotCooldown','targetId','nextEntityId','lastSector','sectorStreak','paidKillIds','lastPaidWave','kills','earnedGold','earnedCrystals', ...(Object.hasOwn(r, 'combatMode') ? ['combatMode','enemyProjectiles'] : []), ...(Object.hasOwn(r, 'spawnMode') ? ['spawnMode'] : []), ...(Object.hasOwn(r, 'spawnGeometry') ? ['spawnGeometry'] : []), ...(Object.hasOwn(r, 'nextArrival') ? ['nextArrival'] : [])])) return false;
+  const telegraphed = Object.hasOwn(r, 'combatMode');
+  if (telegraphed && (r.combatMode !== 'telegraphed' || !Array.isArray(r.enemyProjectiles) || r.enemyProjectiles.length > MAX_ENEMY_PROJECTILES)) return false;
   const circle = Object.hasOwn(r, 'spawnMode');
   if (circle && (r.spawnMode !== 'circle' || Object.hasOwn(r, 'spawnGeometry') || Object.hasOwn(r, 'nextArrival'))) return false;
   if (Object.hasOwn(r, 'spawnGeometry') !== Object.hasOwn(r, 'nextArrival')) return false;
   if (Object.hasOwn(r, 'spawnGeometry') && !validSpawnGeometry(r.spawnGeometry) || Object.hasOwn(r, 'nextArrival') && !num(r.nextArrival, 0, 1e7)) return false;
   if (!str(r.id) || r.id !== `run-${p.runCounter}-${r.seed}` || !int(r.seed,1,0xffffffff) || !int(r.rngState,1,0xffffffff) || !int(r.wave,1,30) || !['combat','interwave'].includes(r.phase) || typeof r.paused !== 'boolean' || !num(r.time,0,1e7) || !int(r.tick,0,3e8) || Math.abs(r.time-r.tick*DT)>1e-6 || !num(r.phaseTime,0,1e7) || !validLevels(r.levels,RUN_CAP) || !validLevels(r.activeLevels,RUN_CAP) || STAT_KEYS.some(k=>r.activeLevels[k]>r.levels[k])) return false;
   const stats = calculateStats(p.meta,r.activeLevels);
-  if (!num(r.hp,Number.MIN_VALUE,stats.maxHp + 1e-6) || !int(r.gold,0,4000) || !int(r.spawned,0,waveConfig(r.wave).count) || !num(r.spawnCooldown,-1e7,1.71) || !num(r.shotCooldown,0,1.01) || !int(r.nextEntityId,1,100000) || !int(r.lastSector,-1,11) || !int(r.sectorStreak,0,2) || !int(r.lastPaidWave,0,29) || !int(r.kills,0,1000) || !int(r.earnedGold,0,4000) || !int(r.earnedCrystals,0,29) || r.lastPaidWave!==r.earnedCrystals || r.gold>r.earnedGold || r.lastPaidWave !== (r.phase === 'combat' ? r.wave-1 : r.wave) || (r.phase === 'interwave' && (r.wave===30 || r.phaseTime>=2.000001))) return false;
-  if (!Array.isArray(r.enemies) || r.enemies.length>30 || !Array.isArray(r.warnings) || r.warnings.length>(circle ? 1 : 30) || r.warnings.length>r.spawned || !Array.isArray(r.bullets) || r.bullets.length>100 || !Array.isArray(r.paidKillIds) || r.paidKillIds.length!==r.kills || new Set(r.paidKillIds).size!==r.paidKillIds.length) return false;
+  if (!num(r.hp,Number.MIN_VALUE,stats.maxHp + 1e-6) || !int(r.gold,0,4000) || !int(r.spawned,0,waveConfig(r.wave).count) || !num(r.spawnCooldown,-1e7,telegraphed ? 7.71 : 1.71) || !num(r.shotCooldown,0,1.01) || !int(r.nextEntityId,1,100000) || !int(r.lastSector,-1,11) || !int(r.sectorStreak,0,2) || !int(r.lastPaidWave,0,29) || !int(r.kills,0,1000) || !int(r.earnedGold,0,4000) || !int(r.earnedCrystals,0,29) || r.lastPaidWave!==r.earnedCrystals || r.gold>r.earnedGold || r.lastPaidWave !== (r.phase === 'combat' ? r.wave-1 : r.wave) || (r.phase === 'interwave' && (r.wave===30 || r.phaseTime>=2.000001))) return false;
+  if (!Array.isArray(r.enemies) || r.enemies.length>30 || !Array.isArray(r.warnings) || r.warnings.length>(circle ? telegraphed ? 5 : 1 : 30) || r.warnings.length>r.spawned || !Array.isArray(r.bullets) || r.bullets.length>100 || !Array.isArray(r.paidKillIds) || r.paidKillIds.length!==r.kills || new Set(r.paidKillIds).size!==r.paidKillIds.length) return false;
+  if (telegraphed && circle && r.enemies.length + r.warnings.length > MAX_ENEMIES) return false;
   const validId = (id: unknown): id is string => str(id) && id.startsWith(`${r.id}:`) && /^[1-9]\d*$/.test(id.slice(r.id.length+1)) && int(Number(id.slice(r.id.length+1)),1,r.nextEntityId-1);
   const positionLimit = circle ? SPAWN_RADIUS + 1e-6 : r.spawnGeometry ? WORLD_LIMIT : 10.000001;
   const position = (e: Record<string, any>) => num(e.x,-positionLimit,positionLimit) && num(e.y,-positionLimit,positionLimit) && Math.hypot(e.x,e.y)<=positionLimit;
-  const validKind = (kind: any) => ['ordinary','fast','boss'].includes(kind) && (r.wave===30 ? kind==='boss' : kind!=='boss') && (kind!=='fast'||r.wave>=4);
+  const validKind = (kind: any) => (telegraphed ? ['ordinary','fast','ranged','boss'] : ['ordinary','fast','boss']).includes(kind) && (r.wave===30 ? kind==='boss' : kind!=='boss') && (kind!=='fast'||r.wave>=4) && (kind!=='ranged'||r.wave>=6);
   if (!r.paidKillIds.every(validId)) return false;
   const ids = new Set<string>(r.paidKillIds);
   for (const e of r.enemies) {
-    if (!object(e) || !keys(e,['id','kind','x','y','hp','maxHp','damage','speed','attackInterval','attackCooldown']) || !validId(e.id) || ids.has(e.id) || !validKind(e.kind) || !position(e)) return false;
+    if (!object(e) || !keys(e,['id','kind','x','y','hp','maxHp','damage','speed','attackInterval','attackCooldown', ...(telegraphed ? ['attackPhase','attackTime','attackDuration'] : [])]) || !validId(e.id) || ids.has(e.id) || !validKind(e.kind) || !position(e)) return false;
     ids.add(e.id);
     const base = enemyStats(e.kind,r.wave);
-    if (e.maxHp!==base.maxHp || e.damage!==base.damage || e.speed!==base.speed || e.attackInterval!==base.attackInterval || !num(e.hp,Number.MIN_VALUE,e.maxHp) || !num(e.attackCooldown,0,2)) return false;
+    if (e.maxHp!==base.maxHp || e.damage!==base.damage || e.speed!==base.speed || e.attackInterval!==base.attackInterval || !num(e.hp,Number.MIN_VALUE,e.maxHp) || !num(e.attackCooldown,0,base.attackInterval)) return false;
+    if (e.kind === 'ranged' && Math.hypot(e.x,e.y) < attackConfig('ranged').range - 1e-6) return false;
+    if (telegraphed) {
+      const attack = attackConfig(e.kind);
+      if (!['approach','windup','strike','recovery'].includes(e.attackPhase) || !num(e.attackTime,0,base.attackInterval) || !num(e.attackDuration,0,base.attackInterval)) return false;
+      if (e.attackPhase === 'approach') {
+        if (e.attackTime !== 0 || e.attackDuration !== 0) return false;
+      } else {
+        if (Math.hypot(e.x,e.y) > attack.range + 1e-6 || e.attackDuration <= 0 || e.attackTime >= e.attackDuration) return false;
+        if (e.attackPhase === 'recovery') {
+          if (Math.abs(e.attackCooldown - (e.attackDuration - e.attackTime)) > 1e-7) return false;
+        } else if (e.attackCooldown !== 0 || e.attackDuration !== attack[e.attackPhase as 'windup' | 'strike']) return false;
+      }
+    }
   }
   for (const w of r.warnings) {
     if (!object(w) || !keys(w,['id','kind','x','y','remaining','sector']) || !validId(w.id) || ids.has(w.id) || !validKind(w.kind) || !position(w) || Math.hypot(w.x,w.y)<7.999999 || (circle && Math.abs(Math.hypot(w.x,w.y) - SPAWN_RADIUS)>1e-6) || !num(w.remaining,Number.MIN_VALUE,r.spawnGeometry ? 1e6 : .5) || !int(w.sector,0,11)) return false;
@@ -326,7 +443,13 @@ export function validateState(value: unknown): value is GameState {
     if (!object(b) || !keys(b,['id','targetId','x','y','damage','speed']) || !validId(b.id) || ids.has(b.id) || !position(b) || !num(b.damage,10,stats.damage+1e-9) || b.speed!==16 || !r.enemies.some((e: Enemy)=>e.id===b.targetId)) return false;
     ids.add(b.id);
   }
+  const sourceIds = new Set<string>();
+  for (const p of telegraphed ? r.enemyProjectiles : []) {
+    if (!object(p) || !keys(p,['id','sourceId','x','y','damage','speed']) || !validId(p.id) || ids.has(p.id) || !validId(p.sourceId) || p.id === p.sourceId || sourceIds.has(p.sourceId) || !position(p) || Math.hypot(p.x,p.y) > attackConfig('ranged').range - RANGED_MUZZLE_OFFSET + 1e-6 || p.damage !== enemyStats('ranged',r.wave).damage || p.speed !== ENEMY_PROJECTILE_SPEED || r.wave < 6 || r.wave === 30) return false;
+    if (!r.enemies.some((e: Enemy)=>e.id===p.sourceId && e.kind==='ranged') && !r.paidKillIds.includes(p.sourceId)) return false;
+    ids.add(p.id); sourceIds.add(p.sourceId);
+  }
   if (r.targetId!==null && !r.enemies.some((e: Enemy)=>e.id===r.targetId)) return false;
-  if (r.phase==='interwave' && (r.enemies.length || r.warnings.length || r.bullets.length || r.spawned!==waveConfig(r.wave).count)) return false;
+  if (r.phase==='interwave' && (r.enemies.length || r.warnings.length || r.bullets.length || (telegraphed && r.enemyProjectiles.length) || r.spawned!==waveConfig(r.wave).count)) return false;
   return true;
 }

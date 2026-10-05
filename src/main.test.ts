@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createState, getStats, parseState, serializeState, startRun, STAT_KEYS, type GameState } from './game';
+import { attackConfig, enemyStats, ENEMY_PROJECTILE_SPEED, createState, getStats, parseState, serializeState, startRun, STAT_KEYS, type GameState } from './game';
 import { SAVE_KEY } from './persistence';
 import type { SceneFrame } from './scene';
 
@@ -169,7 +169,7 @@ describe('fullscreen battle actual UI flows', () => {
   it('shows final-boss health inside the status row, retaining it through save and resume', async () => {
     const initial = fundedRun(), run = initial.run!;
     run.wave = 30; run.lastPaidWave = 29; run.earnedCrystals = 29; run.spawned = 1; run.nextEntityId = 2;
-    run.enemies = [{ id: `${run.id}:1`, kind: 'boss', x: 0, y: 11, hp: 312, maxHp: 624, damage: 42, speed: .7, attackInterval: 2, attackCooldown: 0 }];
+    run.enemies = [{ id: `${run.id}:1`, kind: 'boss', x: 0, y: 11, hp: 312, maxHp: 624, damage: 42, speed: .7, attackInterval: 2, attackCooldown: 0, attackPhase: 'approach', attackTime: 0, attackDuration: 0 }];
     await boot(initial); click('#resume');
     expect(element('#battle-wave').textContent).toBe('30 / 30');
     expect(element('#boss').parentElement).toBe(element('#battle-hud'));
@@ -181,6 +181,26 @@ describe('fullscreen battle actual UI flows', () => {
     expect(hidden('#boss')).toBe(false);
     expect(element('#boss-fill').style.width).toBe('50%');
     expect(saved().run!.enemies).toEqual(initial.run!.enemies);
+  });
+
+  it('forwards ranged attack poses and hostile projectiles, freezing both while the menu owns pause', async () => {
+    const initial=fundedRun(),run=initial.run!,stats=enemyStats('ranged',6);
+    run.wave=6;run.lastPaidWave=5;run.earnedCrystals=5;run.spawned=1;run.nextEntityId=3;
+    run.enemies=[{id:`${run.id}:1`,kind:'ranged',x:7.5,y:0,hp:stats.maxHp,...stats,attackCooldown:0,attackPhase:'windup',attackTime:.2,attackDuration:attackConfig('ranged').windup}];
+    // reward is config metadata, not a stored Enemy field.
+    delete (run.enemies[0] as unknown as Record<string,unknown>).reward;
+    run.enemyProjectiles=[{id:`${run.id}:2`,sourceId:`${run.id}:1`,x:4,y:0,damage:stats.damage,speed:ENEMY_PROJECTILE_SPEED}];
+    await boot(initial);click('#resume');advanceFrames();
+    const first=fakes.render.mock.calls.at(-1)![0] as SceneFrame;
+    expect(first.enemies[0]).toMatchObject({kind:'ranged',attackPhase:'windup',attackDuration:.8});
+    expect(first.enemyProjectiles).toHaveLength(1);expect(first.paused).toBe(false);
+    openDrawer();advanceFrames(5);
+    const frozen=fakes.render.mock.calls.at(-1)![0] as SceneFrame;
+    expect(frozen.paused).toBe(true);expect(frozen.enemies).toEqual(first.enemies);expect(frozen.enemyProjectiles).toEqual(first.enemyProjectiles);
+    click('#battle-menu-return');advanceFrames();
+    const resumed=fakes.render.mock.calls.at(-1)![0] as SceneFrame;
+    expect(resumed.paused).toBe(false);expect(resumed.enemyProjectiles![0].x).toBeLessThan(first.enemyProjectiles![0].x);
+    expect(resumed.enemies[0].attackTime).toBeGreaterThan(first.enemies[0].attackTime!);
   });
 
   it('reports save failure in the reserved status row without inserting an arena overlay', async () => {

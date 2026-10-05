@@ -18,7 +18,7 @@ function buildTerrain() {
   const builder = SceneView.prototype as unknown as { buildArena(this: typeof target): void };
   builder.buildArena.call(target);
   scene.updateMatrixWorld(true);
-  return { scene, textures, meshes: scene.children as THREE.Mesh[] };
+  return { scene, textures, meshes: scene.children.filter(child => child instanceof THREE.Mesh) as THREE.Mesh[] };
 }
 
 afterEach(() => vi.unstubAllGlobals());
@@ -60,6 +60,16 @@ describe('post-apocalyptic field actual CPU geometry', () => {
       expect(hits[0].point.y).toBeLessThan(.076);
       expect(hits[0].point.y).toBeGreaterThanOrEqual(WASTELAND_LIMITS.groundHeight - 1e-6);
     }
+  });
+
+  it('attaches the outer ruins to the actual field without adding combat colliders', () => {
+    const {scene}=buildTerrain();
+    const ruins=scene.getObjectByName('wasteland-outer-industrial-ruins') as THREE.Group;
+    expect(ruins).toBeDefined();expect(ruins.userData.decorativeOnly).toBe(true);
+    expect(ruins.children).toHaveLength(4);
+    let meshes=0,triangles=0;
+    scene.traverse(object=>{if(object instanceof THREE.Mesh){meshes++;triangles+=(object.geometry.index?.count??object.geometry.getAttribute('position').count)/3;}});
+    expect(meshes).toBe(9);expect(triangles).toBeLessThan(24000);
   });
 
   it('keeps every wreckage and plant vertex away from the firing ring and below mechs', () => {

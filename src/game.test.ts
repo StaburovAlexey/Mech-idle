@@ -3,7 +3,7 @@ import { SPAWN_RADIUS, WORLD_LIMIT, type SpawnGeometry } from './spawnGeometry';
 import {
   DT, STAT_KEYS, createState, startRun, step, setPaused, buyRunUpgrade, buyMetaUpgrade,
   runPrice, metaPrice, getStats, enemyStats, waveConfig, serializeState, parseState,
-  type GameState, type Enemy, type StatKey,
+  attackConfig, ENEMY_PROJECTILE_SPEED, RANGED_MUZZLE_OFFSET, MAX_ENEMIES, MAX_ENEMY_PROJECTILES, type GameState, type GameEvent, type Enemy, type StatKey,
 } from './game';
 
 function legacyGeometry(): SpawnGeometry {
@@ -15,7 +15,16 @@ function funded(gold = 1000): GameState {
 }
 function enemy(state: GameState, kind: Enemy['kind'] = 'ordinary', x = 3, hp?: number): Enemy {
   const r = state.run!, stats = enemyStats(kind, r.wave);
-  return { id: `${r.id}:${r.nextEntityId++}`, kind, x, y: 0, hp: hp ?? stats.maxHp, maxHp: stats.maxHp, damage: stats.damage, speed: stats.speed, attackInterval: stats.attackInterval, attackCooldown: 0 };
+  return { id: `${r.id}:${r.nextEntityId++}`, kind, x, y: 0, hp: hp ?? stats.maxHp, maxHp: stats.maxHp, damage: stats.damage, speed: stats.speed, attackInterval: stats.attackInterval, attackCooldown: 0, attackPhase: 'approach', attackTime: 0, attackDuration: 0 };
+}
+function readyStrike(e: Enemy): Enemy {
+  const duration = attackConfig(e.kind).windup;
+  return { ...e, attackPhase: 'windup', attackTime: duration - DT, attackDuration: duration };
+}
+function atWave(wave: number, seed = 99): GameState {
+  const s = startRun(createState(), seed), r = s.run!;
+  r.wave = wave; r.lastPaidWave = wave - 1; r.earnedCrystals = wave - 1; s.profile.crystals = wave - 1;
+  return s;
 }
 function clearAtNextTick(s: GameState): GameState {
   const r = s.run!; r.enemies = []; r.bullets = []; r.warnings = []; r.spawned = waveConfig(r.wave).count; return step(s);
@@ -182,7 +191,7 @@ describe('immediate upgrade timing', () => {
 
 describe('deterministic combat and timing', () => {
   it('uses exact enemy growth, first fast wave4, and only one exact boss on wave30', () => {
-    expect(waveConfig(1)).toEqual({ count: 6, interval: 1.5, jitter: .2, fastEvery: 0, boss: false });
+    expect(waveConfig(1)).toEqual({ count: 6, interval: 1.5, jitter: .2, fastEvery: 0, rangedEvery: 0, burstSize: 1, boss: false });
     expect(waveConfig(3).fastEvery).toBe(0); expect(waveConfig(4).fastEvery).toBe(4);
     expect(enemyStats('ordinary', 1)).toEqual({ maxHp: 20, damage: 10, speed: 1, attackInterval: 2, reward: 3 });
     expect(enemyStats('fast', 4)).toEqual({ maxHp: 16, damage: 9, speed: 1.8, attackInterval: 2, reward: 4 });
@@ -231,10 +240,11 @@ describe('deterministic combat and timing', () => {
     const n = step(s); expect(n.run?.gold).toBe(3); expect(n.run?.kills).toBe(1); expect(n.run?.paidKillIds).toEqual([e.id]);
     expect(n.run?.bullets).toHaveLength(0); expect(step(n, 20).run?.gold).toBe(3);
   });
-  it('uses contact radius1.2 and a two-second melee interval', () => {
+  it('telegraphs contact attacks at radius1.2 and keeps a two-second melee interval', () => {
     const s = startRun(createState(), 1), e = enemy(s, 'ordinary', 1.2);
     s.run!.enemies = [e]; s.run!.spawnCooldown = 99; s.run!.shotCooldown = 99;
-    const first = step(s); expect(first.run?.hp).toBe(90);
+    const winding = step(s); expect(winding.run?.hp).toBe(100); expect(winding.run!.enemies[0].attackPhase).toBe('windup');
+    const first = step(winding, Math.ceil(attackConfig('ordinary').windup / DT)); expect(first.run?.hp).toBe(90);
     const waiting = step(first, 59); expect(waiting.run?.hp).toBe(90);
     expect(step(waiting).run?.hp).toBe(80);
   });
@@ -262,20 +272,20 @@ describe('boundaries, outcomes, and persistence', () => {
   });
   it('death is resolved before regeneration and wave-clear', () => {
     const s = startRun(createState(), 1); s.run!.hp = 10; s.run!.activeLevels.regen = 15; s.run!.levels.regen = 15;
-    s.run!.enemies = [enemy(s, 'ordinary', 1.2)];
+    s.run!.enemies = [readyStrike(enemy(s, 'ordinary', 1.2))];
     const n = step(s); expect(n.result?.outcome).toBe('defeat'); expect(n.profile.crystals).toBe(0);
   });
   it('simultaneous boss/turret death is defeat with no wave30crystal', () => {
     const s = startRun(createState(), 1), r = s.run!; s.profile.crystals = 29;
-    r.wave = 30; r.lastPaidWave = 29; r.earnedCrystals = 29; r.hp = 42; r.spawned = 1;
-    const boss = enemy(s, 'boss', 1.2, 1); r.enemies = [boss]; r.shotCooldown = 1;
+    r.wave = 30; r.lastPaidWave = 29; r.earnedCrystals = 29; r.hp = 21; r.spawned = 1;
+    const boss = readyStrike(enemy(s, 'boss', 1.2, 1)); r.enemies = [boss]; r.shotCooldown = 1;
     r.bullets = [{ id: `${r.id}:${r.nextEntityId++}`, targetId: boss.id, x: 1.2, y: 0, damage: 10, speed: 16 }];
     const n = step(s); expect(n.result?.outcome).toBe('defeat'); expect(n.result?.completedWaves).toBe(29);
     expect(n.profile.crystals).toBe(29); expect(n.result?.earnedGold).toBe(50); expect(n.run).toBeNull();
   });
   it('defeat clears temporary gold/levels/entities, preserves permanent progress, and restart refills HP', () => {
     const s = funded(); s.profile.meta.damage = 2; s.profile.meta.maxHp = 1; s.profile.crystals = 7;
-    s.run!.hp = 1; s.run!.levels.damage = 3; s.run!.activeLevels.damage = 3; s.run!.enemies = [enemy(s, 'ordinary', 1.2)];
+    s.run!.hp = 1; s.run!.levels.damage = 3; s.run!.activeLevels.damage = 3; s.run!.enemies = [readyStrike(enemy(s, 'ordinary', 1.2))];
     const n = step(s); expect(n.run).toBeNull(); expect(n.profile.crystals).toBe(7); expect(n.profile.meta.damage).toBe(2);
     const restart = startRun(n, 2); expect(restart.run?.gold).toBe(0); expect(restart.run?.levels.damage).toBe(0);
     expect(restart.run?.hp).toBeCloseTo(110); expect(restart.run?.enemies).toHaveLength(0); expect(restart.result).toBeNull();
@@ -471,4 +481,240 @@ describe('boundaries, outcomes, and persistence', () => {
     expect(parseState(serializeState(s))?.result?.outcome).toBe('victory');
     expect(s.result!.duration).toBeLessThan(20 * 60);
   }, 20000);
+});
+
+describe('telegraphed attack states and hostile projectiles', () => {
+  function isolated(kind: Enemy['kind'], wave: number, x: number) {
+    const s = atWave(wave), r = s.run!;
+    r.enemies = [enemy(s, kind, x)]; r.spawned = waveConfig(wave).count; r.shotCooldown = 1;
+    return s;
+  }
+  function rangedLaunch() {
+    return step(isolated('ranged', 6, 7.5), 25);
+  }
+  it.each(['ordinary', 'fast', 'boss', 'ranged'] as const)('%s telegraphs before striking and exposes the exact phase duration', kind => {
+    const wave = kind === 'boss' ? 30 : kind === 'ordinary' ? 1 : 6, config = attackConfig(kind);
+    const s = isolated(kind, wave, config.range); s.run!.shotCooldown = 99;
+    const first = step(s);
+    expect(first.events.filter(e => e.type === 'enemyWindup')).toHaveLength(1);
+    expect(first.events.some(e => e.type === 'turretHit' || e.type === 'enemyShot')).toBe(false);
+    expect(first.run!.enemies[0]).toMatchObject({ attackPhase: 'windup', attackTime: 0, attackDuration: config.windup });
+    const waiting = step(first, Math.ceil(config.windup / DT) - 1);
+    expect(waiting.run!.hp).toBe(100); expect(waiting.run!.enemyProjectiles).toHaveLength(0);
+    const striking = step(waiting);
+    expect(striking.events.filter(e => e.type === 'enemyStrike')).toHaveLength(1);
+    expect(striking.run!.enemies[0].attackPhase).toBe('strike');
+    if (kind === 'ranged') expect(striking.run!.hp).toBe(100), expect(striking.run!.enemyProjectiles).toHaveLength(1);
+    else expect(striking.run!.hp).toBe(100 - enemyStats(kind, wave).damage / config.hitOffsets.length);
+  });
+  it('stops the ranged robot at7.5 inside turret range without drifting while it attacks', () => {
+    let s = isolated('ranged', 6, 7.5 + 2 * DT); s.run!.shotCooldown = 99;
+    s = step(s, 2);
+    expect(s.run!.enemies[0].x).toBeCloseTo(7.5, 12);
+    expect(s.run!.enemies[0].attackPhase).toBe('windup');
+    s = step(s, 90);
+    expect(s.run!.enemies[0].x).toBeCloseTo(7.5, 12);
+    expect(attackConfig('ranged').range).toBeLessThan(getStats(s).range);
+    expect(s.events.filter(e => e.type === 'enemyShot')).toHaveLength(1);
+  });
+  it('launches from the cannon muzzle and deals damage only when its traveling bolt arrives once', () => {
+    const launched = rangedLaunch(), r = launched.run!, projectile = r.enemyProjectiles[0];
+    expect(r.hp).toBe(100); expect(r.enemyProjectiles).toHaveLength(1);
+    expect(projectile).toMatchObject({ sourceId: r.enemies[0].id, x: 7.5 - RANGED_MUZZLE_OFFSET, y: 0, speed: ENEMY_PROJECTILE_SPEED });
+    expect(launched.events.find(e => e.type === 'enemyShot')).toMatchObject({ id: projectile.id, x: projectile.x, targetX: 0, targetY: 0 });
+    const moved = step(launched);
+    expect(moved.run!.enemyProjectiles[0].x).toBeCloseTo(projectile.x - ENEMY_PROJECTILE_SPEED * DT, 12);
+    const travelTicks = Math.ceil((Math.hypot(projectile.x, projectile.y) - .15) / (ENEMY_PROJECTILE_SPEED * DT));
+    const waiting = step(launched, travelTicks - 1);
+    expect(waiting.run!.hp).toBe(100); expect(waiting.run!.enemyProjectiles).toHaveLength(1);
+    const impact = step(waiting);
+    expect(impact.run!.hp).toBe(100 - projectile.damage); expect(impact.run!.enemyProjectiles).toHaveLength(0);
+    expect(impact.events.filter(e => e.type === 'turretHit')).toEqual([{ type: 'turretHit', amount: projectile.damage }]);
+    const after = step(impact, 20);
+    expect(after.events.some(e => e.type === 'turretHit')).toBe(false);
+  });
+  it('keeps a fired bolt after the shooter dies and holds wave rewards until it resolves', () => {
+    const launched = rangedLaunch(), r = launched.run!, source = r.enemies[0];
+    source.hp = 1; r.shotCooldown = 1;
+    r.bullets = [{ id: `${r.id}:${r.nextEntityId++}`, targetId: source.id, x: source.x, y: source.y, damage: 10, speed: 16 }];
+    const killed = step(launched);
+    expect(killed.run!.enemies).toHaveLength(0); expect(killed.run!.enemyProjectiles).toHaveLength(1);
+    expect(killed.run!.phase).toBe('combat'); expect(killed.profile.crystals).toBe(5);
+    expect(killed.run!.gold).toBe(4); expect(killed.run!.paidKillIds).toEqual([source.id]);
+    const loaded = parseState(serializeState(killed))!;
+    expect(loaded).not.toBeNull();
+    const resolved = step(loaded, 40);
+    expect(resolved.run!.phase).toBe('interwave'); expect(resolved.run!.hp).toBe(93);
+    expect(resolved.run!.enemyProjectiles).toHaveLength(0); expect(resolved.profile.crystals).toBe(6);
+    expect(resolved.run!.gold).toBe(4); expect(resolved.events.filter(e => e.type === 'waveComplete')).toHaveLength(1);
+  });
+  it('resolves a lethal hostile bolt before regeneration or the final wave reward', () => {
+    const s = rangedLaunch(), r = s.run!, e = r.enemies[0];
+    r.hp = 1; r.levels.regen = 15; r.activeLevels.regen = 15;
+    r.enemyProjectiles[0].x = .1; e.hp = 1;
+    r.bullets = [{ id: `${r.id}:${r.nextEntityId++}`, targetId: e.id, x: e.x, y: e.y, damage: 10, speed: 16 }];
+    const result = step(s);
+    expect(result.result?.outcome).toBe('defeat'); expect(result.result?.completedWaves).toBe(5);
+    expect(result.profile.crystals).toBe(5); expect(result.result?.earnedGold).toBe(4);
+  });
+  it('kills during windup cancel the attack without queuing a free shot', () => {
+    const s = step(isolated('ranged', 6, 7.5)), r = s.run!, e = r.enemies[0]; e.hp = 1;
+    r.bullets = [{ id: `${r.id}:${r.nextEntityId++}`, targetId: e.id, x: e.x, y: e.y, damage: 10, speed: 16 }];
+    const n = step(s);
+    expect(n.run!.enemyProjectiles).toHaveLength(0); expect(n.run!.hp).toBe(100);
+    expect(n.events.some(e => e.type === 'enemyShot' || e.type === 'turretHit')).toBe(false);
+    expect(n.run!.phase).toBe('interwave');
+  });
+  it('freezes the windup and in-flight bolt across pause/reload with byte-identical continuation', () => {
+    for (const tick of [12, 24, 25, 38]) {
+      let source = step(isolated('ranged', 6, 7.5), tick);
+      source = setPaused(source, true);
+      const json = serializeState(source), restored = parseState(json)!;
+      expect(serializeState(step(restored, 30000))).toBe(json);
+      expect(restored.run!.tick).toBe(tick);
+      expect(serializeState(step(setPaused(restored, false), 70))).toBe(serializeState(step(setPaused(source, false), 70)));
+    }
+  });
+  it('never duplicates the launch when saving immediately before or after the strike', () => {
+    let original = step(isolated('ranged', 6, 7.5), 24), shots = 0, hits = 0;
+    for (let i = 0; i < 35; i++) {
+      const restored = parseState(serializeState(original))!;
+      const direct = step(original), loaded = step(restored);
+      expect(serializeState(loaded)).toBe(serializeState(direct));
+      expect(loaded.events).toEqual(direct.events);
+      shots += loaded.events.filter(e => e.type === 'enemyShot').length;
+      hits += loaded.events.filter(e => e.type === 'turretHit').length;
+      original = direct;
+    }
+    expect(shots).toBe(1); expect(hits).toBe(1);
+  });
+  it('boss double slam hits exactly at both offsets and reload never repeats the first hit', () => {
+    let s = isolated('boss', 30, 1.2); s.run!.shotCooldown = 1;
+    s = step(s, 24);
+    expect(s.run!.hp).toBe(79); expect(s.run!.enemies[0].attackPhase).toBe('strike');
+    const afterFirst = serializeState(s), firstTime = s.run!.enemies[0].attackTime;
+    expect(firstTime).toBeCloseTo(1 / 60, 12);
+    const untilSecond = Math.ceil((attackConfig('boss').hitOffsets[1] - firstTime) / DT);
+    const waiting = step(parseState(afterFirst)!, untilSecond - 1);
+    expect(waiting.run!.hp).toBe(79);
+    const second = step(parseState(serializeState(waiting))!);
+    expect(second.run!.hp).toBe(58);
+    expect(second.events.filter(e => e.type === 'enemyStrike')).toMatchObject([{ hitIndex: 1 }]);
+    const reloaded = parseState(serializeState(second))!;
+    expect(step(reloaded).run!.hp).toBe(58);
+    expect(serializeState(step(reloaded, 20))).toBe(serializeState(step(second, 20)));
+  });
+  it('killing a boss between slams cancels its second hit and awards victory once', () => {
+    const s = step(isolated('boss', 30, 1.2), 24), r = s.run!, boss = r.enemies[0];
+    boss.hp = 1;
+    r.bullets = [{ id: `${r.id}:${r.nextEntityId++}`, targetId: boss.id, x: boss.x, y: boss.y, damage: 10, speed: 16 }];
+    const result = step(s);
+    expect(result.result?.outcome).toBe('victory'); expect(result.profile.crystals).toBe(30);
+    expect(result.events.some(e => e.type === 'turretHit')).toBe(false);
+    expect(step(parseState(serializeState(result))!, 100).profile.crystals).toBe(30);
+  });
+  it('skips a shot deterministically when the bounded projectile pool is saturated', () => {
+    const s = isolated('ranged', 6, 7.5), r = s.run!;
+    r.enemies[0] = readyStrike(r.enemies[0]);
+    r.enemyProjectiles = Array.from({ length: MAX_ENEMY_PROJECTILES }, (_, i) => ({ id: `fixture-${i}`, sourceId: `source-${i}`, x: 7, y: 0, damage: 7, speed: ENEMY_PROJECTILE_SPEED }));
+    const n = step(s);
+    expect(n.run!.enemyProjectiles).toHaveLength(MAX_ENEMY_PROJECTILES);
+    expect(n.events.some(e => e.type === 'enemyShot')).toBe(false);
+    expect(n.run!.enemies[0].attackPhase).toBe('strike');
+    expect(step(s)).toEqual(n);
+  });
+});
+
+describe('circle crowds and combat-save migration', () => {
+  it('waits for room for the complete next crowd without consuming RNG or entity IDs', () => {
+    const s = atWave(5), r = s.run!;
+    r.enemies = Array.from({ length: MAX_ENEMIES - 2 }, () => enemy(s, 'ordinary', 12));
+    const rng = r.rngState, id = r.nextEntityId;
+    const blocked = step(s);
+    expect(blocked.run!.warnings).toHaveLength(0); expect(blocked.run!.spawned).toBe(0);
+    expect(blocked.run!.rngState).toBe(rng); expect(blocked.run!.nextEntityId).toBe(id);
+    blocked.run!.enemies.pop();
+    const allowed = step(blocked);
+    expect(allowed.run!.warnings).toHaveLength(3);
+    expect(allowed.run!.enemies.length + allowed.run!.warnings.length).toBe(MAX_ENEMIES);
+    expect(step(blocked)).toEqual(allowed);
+  });
+  it.each([5, 10, 15, 20, 25])('wave%s surrounds the turret in separated3–5 unit crowds while retaining its total count', wave => {
+    let s = atWave(wave), spawns = 0, crowds = 0, maxConcurrent = 0;
+    for (let tick = 0; tick < 1600 && s.run?.phase === 'combat'; tick++) {
+      s = step(s);
+      const warnings = s.events.filter((e): e is Extract<GameEvent, { type: 'warning' | 'spawn' }> => e.type === 'warning');
+      if (warnings.length) {
+        crowds++;
+        expect(warnings.length).toBeGreaterThanOrEqual(3); expect(warnings.length).toBeLessThanOrEqual(5);
+        const angles = warnings.map(e => Math.atan2(e.y, e.x));
+        for (const w of warnings) expect(Math.hypot(w.x, w.y)).toBeCloseTo(12, 12);
+        for (let i = 0; i < angles.length; i++) for (let j = i + 1; j < angles.length; j++) {
+          const difference = Math.abs(Math.atan2(Math.sin(angles[i] - angles[j]), Math.cos(angles[i] - angles[j])));
+          expect(difference).toBeGreaterThanOrEqual(Math.PI / 3 - 1e-9);
+        }
+      }
+      spawns += s.events.filter(e => e.type === 'spawn').length;
+      if (s.run) {
+        maxConcurrent = Math.max(maxConcurrent, s.run.enemies.length + s.run.warnings.length);
+        s.run.hp = 100;
+      }
+    }
+    expect(crowds).toBeGreaterThanOrEqual(2); expect(spawns).toBe(waveConfig(wave).count);
+    expect(maxConcurrent).toBeLessThanOrEqual(MAX_ENEMIES);
+  });
+  it('introduces ranged units on wave6 and preserves fast cadence and the solitary wave30boss', () => {
+    expect(waveConfig(5).rangedEvery).toBe(0); expect(waveConfig(6).rangedEvery).toBe(5);
+    const s = step(atWave(6), 220);
+    expect(s.events.some(e => e.type === 'spawn' && e.kind === 'ranged')).toBe(true);
+    const boss = step(atWave(30));
+    expect(boss.run!.warnings).toHaveLength(1); expect(boss.run!.warnings[0].kind).toBe('boss');
+    expect(waveConfig(30)).toMatchObject({ count: 1, burstSize: 1, fastEvery: 0, rangedEvery: 0 });
+  });
+  it('preserves an old circle save atomically, creates attack phases, and resumes cooldown without a free hit', () => {
+    const s = atWave(29, 777), r = s.run!;
+    r.hp = 68.125; r.paused = true; r.spawned = waveConfig(29).count; r.shotCooldown = .9;
+    r.gold = 19; r.earnedGold = 19;
+    const paid = `${r.id}:${r.nextEntityId++}`; r.paidKillIds = [paid]; r.kills = 1;
+    r.enemies = [enemy(s, 'ordinary', 1.2), enemy(s, 'fast', 9)];
+    r.enemies[0].attackCooldown = .8;
+    const legacy: any = structuredClone(s); legacy.events = [];
+    delete legacy.run.combatMode; delete legacy.run.enemyProjectiles;
+    for (const e of legacy.run.enemies) { delete e.attackPhase; delete e.attackTime; delete e.attackDuration; }
+    const before = JSON.stringify(legacy), loaded = parseState(before)!;
+    expect(loaded).not.toBeNull(); expect(JSON.stringify(legacy)).toBe(before);
+    expect(loaded.run).toMatchObject({ hp: 68.125, gold: 19, earnedGold: 19, paused: true, rngState: r.rngState, nextEntityId: r.nextEntityId, paidKillIds: [paid], kills: 1, combatMode: 'telegraphed', enemyProjectiles: [] });
+    expect(loaded.run!.enemies[0]).toMatchObject({ attackPhase: 'recovery', attackDuration: .8, attackTime: 0, attackCooldown: .8 });
+    expect(loaded.run!.enemies[1]).toMatchObject({ attackPhase: 'approach', attackDuration: 0, attackTime: 0 });
+    expect(loaded.events).toEqual([]);
+    expect(serializeState(step(loaded, 30000))).toBe(serializeState(loaded));
+    expect(serializeState(parseState(serializeState(loaded))!)).toBe(serializeState(loaded));
+    const resumed = step(setPaused(loaded, false), 24);
+    expect(resumed.run!.hp).toBe(68.125); expect(resumed.run!.enemyProjectiles).toHaveLength(0);
+    expect(resumed.run!.enemies[0].attackPhase).toBe('windup');
+    expect(resumed.events.some(e => e.type === 'turretHit')).toBe(false);
+  });
+  it('rejects partial, forged, duplicate or impossible attack/projectile snapshots before migration', () => {
+    let state = atWave(6); state.run!.enemies = [enemy(state, 'ranged', 7.5)]; state.run!.spawned = waveConfig(6).count; state.run!.shotCooldown = 1;
+    state = step(state, 25);
+    const valid = JSON.parse(serializeState(state));
+    const reject = (mutate: (value: any) => void) => { const value = structuredClone(valid); mutate(value); expect(parseState(JSON.stringify(value))).toBeNull(); };
+    reject(s => delete s.run.combatMode); reject(s => s.run.combatMode = 'instant');
+    reject(s => delete s.run.enemyProjectiles); reject(s => delete s.run.enemies[0].attackPhase);
+    reject(s => s.run.enemies[0].attackPhase = 'fire'); reject(s => s.run.enemies[0].attackTime = -1);
+    reject(s => s.run.enemies[0].attackTime = s.run.enemies[0].attackDuration);
+    reject(s => s.run.enemies[0].attackDuration = 2); reject(s => s.run.enemies[0].attackCooldown = 1);
+    reject(s => s.run.enemies[0].x = 9);
+    reject(s => s.run.enemies[0].x = 7);
+    reject(s => s.run.enemyProjectiles[0].speed = 999); reject(s => s.run.enemyProjectiles[0].damage = 999);
+    reject(s => s.run.enemyProjectiles[0].sourceId = 'missing');
+    reject(s => s.run.enemyProjectiles[0].sourceId = s.run.enemyProjectiles[0].id);
+    reject(s => s.run.enemyProjectiles[0].x = 8);
+    reject(s => s.run.enemyProjectiles[0].x = 6);
+    reject(s => s.run.enemyProjectiles.push(structuredClone(s.run.enemyProjectiles[0])));
+    reject(s => { const duplicate = structuredClone(s.run.enemyProjectiles[0]); duplicate.id = `${s.run.id}:${s.run.nextEntityId++}`; s.run.enemyProjectiles.push(duplicate); });
+    reject(s => s.run.enemyProjectiles[0].extra = true);
+    reject(s => { delete s.run.combatMode; delete s.run.enemyProjectiles; for (const e of s.run.enemies) { delete e.attackPhase; delete e.attackTime; delete e.attackDuration; } });
+    expect(parseState(JSON.stringify(valid))).not.toBeNull();
+  });
 });

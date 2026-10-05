@@ -22,7 +22,7 @@ describe('fixed world-space circle spawning', () => {
   });
   it.each([1, 4, 29, 30])('queues and materializes every wave%s type at exactly radius12 with only a half-second warning', wave => {
     let s = waveState(wave);
-    const warningTicks = new Map<string, number>(), counts: Record<EnemyKind, number> = { ordinary: 0, fast: 0, boss: 0 };
+    const warningTicks = new Map<string, number>(), counts: Record<EnemyKind, number> = { ordinary: 0, fast: 0, ranged: 0, boss: 0 };
     for (let tick = 1; tick <= 1100 && s.run?.phase === 'combat'; tick++) {
       s = step(s);
       for (const event of s.events) {
@@ -47,7 +47,7 @@ describe('fixed world-space circle spawning', () => {
       if (Object.values(counts).reduce((a, b) => a + b, 0) === waveConfig(wave).count) break;
     }
     expect(Object.values(counts).reduce((a, b) => a + b, 0)).toBe(waveConfig(wave).count);
-    if (wave === 30) expect(counts).toEqual({ ordinary: 0, fast: 0, boss: 1 });
+    if (wave === 30) expect(counts).toEqual({ ordinary: 0, fast: 0, ranged: 0, boss: 1 });
     else expect(counts.fast).toBe(wave >= 4 ? Math.floor(waveConfig(wave).count / 4) : 0);
   });
   it('randomizes full-circle opening angles instead of preferring camera edges', () => {
@@ -103,7 +103,7 @@ describe('fixed world-space circle spawning', () => {
   it('keeps the actual attack boundary at radius10', () => {
     let s = startRun(createState(), 5);
     const r = s.run!, stats = enemyStats('ordinary', 1); r.spawnCooldown = 1;
-    r.enemies = [{ id: `${r.id}:${r.nextEntityId++}`, kind: 'ordinary', x: 10.001 + DT, y: 0, hp: 20, maxHp: 20, damage: stats.damage, speed: stats.speed, attackInterval: stats.attackInterval, attackCooldown: 0 }];
+    r.enemies = [{ id: `${r.id}:${r.nextEntityId++}`, kind: 'ordinary', x: 10.001 + DT, y: 0, hp: 20, maxHp: 20, damage: stats.damage, speed: stats.speed, attackInterval: stats.attackInterval, attackCooldown: 0, attackPhase: 'approach', attackTime: 0, attackDuration: 0 }];
     s = step(s); expect(s.events.some(e => e.type === 'shot')).toBe(false);
     expect(getStats(s).range).toBe(10);
     s = step(s); expect(s.events.some(e => e.type === 'shot')).toBe(true);
