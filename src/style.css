@@ -4,79 +4,101 @@
 @media(max-width:720px){.shell{padding:14px 12px 12px;gap:12px}.brand-name{font-size:20px}.brand-mark{height:36px;width:36px}.brand-sub{font-size:8px}.pill{display:none}.icon-button{min-height:39px;min-width:39px}.workspace{display:flex;flex-direction:column;gap:12px;min-height:0}.arena-wrap{order:0;min-height:0;height:47svh;max-height:470px;flex:none;border-radius:13px}.panel{order:1;border-radius:13px;padding:20px;gap:12px}.panel h1{font-size:30px}.panel .help-list{display:none}.panel .panel-bottom{margin-top:0}.panel .tag-row{display:none}.panel.menu-panel{display:grid;grid-template-columns:1fr 1fr;gap:12px 20px}.menu-panel .menu-intro,.menu-panel .separator,.menu-panel .hint{grid-column:1/-1}.menu-panel .menu-actions{grid-column:2;grid-row:2/4;display:flex;flex-direction:column;justify-content:center;gap:8px}.menu-panel .currency{grid-column:1}.menu-panel .menu-intro p{margin-top:8px}.menu-panel .menu-intro .eyebrow{margin-bottom:6px}.menu-panel .panel-bottom{display:none}.combat-panel{display:grid;grid-template-columns:1fr 1fr;gap:12px 18px}.combat-panel .combat-wave{grid-column:1;grid-row:1}.combat-panel .combat-health{grid-column:2;grid-row:1;align-self:center}.combat-panel .combat-stats{grid-column:1/-1;display:flex;gap:10px}.combat-panel .stat-box{padding:9px 12px;flex:1;display:flex;justify-content:space-between;align-items:center}.combat-panel .stat-box span{margin:0;font-size:10px}.combat-panel .stat-box strong{font-size:18px}.combat-panel .combat-actions{grid-column:1/-1;display:flex;gap:8px}.combat-panel .combat-actions button{flex:1;min-height:42px}.combat-panel .help-list,.combat-panel .hint,.combat-panel .separator,.combat-panel .wave-dots,.combat-panel .keyboard{display:none}.wave-label strong{font-size:28px}.combat-wave .eyebrow{font-size:8px;margin-bottom:6px}.combat-wave p{font-size:10px;margin-top:5px}.upgrades{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.upgrade{min-height:109px;padding:12px}.upgrade-title{font-size:11px}.upgrade-value{font-size:17px}.upgrade-data{margin-top:10px}.upgrade-sub{font-size:9px}.section-head{margin:2px 2px -4px}.section-head span{font-size:9px;max-width:155px;text-align:right}.foot{font-size:8px}.foot span:last-child{display:none}.arena-top{top:12px;left:12px;right:12px}.arena-label{font-size:8px;padding:7px 9px}.arena-label span{display:none}.arena-bottom{bottom:12px;left:12px;right:12px}.coordinate{font-size:8px}.arena-note{font-size:8px;max-width:160px;text-align:right}.floating-message{top:48px;font-size:10px;max-width:90%;white-space:normal}.boss-bar{top:45px;left:13%;right:13%}.keyboard{display:none}.result-panel h1{font-size:32px}.modal{padding:23px}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 
-/* The approved Kenney skin is visible from the first screen, not only in combat.
-   Keep the workshop/result layout above; replace only artwork and text colors. */
+/* Kenney's composition: thin rectangular surfaces, a small colored title band,
+   and neutral controls. Every PNG retains its original palette and pixels. */
 .panel,.modal{
-  border:16px solid transparent;border-radius:0;
-  border-image:url('/assets/ui/kenney-sci-fi/panel_glass_notches.png') 16 fill / 16px stretch;
-  background:transparent;box-shadow:none;color:#253645;
+  border:12px solid transparent;border-radius:0;
+  border-image:url('/assets/ui/kenney-sci-fi/panel_glass_screws.png') 12 fill / 12px stretch;
+  background:transparent;box-shadow:none;color:#424653;
 }
-.panel h1,.modal h2{color:#19394d}
-.panel h1 small{color:#43566a}
-.panel .eyebrow{color:#32617a}
-.panel p,.modal p{color:#465369}
-.panel .hint{color:#546174!important}
-.panel .separator{background:#a5adbd}
-.panel .tag{border-color:#9ea9bb;color:#465369;border-radius:0}
-.panel .currency strong{color:#173c55}
-.panel .currency span{color:#546174}
-.panel .currency .symbol{color:#08729c}
-.panel .currency.gold .symbol{color:#754714}
-.panel .help-item b{color:#32617a}
-.panel .help-item span{color:#465369}
+.panel{padding:42px 16px 18px;gap:14px}
+.panel::before,.modal::before{
+  content:'';position:absolute;top:-12px;left:-12px;right:-12px;height:64px;
+  border:12px solid transparent;
+  border-image:url('/assets/ui/kenney-sci-fi/button_square_header_large_rectangle_screws.png') 12 fill / 12px stretch;
+  pointer-events:none;
+}
+.panel>*{position:relative}
+.panel .menu-intro{position:static}
+.panel .menu-intro>.eyebrow,.result-panel>.eyebrow{
+  position:absolute;top:-3px;left:6px;right:6px;z-index:1;color:#fff;
+  font-size:10px;line-height:16px;letter-spacing:.045em;
+}
+.panel h1{font-size:31px;letter-spacing:-.035em;color:#363b4b}
+.panel h1 small{color:#596070}
+.panel p,.modal p{color:#565968;line-height:1.55}
+.panel .hint{color:#646675!important}
+.panel .separator{background:#b4b5c2}
+.panel .tag{border-color:#b0b1c0;color:#626574;border-radius:2px;font-size:8px;padding:4px 6px}
+.panel .currency strong{color:#3c4152}
+.panel .currency span{color:#626574}
+.panel .currency .symbol{color:#1594bd}
+.panel .currency.gold .symbol{color:#986128}
+.panel .help-item b{color:#44829b}
+.panel .help-item span{color:#5d6070}
 .panel .stat-box{
-  border:5px solid transparent;border-radius:0;
-  border-image:url('/assets/ui/kenney-ui/button_rectangle_depth_border.png') 8 fill / 5px stretch;
+  border:4px solid transparent;border-radius:0;
+  border-image:url('/assets/ui/kenney-ui/button_rectangle_flat_grey.png') 8 fill / 4px stretch;
   background:transparent;
 }
-.panel .stat-box span{color:#465369}
-.panel .stat-box strong{color:#19394d}
-.panel .stat-box.crystals strong{color:#075e85}
-.panel .stat-box.gold strong{color:#754714}
+.panel .stat-box span{color:#656878}
+.panel .stat-box strong{color:#3c4152}
+.panel .stat-box.crystals strong{color:#087da1}
+.panel .stat-box.gold strong{color:#986128}
 .panel .result-emblem,.brand-mark{
-  border:5px solid transparent;border-radius:0;
-  border-image:url('/assets/ui/kenney-ui/button_rectangle_depth_flat.png') 8 fill / 5px stretch;
-  background:transparent;color:#082c42;
+  border:4px solid transparent;border-radius:0;
+  border-image:url('/assets/ui/kenney-ui/button_rectangle_depth_flat.png') 8 fill / 4px stretch;
+  background:transparent;color:#fff;
 }
-.main-button,.small-button,.icon-button,.upgrade{
-  border:6px solid transparent;border-radius:0;
-  border-image:url('/assets/ui/kenney-ui/button_rectangle_depth_flat.png') 8 fill / 6px stretch;
-  background:transparent;color:#082c42;box-shadow:none;filter:none;opacity:1;text-shadow:none;
+.main-button,.small-button,.icon-button,.upgrade,.battle-menu-toggle{
+  border:4px solid transparent;border-radius:0;
+  border-image:url('/assets/ui/kenney-ui/button_rectangle_depth_flat_grey.png') 8 fill / 4px stretch;
+  background:transparent;color:#4a4d5b;box-shadow:none;filter:none;opacity:1;text-shadow:none;
 }
-.small-button{min-height:44px}
+.main-button{min-height:48px;padding:8px 12px;font-size:13px;font-weight:800}
+.main-button:not(.secondary){
+  border-image-source:url('/assets/ui/kenney-ui/button_rectangle_depth_flat.png');color:#fff;
+}
+.main-button.secondary,.small-button{background:transparent;color:#4a4d5b;box-shadow:none}
+.small-button{min-height:44px;padding:7px 10px}
 .icon-button{min-width:44px;min-height:44px}
-.main-button.secondary,.small-button{
-  border:6px solid transparent;
-  border-image:url('/assets/ui/kenney-ui/button_rectangle_depth_border.png') 8 fill / 6px stretch;
-  background:transparent;color:#203d52;box-shadow:none;
+.main-button:hover:not(:disabled),.small-button:hover:not(:disabled),.icon-button:hover:not(:disabled),.upgrade:hover:not(:disabled),.battle-menu-toggle:hover:not(:disabled){
+  border-image-source:url('/assets/ui/kenney-ui/button_rectangle_depth_gloss_grey.png');filter:none;
 }
-.main-button:hover:not(:disabled),.small-button:hover:not(:disabled),.icon-button:hover:not(:disabled),.upgrade:hover:not(:disabled){
-  border-image-source:url('/assets/ui/kenney-ui/button_rectangle_depth_gloss.png');filter:none;
+.main-button:not(.secondary):hover:not(:disabled){border-image-source:url('/assets/ui/kenney-ui/button_rectangle_depth_gloss.png')}
+.main-button:active:not(:disabled),.small-button:active:not(:disabled),.icon-button:active:not(:disabled),.upgrade:active:not(:disabled),.battle-menu-toggle:active:not(:disabled){
+  border-image-source:url('/assets/ui/kenney-ui/button_rectangle_flat_grey.png');transform:translateY(1px);
 }
-.main-button:active:not(:disabled),.small-button:active:not(:disabled),.icon-button:active:not(:disabled),.upgrade:active:not(:disabled){
-  border-image-source:url('/assets/ui/kenney-ui/button_rectangle_flat.png');transform:translateY(1px);
-}
+.main-button:not(.secondary):active:not(:disabled){border-image-source:url('/assets/ui/kenney-ui/button_rectangle_flat.png')}
 .upgrade.affordable{
-  border-color:transparent;border-image-source:url('/assets/ui/kenney-ui/button_rectangle_depth_flat.png');
+  border-color:transparent;border-image-source:url('/assets/ui/kenney-ui/button_rectangle_depth_flat_grey.png');
   background:transparent;box-shadow:none;
 }
 .main-button:disabled,.small-button:disabled,.icon-button:disabled,.upgrade:disabled{
-  border-image-source:url('/assets/ui/kenney-ui/button_rectangle_depth_flat_grey.png');
-  background:transparent;color:#465267;opacity:1;filter:none;box-shadow:none;
+  border-image-source:url('/assets/ui/kenney-ui/button_rectangle_flat_grey.png');
+  background:transparent;color:#747584;opacity:1;filter:none;box-shadow:none;
 }
-.upgrade .stat-icon{border:0;border-radius:0;background:transparent;color:inherit}
-.upgrade .upgrade-level{background:transparent;border-radius:0;color:inherit}
-.upgrade .upgrade-value small,.upgrade .upgrade-sub,.upgrade .upgrade-price,.upgrade.meta .upgrade-price{color:inherit}
+.upgrade{padding:13px;min-height:112px}
+.upgrade .stat-icon{border:0;border-radius:0;background:transparent;color:#1984a8}
+.upgrade .upgrade-level{background:#bec0ce;border-radius:2px;color:#515564;padding:3px 5px}
+.upgrade .upgrade-value small,.upgrade .upgrade-sub{color:#676b79}
+.upgrade .upgrade-price,.upgrade.meta .upgrade-price{color:#087b9d}
+.upgrade:disabled .upgrade-price{color:#747584}
+.section-head strong{font-size:11px}
+.modal{position:relative;padding:44px 16px 16px;gap:15px}
+.modal h2{position:relative;z-index:1;margin:-46px -4px 17px;color:#fff;font-size:18px;line-height:24px;letter-spacing:-.015em}
+.modal .button-row{flex-wrap:wrap;gap:8px}
+.modal .button-row button{min-width:110px}
 
-/* Combat uses three real layout regions: status, arena, upgrades.
-   Only dialogs cover the arena; the live HUD never overlays the playfield. */
+/* Combat keeps the existing three normal-flow rows. Neither HUD region covers
+   the scene, and changing this skin does not change the camera or game world. */
 .battle-hud,.battle-menu-overlay{display:none}
 body.battle-active{overflow:hidden;overscroll-behavior:none}
 .shell.in-battle{
   position:fixed;inset:0;display:grid;grid-template-rows:auto minmax(0,1fr) auto;
   grid-template-columns:minmax(0,1fr);width:100%;max-width:none;
   min-height:0;height:100svh;height:100dvh;margin:0;padding:0;gap:0;
-  overflow:hidden;background:#111c27;
+  overflow:hidden;background:#263642;
 }
 .shell.in-battle .topbar,.shell.in-battle .panel,.shell.in-battle .section-head,
 .shell.in-battle .foot,.shell.in-battle .arena-top,.shell.in-battle .arena-bottom,
@@ -93,111 +115,76 @@ body.battle-active{overflow:hidden;overscroll-behavior:none}
 .shell.in-battle .arena canvas{touch-action:none}
 .shell.in-battle .battle-hud{
   grid-row:1;grid-column:1;position:relative;display:grid;
-  grid-template-columns:minmax(0,720px) auto;justify-content:center;align-items:stretch;
-  gap:8px;min-width:0;width:100%;padding:10px 16px;
-  padding-top:max(10px,env(safe-area-inset-top));
+  grid-template-columns:minmax(0,720px) auto;justify-content:center;align-items:center;
+  gap:8px;min-width:0;width:100%;padding:8px 16px;
+  padding-top:max(8px,env(safe-area-inset-top));
   padding-left:max(16px,env(safe-area-inset-left));
   padding-right:max(16px,env(safe-area-inset-right));
-  background:#182533;border-bottom:2px solid #081522;
+  background:#263642;border-bottom:1px solid #102532;
 }
-/* Raw Kenney Sci-Fi artwork: 64x64 PNG, 16px chamfers and opaque center.
-   Direct nine-slice + fill keeps the complete artwork visible; no tinted layers. */
-.battle-resources,.battle-menu-panel{
-  border:16px solid transparent;
-  border-image:url('/assets/ui/kenney-sci-fi/panel_glass_notches.png') 16 fill / 16px stretch;
-  border-radius:0;background:transparent;color:#253645;box-shadow:none;
-}
+/* This header stays 64px high: its 32px colored strip and the screw geometry
+   keep native dimensions. Only the unornamented horizontal centers stretch. */
 .battle-resources{
-  display:grid;grid-template-columns:.9fr 1.35fr 1fr 1fr;
-  min-width:0;min-height:68px;padding:0 2px;border-width:12px;
-  border-image-width:12px;
+  position:relative;display:grid;grid-template-columns:.9fr 1.35fr 1fr 1fr;
+  min-width:0;height:64px;border:0;padding:0 4px;background:transparent;color:#4a4d5b;
+}
+.battle-resources::before,.battle-menu-head::before{
+  content:'';position:absolute;inset:0;border:12px solid transparent;
+  border-image:url('/assets/ui/kenney-sci-fi/button_square_header_large_rectangle_screws.png') 12 fill / 12px stretch;
+  pointer-events:none;
 }
 .battle-resource{
-  display:flex;flex-direction:column;justify-content:center;gap:4px;
-  min-width:0;padding:0 16px;line-height:1.1;font-variant-numeric:tabular-nums;
+  position:relative;display:flex;flex-direction:column;justify-content:flex-start;
+  min-width:0;padding:10px 12px 7px;line-height:1.1;font-variant-numeric:tabular-nums;
 }
-.battle-resource+.battle-resource{border-left:1px solid #959eaf}
+.battle-resource+.battle-resource::before{
+  content:'';position:absolute;left:0;top:38px;bottom:8px;width:1px;background:#b1b4c1;
+}
 .battle-resource>span,.battle-resource>small{
-  color:#455369;font-size:10px;font-weight:800;letter-spacing:.025em;line-height:1.2;
+  color:#fff;font-size:10px;font-weight:750;letter-spacing:.015em;line-height:12px;
 }
-.battle-resource>strong{color:#183347;font-size:20px;font-weight:850;line-height:1.05;white-space:nowrap}
-.battle-resource.gold>strong{color:#754714}
-.battle-resource.crystals>strong{color:#075e85}
+.battle-resource>strong{color:#3d4253;font-size:18px;font-weight:800;line-height:20px;margin-top:14px;white-space:nowrap}
+.battle-resource.gold>strong{color:#8c602e}
+.battle-resource.crystals>strong{color:#087b9d}
+.battle-resource.health>strong{margin-top:12px;font-size:16px;line-height:17px}
 .battle-resource .health-track,.boss-track{
-  height:10px;margin:0;border:0;border-radius:0;background:transparent;
+  height:6px;margin:0;border:0;border-radius:0;background:transparent;
   background-image:url('/assets/ui/kenney-sci-fi/bar_shadow_round_outline_small.png');
   background-size:100% 100%;background-repeat:no-repeat;overflow:hidden;
 }
+.battle-resource .health-track{position:absolute;left:12px;right:12px;bottom:6px}
 .battle-resource .health-fill,.boss-fill{
   height:100%;border-radius:0;background:transparent;
   background-image:url('/assets/ui/kenney-sci-fi/bar_round_gloss_small.png');
   background-size:100% 100%;background-repeat:no-repeat;transition:width .12s;
 }
-.battle-resource .health-fill.low,.boss-fill{
-  background-image:url('/assets/ui/kenney-sci-fi/bar_round_gloss_small_red.png');
-}
-/* UI Pack buttons use the original filled face, edge highlight and lower depth.
-   8px source slices cover the 4px corners and 8px lower edge at native scale. */
-.battle-menu-toggle,.battle-menu-close,.battle-menu-panel .menu-actions button,
-.shell.in-battle .upgrade{
-  border:6px solid transparent;border-radius:0;
-  border-image:url('/assets/ui/kenney-ui/button_rectangle_depth_flat.png') 8 fill / 6px stretch;
-  background:transparent;color:#082c42;box-shadow:none;filter:none;opacity:1;
-  text-shadow:none;
-}
-.battle-menu-toggle:hover:not(:disabled),.battle-menu-close:hover:not(:disabled),
-.battle-menu-panel .menu-actions button:hover:not(:disabled),
-.shell.in-battle .upgrade.affordable:hover:not(:disabled){
-  border-image-source:url('/assets/ui/kenney-ui/button_rectangle_depth_gloss.png');filter:none;
-}
-.battle-menu-toggle:active,.battle-menu-close:active,
-.battle-menu-panel .menu-actions button:active,.shell.in-battle .upgrade.affordable:active{
-  border-image-source:url('/assets/ui/kenney-ui/button_rectangle_flat.png');transform:translateY(1px);
-}
-.battle-menu-toggle,.battle-menu-close{
+.battle-resource .health-fill.low,.boss-fill{background-image:url('/assets/ui/kenney-sci-fi/bar_round_gloss_small_red.png')}
+.battle-menu-toggle{
   display:flex;align-items:center;justify-content:center;gap:8px;
   min-width:48px;min-height:48px;padding:6px 10px;
-  font-size:11px;font-weight:850;letter-spacing:.025em;
+  font-size:11px;font-weight:750;letter-spacing:.015em;
 }
 .battle-menu-toggle svg{width:20px;height:20px;flex:none}
-.battle-menu-close{width:44px;height:44px;min-width:44px;min-height:44px;padding:0;font-size:25px}
 .shell.in-battle .upgrades{
   grid-row:3;grid-column:1;position:relative;display:grid;
   grid-template-columns:repeat(4,minmax(0,190px));justify-content:center;
-  gap:8px;width:100%;max-width:none;min-width:0;margin:0;padding:10px 16px;
-  padding-bottom:max(10px,env(safe-area-inset-bottom));
+  gap:8px;width:100%;max-width:none;min-width:0;margin:0;padding:8px 16px;
+  padding-bottom:max(8px,env(safe-area-inset-bottom));
   padding-left:max(16px,env(safe-area-inset-left));
   padding-right:max(16px,env(safe-area-inset-right));
-  border-top:2px solid #081522;background:#182533;
+  border-top:1px solid #102532;background:#263642;
 }
-.shell.in-battle .upgrade{
-  min-width:0;min-height:102px;padding:6px 7px 8px;
-  border-image-source:url('/assets/ui/kenney-ui/button_rectangle_depth_flat_grey.png');
-  color:#35465a;transition:transform .1s;
-}
-.shell.in-battle .upgrade.affordable{
-  border-image-source:url('/assets/ui/kenney-ui/button_rectangle_depth_flat.png');
-  background:transparent;color:#082c42;
-}
-.shell.in-battle .upgrade:disabled{
-  border-image-source:url('/assets/ui/kenney-ui/button_rectangle_depth_flat_grey.png');
-  background:transparent;color:#465267;opacity:1;filter:none;box-shadow:none;
-}
-.shell.in-battle .upgrade-top{align-items:flex-start;gap:5px}
-.shell.in-battle .upgrade-title{font-size:11px;gap:6px;line-height:1.25;font-weight:850}
+.shell.in-battle .upgrade{min-width:0;min-height:94px;padding:7px 9px;transition:transform .1s}
+.shell.in-battle .upgrade-top{align-items:center;gap:5px}
+.shell.in-battle .upgrade-title{font-size:11px;gap:6px;line-height:1.2;font-weight:800}
 .shell.in-battle .stat-icon{display:none}
-.shell.in-battle .upgrade-level{
-  padding:0;border:0;border-radius:0;background:transparent;color:inherit;
-  font-size:9px;font-weight:650;line-height:1.3;white-space:nowrap;
-}
+.shell.in-battle .upgrade-level{font-size:9px;font-weight:600;line-height:1.2;white-space:nowrap;padding:2px 4px}
 .shell.in-battle .upgrade-data{margin-top:8px;gap:5px;align-items:baseline;flex-wrap:wrap}
-.shell.in-battle .upgrade-value{font-size:21px;font-weight:850;line-height:1.1;letter-spacing:-.02em}
-.shell.in-battle .upgrade-value small{font-size:10px;font-weight:650;color:inherit;margin-left:3px}
-.shell.in-battle .upgrade-price,.shell.in-battle .upgrade:disabled .upgrade-price{
-  font-size:13px;font-weight:850;line-height:1.2;color:inherit;text-shadow:none;white-space:nowrap;
-}
-.shell.in-battle .upgrade-sub{font-size:9px;font-weight:650;line-height:1.25;margin-top:5px;color:inherit}
-/* Boss and storage messages belong to the reserved status row, too. */
+.shell.in-battle .upgrade-value{font-size:21px;font-weight:800;line-height:1.1;letter-spacing:-.02em}
+.shell.in-battle .upgrade-value small{font-size:10px;font-weight:550;margin-left:3px}
+.shell.in-battle .upgrade-price{font-size:13px;font-weight:800;line-height:1.2;text-shadow:none;white-space:nowrap}
+.shell.in-battle .upgrade-sub{font-size:9px;font-weight:550;line-height:1.25;margin-top:5px}
+/* Boss and storage messages use the reserved status row. */
 .shell.in-battle .battle-hud .boss-bar{
   grid-column:1/-1;position:static;inset:auto;transform:none;width:auto;
   margin:0;padding:7px 13px;border:0;border-radius:0;background:#38272e;
@@ -212,103 +199,118 @@ body.battle-active{overflow:hidden;overscroll-behavior:none}
 .shell.in-battle .paused-overlay h2{font-size:26px;letter-spacing:-.03em}
 .shell.in-battle .fatal{position:absolute;padding:24px;z-index:8}
 .battle-menu-overlay{
-  position:fixed;inset:0;z-index:40;padding:24px;
-  padding-top:max(24px,env(safe-area-inset-top));
-  padding-bottom:max(24px,env(safe-area-inset-bottom));
-  background:#06151bc4;backdrop-filter:blur(7px);overflow:auto;overscroll-behavior:contain;
+  position:fixed;inset:0;z-index:40;padding:20px;
+  padding-top:max(20px,env(safe-area-inset-top));
+  padding-bottom:max(20px,env(safe-area-inset-bottom));
+  background:#102533b8;backdrop-filter:blur(4px);overflow:auto;overscroll-behavior:contain;
 }
 .shell.in-battle .battle-menu-overlay{display:flex;align-items:center;justify-content:center}
 .battle-menu-panel{
-  width:min(380px,100%);max-height:100%;overflow:auto;padding:12px;
-  display:flex;flex-direction:column;gap:16px;
+  position:relative;width:min(360px,100%);max-height:100%;overflow:auto;
+  padding:0;display:flex;flex-direction:column;gap:10px;border:12px solid transparent;border-radius:0;
+  border-image:url('/assets/ui/kenney-sci-fi/panel_glass_screws.png') 12 fill / 12px stretch;
+  background:transparent;color:#4a4d5b;box-shadow:none;
 }
-.battle-menu-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
-.battle-menu-panel .eyebrow{color:#32617a;font-size:9px;letter-spacing:.1em;margin-bottom:6px}
-.battle-menu-panel h2{margin:0;color:#19394d;font-size:27px;letter-spacing:-.035em}
-.battle-menu-panel p{margin:0;color:#465369;font-size:12px;line-height:1.6}
-.battle-menu-panel .hint{color:#546174!important}
-.battle-menu-panel .menu-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.battle-menu-head{position:relative;flex:none;height:64px;margin:-12px -12px 0}
+.battle-menu-panel h2{position:absolute;top:7px;left:14px;right:46px;margin:0;color:#fff;font-size:17px;line-height:21px;font-weight:750;letter-spacing:0}
+.battle-menu-panel .eyebrow{position:absolute;left:14px;top:42px;color:#686b7a;font-size:10px;line-height:13px;font-weight:650;letter-spacing:.02em}
+.battle-menu-close{
+  position:absolute;right:3px;top:0;display:grid;place-items:center;
+  width:44px;height:44px;min-width:44px;min-height:44px;padding:0;
+  border:0;border-radius:0;background:transparent;box-shadow:none;opacity:1;filter:none;
+}
+.battle-menu-close:focus-visible{outline-offset:-4px;outline-color:#fff}
+.battle-menu-close:hover:not(:disabled){filter:none;background:#ffffff16}
+.kenney-close-icon{display:block;width:18px;height:18px;background:url('/assets/ui/kenney-ui/icon_cross_red.png') center / 18px 18px no-repeat}
+.battle-menu-panel p{margin:0;color:#626675;font-size:11px;line-height:1.5}
+.battle-menu-panel .battle-menu-status{padding:0 2px}
+.battle-menu-panel .menu-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
 .battle-menu-panel .menu-grid>div{
-  min-width:0;padding:8px 10px;border:1px solid #acb4c2;background:#c4cad8;
+  display:flex;align-items:center;justify-content:space-between;gap:6px;
+  min-width:0;min-height:37px;padding:5px 7px;border:4px solid transparent;
+  border-image:url('/assets/ui/kenney-ui/button_rectangle_flat_grey.png') 8 fill / 4px stretch;
+  background:transparent;
 }
-.battle-menu-panel .menu-grid span{display:block;color:#465369;font-size:10px;margin-bottom:5px}
-.battle-menu-panel .menu-grid strong{color:#19394d;font-size:18px;font-weight:800;font-variant-numeric:tabular-nums}
-.battle-menu-panel .menu-actions{display:flex;flex-direction:column;gap:8px}
-.battle-menu-panel .menu-actions button{width:100%;min-height:46px;padding:6px 8px;font-size:12px;font-weight:800}
-.battle-menu-panel .menu-actions .secondary,.battle-menu-panel .menu-actions .small-button{
-  border-image-source:url('/assets/ui/kenney-ui/button_rectangle_depth_border.png');color:#203d52;
+.battle-menu-panel .menu-grid span{color:#6b6d7b;font-size:10px;line-height:13px}
+.battle-menu-panel .menu-grid strong{color:#414655;font-size:16px;line-height:19px;font-weight:750;white-space:nowrap;font-variant-numeric:tabular-nums}
+.battle-menu-panel .menu-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.battle-menu-panel .menu-actions button{width:100%;min-width:0;min-height:44px;padding:6px 7px;font-size:12px;line-height:16px;font-weight:650}
+.battle-menu-panel #battle-menu-return{grid-column:1/-1;min-height:48px;font-size:13px;font-weight:800}
+.battle-menu-panel .menu-actions .danger{
+  grid-column:1/-1;margin-top:2px;min-height:44px;border:0;border-top:1px solid #b6b9c7;
+  border-image:none;background:transparent;color:#a13049;font-weight:650;
 }
-.battle-menu-panel .menu-actions .small-button.danger{
-  border-image-source:url('/assets/ui/kenney-ui/button_rectangle_depth_flat_red.png');color:#fff;
-}
-.battle-menu-panel .keyboard{display:flex;flex-wrap:wrap;color:#465369;font-size:10px;line-height:1.6}
+.battle-menu-panel .menu-actions .danger:hover{background:#c9cbd6;filter:none}
+.battle-menu-panel .keyboard{display:flex;flex-wrap:wrap;color:#626675;font-size:10px;line-height:1.6}
 .modal-backdrop{z-index:60}
+.stat-label-short{display:none}
 @media(max-width:800px){
-  .battle-resource{padding:0 12px}
-  .battle-resource>strong{font-size:18px}
-  .shell.in-battle .upgrade-top{flex-direction:column;gap:3px}
-  .shell.in-battle .upgrade-title{font-size:11px}
+  .battle-resource{padding-left:9px;padding-right:9px}
+  .battle-resource .health-track{left:9px;right:9px}
+  .shell.in-battle .upgrade-top{flex-direction:column;align-items:flex-start;gap:4px}
   .shell.in-battle .upgrade-data{margin-top:6px}
-  .shell.in-battle .upgrade-level{font-size:9px}
+}
+@media(max-width:720px){
+  .panel{padding:40px 14px 14px;gap:12px}
+  .panel h1{font-size:27px}
+  .panel.menu-panel{gap:12px 16px}
+  .menu-panel .menu-intro p{font-size:12px}
+  .menu-panel .menu-intro .eyebrow{margin-bottom:0}
+  .modal{padding:44px 12px 14px}
 }
 @media(max-width:600px){
   .shell.in-battle .battle-hud{
-    grid-template-columns:minmax(0,1fr) 44px;gap:6px;padding:7px 6px;
-    padding-top:max(7px,env(safe-area-inset-top));
+    grid-template-columns:minmax(0,1fr) 44px;gap:6px;padding:6px;
+    padding-top:max(6px,env(safe-area-inset-top));
     padding-left:max(6px,env(safe-area-inset-left));
     padding-right:max(6px,env(safe-area-inset-right));
   }
-  .battle-resources{
-    grid-template-columns:.82fr 1.28fr 1fr 1fr;min-height:52px;
-    padding:0;border-width:9px;border-image-width:9px;
-  }
-  .battle-resource{padding:0 5px;gap:4px}
+  .battle-resources{grid-template-columns:.85fr 1.25fr 1fr 1fr;padding:0 3px}
+  .battle-resource{padding:10px 5px 7px}
   .battle-resource>span,.battle-resource>small{font-size:9px;letter-spacing:0}
-  .battle-resource>strong{font-size:14px;letter-spacing:-.035em}
-  .battle-resource .health-track{height:7px}
+  .battle-resource>strong{font-size:14px;line-height:18px;margin-top:15px;letter-spacing:-.035em}
+  .battle-resource.health>strong{font-size:13px;line-height:17px;margin-top:12px}
+  .battle-resource .health-track{left:5px;right:5px;height:5px}
   .battle-menu-toggle{width:44px;min-width:44px;min-height:44px;padding:0;gap:0}
   .battle-menu-toggle span{display:none}
   .shell.in-battle .upgrades{
-    grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;padding:7px 6px;
-    padding-bottom:max(7px,env(safe-area-inset-bottom));
+    grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;padding:6px;
+    padding-bottom:max(6px,env(safe-area-inset-bottom));
     padding-left:max(6px,env(safe-area-inset-left));
     padding-right:max(6px,env(safe-area-inset-right));
   }
-  .shell.in-battle .upgrade{min-height:97px;padding:4px 3px 5px;border-width:5px;border-image-width:5px}
-  .shell.in-battle .upgrade-title{display:block;min-width:0;max-width:100%;font-size:11px;min-height:27px;line-height:1.2;overflow-wrap:anywhere}
-  .shell.in-battle .upgrade-top{gap:2px}
-  .shell.in-battle .upgrade-level{font-size:9px;line-height:1.2}
-  .shell.in-battle .upgrade-data{flex-direction:column;align-items:flex-start;gap:4px;margin-top:5px}
+  .shell.in-battle .upgrade{min-height:97px;padding:6px 5px}
+  .shell.in-battle .upgrade-title{display:block;min-width:0;max-width:100%;font-size:11px;line-height:1.2;white-space:nowrap}
+  .shell.in-battle .upgrade-top{gap:4px}
+  .shell.in-battle .upgrade-level{font-size:8px;line-height:10px;padding:2px 3px}
+  .shell.in-battle .upgrade-data{flex-direction:column;align-items:flex-start;gap:4px;margin-top:6px}
   .shell.in-battle .upgrade-value{font-size:18px;white-space:nowrap}
   .shell.in-battle .upgrade-value small{font-size:9px;margin-left:2px}
-  .shell.in-battle .upgrade-price,.shell.in-battle .upgrade:disabled .upgrade-price{font-size:12px;white-space:normal;overflow-wrap:anywhere}
+  .shell.in-battle .upgrade-price{font-size:12px;white-space:normal;overflow-wrap:anywhere}
   .shell.in-battle .upgrade-sub{display:none}
+  .shell.in-battle .stat-label-full{display:none}
+  .shell.in-battle .stat-label-short{display:inline}
   .battle-menu-overlay{padding:12px;padding-top:max(12px,env(safe-area-inset-top));padding-bottom:max(12px,env(safe-area-inset-bottom))}
-  .battle-menu-panel{padding:8px;gap:13px}
 }
 @media(max-width:360px){
-  .battle-resource{padding:0 4px}
+  .battle-resource{padding-left:4px;padding-right:4px}
   .battle-resource>span,.battle-resource>small{font-size:8px}
   .battle-resource>strong{font-size:12px}
-  .shell.in-battle .upgrade{padding:4px 2px 5px}
-  .shell.in-battle .upgrade-title{font-size:10px;min-height:24px}
+  .battle-resource.health>strong{font-size:11px}
+  .shell.in-battle .upgrade{padding:6px 3px}
+  .shell.in-battle .upgrade-title{font-size:10px}
   .shell.in-battle .upgrade-value{font-size:16px}
   .shell.in-battle .upgrade-value small{font-size:8px}
+  .battle-menu-panel .menu-grid strong{font-size:14px}
 }
 @media(max-height:500px) and (min-width:601px){
-  .shell.in-battle .battle-hud{padding-top:max(6px,env(safe-area-inset-top));padding-bottom:6px}
-  .battle-resources{min-height:56px;border-width:9px;border-image-width:9px}
-  .battle-resource>strong{font-size:16px}
-  .shell.in-battle .upgrades{padding-top:6px;padding-bottom:max(6px,env(safe-area-inset-bottom))}
-  .shell.in-battle .upgrade{min-height:79px;padding:4px 7px}
+  .shell.in-battle .battle-hud{padding-top:max(4px,env(safe-area-inset-top));padding-bottom:4px}
+  .shell.in-battle .upgrades{padding-top:4px;padding-bottom:max(4px,env(safe-area-inset-bottom))}
+  .shell.in-battle .upgrade{min-height:76px;padding:5px 7px}
   .shell.in-battle .upgrade-top{flex-direction:row}
   .shell.in-battle .upgrade-title{font-size:10px}
   .shell.in-battle .upgrade-value{font-size:18px}
   .shell.in-battle .upgrade-data{margin-top:5px}
   .shell.in-battle .upgrade-sub{display:none}
-  .battle-menu-panel{padding:8px;gap:10px}
 }
 @media(prefers-reduced-motion:reduce){.shell.in-battle .upgrade,.battle-resource .health-fill,.boss-fill{transition:none}}
-
-.stat-label-short{display:none}
-@media(max-width:600px){.shell.in-battle .stat-label-full{display:none}.shell.in-battle .stat-label-short{display:inline}}

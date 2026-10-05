@@ -25,7 +25,8 @@
 
 - Страница: https://kenney.nl/assets/ui-pack-sci-fi
 - Архив: https://kenney.nl/media/pages/assets/ui-pack-sci-fi/b67c2acd31-1724181109/kenney_ui-pack-space-expansion.zip
-- `PNG/Extra/Default/panel_glass_notches.png` → `public/assets/ui/kenney-sci-fi/panel_glass_notches.png`: заполненные светлые панели главного меню, мастерской, результатов, ресурсов, диалогов и меню боя; исходные фаски и белые края сохранены
+- `PNG/Extra/Default/panel_glass_screws.png` → `public/assets/ui/kenney-sci-fi/panel_glass_screws.png`: прямоугольные светлые поверхности главного меню, результатов, диалогов и меню боя; тонкий исходный край и небольшие винты
+- `PNG/Blue/Default/button_square_header_large_rectangle_screws.png` → `public/assets/ui/kenney-sci-fi/button_square_header_large_rectangle_screws.png`: синяя полоса заголовка и светлая нижняя часть панелей, ресурсов и меню боя
 - `PNG/Blue/Default/bar_round_gloss_small.png` → `public/assets/ui/kenney-sci-fi/bar_round_gloss_small.png`: синяя полоса здоровья турели
 - `PNG/Red/Default/bar_round_gloss_small.png` → `public/assets/ui/kenney-sci-fi/bar_round_gloss_small_red.png`: красная полоса при низком здоровье турели и полоса Колосса
 - `PNG/Extra/Default/bar_shadow_round_outline_small.png` → `public/assets/ui/kenney-sci-fi/bar_shadow_round_outline_small.png`: подложка полос здоровья
@@ -35,14 +36,17 @@
 
 - Страница: https://kenney.nl/assets/ui-pack
 - Архив: https://kenney.nl/media/pages/assets/ui-pack/f651646eab-1718203990/kenney_ui-pack.zip
-- `PNG/Blue/Default/button_rectangle_depth_border.png` → `public/assets/ui/kenney-ui/button_rectangle_depth_border.png`: заполненные светлые вторичные кнопки меню с синей рамкой
-- `PNG/Blue/Default/button_rectangle_depth_flat.png` → `public/assets/ui/kenney-ui/button_rectangle_depth_flat.png`: синие основные кнопки, доступные улучшения мастерской и боя, переключатель меню и кнопка возврата в бой
-- `PNG/Blue/Default/button_rectangle_depth_gloss.png` → `public/assets/ui/kenney-ui/button_rectangle_depth_gloss.png`: оригинальное подсвеченное состояние доступных кнопок при наведении
-- `PNG/Blue/Default/button_rectangle_flat.png` → `public/assets/ui/kenney-ui/button_rectangle_flat.png`: оригинальная плоская грань нажатой кнопки
-- `PNG/Grey/Default/button_rectangle_depth_flat.png` → `public/assets/ui/kenney-ui/button_rectangle_depth_flat_grey.png`: серое состояние недоступных кнопок и улучшений мастерской и боя
-- `PNG/Red/Default/button_rectangle_depth_flat.png` → `public/assets/ui/kenney-ui/button_rectangle_depth_flat_red.png`: красная кнопка завершения забега
+- `PNG/Blue/Default/button_rectangle_depth_flat.png` → `public/assets/ui/kenney-ui/button_rectangle_depth_flat.png`: основные действия, в том числе начало и возврат в бой; также знак оплота
+- `PNG/Blue/Default/button_rectangle_depth_gloss.png` → `public/assets/ui/kenney-ui/button_rectangle_depth_gloss.png`: наведение на основное действие
+- `PNG/Blue/Default/button_rectangle_flat.png` → `public/assets/ui/kenney-ui/button_rectangle_flat.png`: нажатое основное действие
+- `PNG/Grey/Default/button_rectangle_depth_flat.png` → `public/assets/ui/kenney-ui/button_rectangle_depth_flat_grey.png`: нейтральные вторичные действия, кнопка меню и четыре улучшения
+- `PNG/Grey/Default/button_rectangle_depth_gloss.png` → `public/assets/ui/kenney-ui/button_rectangle_depth_gloss_grey.png`: наведение на нейтральную кнопку или доступное улучшение
+- `PNG/Grey/Default/button_rectangle_flat.png` → `public/assets/ui/kenney-ui/button_rectangle_flat_grey.png`: нажатые и недоступные нейтральные кнопки, компактные ячейки характеристик
+- `PNG/Red/Default/icon_cross.png` → `public/assets/ui/kenney-ui/icon_cross_red.png`: оригинальный красный крестик закрытия меню, 18×18 внутри области нажатия 44×44
 - Лицензия: `public/assets/ui/kenney-ui/License.txt`
 
-Все десять PNG сохранены побайтово без изменений. Их исходные цвета и заполненные центральные области используются напрямую, без CSS-фильтров, тонирования и пониженной прозрачности. Светлая панель размером 64×64 разрезается на девять сегментов по 16 исходным пикселям для сохранения фасок. Кнопки 192×64 используют 8-пиксельные сегменты, сохраняющие углы и нижний объёмный край. Полосы здоровья 96×16 масштабируются как цельные изображения.
+Все 12 PNG сохранены побайтово без изменений. Их исходные цвета и заполненные центральные области используются напрямую, без CSS-фильтров, тонирования и пониженной прозрачности. Панель 64×64 использует сегменты по 12 исходным пикселям: сохраняются тонкий край и маленькие винты, без крупных срезанных углов. Заголовок 192×64 имеет фиксированную высоту 64 CSS-пикселя и исходную цветную полосу высотой 32 пикселя; по горизонтали растягиваются только центральные части, винты и углы сохраняют исходный размер. Кнопки 192×64 используют 8-пиксельные исходные сегменты с отображением края шириной 4 CSS-пикселя. Полосы здоровья 96×16 масштабируются как цельные изображения.
 
-SHA-256 и пути внутри архивов приведены в `public/assets/ui/manifest.json`. Шрифты из наборов не включены: используется системный шрифт с поддержкой кириллицы. Верхние ресурсы и нижние улучшения находятся в отдельных строках CSS Grid; 3D-поле занимает только среднюю строку и не рисуется под игровыми панелями.
+Композиция следует демонстрациям автора: прямоугольные серые поверхности, небольшие синие заголовки, нейтральные вторичные кнопки и одно выделенное основное действие. Меню боя содержит компактные характеристики, две колонки вторичных действий и отдельную кнопку завершения забега. У всех его кнопок область нажатия не меньше 44 пикселей. Неиспользуемые прежние изображения крупных вырезов, синей двойной рамки и красной полноразмерной кнопки удалены из поставляемого набора.
+
+SHA-256 и пути внутри архивов приведены в `public/assets/ui/manifest.json`. Шрифты из наборов не включены: используется системный шрифт с поддержкой кириллицы. Верхние ресурсы и нижние улучшения находятся в отдельных строках CSS Grid; 3D-поле занимает только среднюю строку и не рисуется под игровыми панелями. Эта коррекция не меняет правила игры, сохранения, камеру или геометрию появления мехов.

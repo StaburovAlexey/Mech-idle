@@ -179,30 +179,48 @@ describe('battle layout stylesheet contract (static, not a browser layout measur
 });
 
 describe('shipped original Kenney skins (asset and authored CSS checks)', () => {
-  it('puts filled nine-slice artwork directly on the visible panel and buttons', () => {
-    const panel = combinedRulesFor('.battle-resources');
-    expect(panel['border-image']).toMatch(/kenney-sci-fi\/panel_glass_notches\.png['"]?\) 16 fill/);
-    expect(panel.background).toBe('transparent');
-    const button = combinedRulesFor('.shell.in-battle .upgrade');
-    expect(button['border-image']).toMatch(/kenney-ui\/button_rectangle_depth_flat\.png['"]?\) 8 fill/);
-    expect(button.background).toBe('transparent');
-    expect(button.opacity).toBe('1');
-    expect(button.filter).toBe('none');
-    expect(rules.filter(rule => rule.selectors.some(selector => /battle-resources|battle-menu|in-battle.*upgrade/.test(selector)) && rule.declarations['border-image']).every(rule => rule.selectors.every(selector => !/::?(?:before|after)/.test(selector)))).toBe(true);
+  it('uses fixed-size original header artwork and thin rectangular screw surfaces', () => {
+    for (const selector of ['.panel::before', '.modal::before']) {
+      const header=combinedRulesFor(selector);
+      expect(header.height).toBe('64px');
+      expect(header['border-image']).toMatch(/button_square_header_large_rectangle_screws\.png['"]?\) 12 fill \/ 12px/);
+      expect(header['pointer-events']).toBe('none');
+    }
+    expect(combinedRulesFor('.battle-resources').height).toBe('64px');
+    expect(combinedRulesFor('.battle-menu-head').height).toBe('64px');
+    for(const selector of ['.battle-resources::before','.battle-menu-head::before'])
+      expect(combinedRulesFor(selector)['border-image']).toContain('button_square_header_large_rectangle_screws.png');
+    expect(combinedRulesFor('.battle-menu-panel')['border-image']).toContain('panel_glass_screws.png');
+    expect(combinedRulesFor('.battle-menu-panel').overflow).toBe('auto');
+    expect(rulesFor('.battle-menu-panel::before')).toHaveLength(0);
+    expect(combinedRulesFor('.upgrade')['border-image']).toMatch(/button_rectangle_depth_flat_grey\.png['"]?\) 8 fill \/ 4px/);
+    expect(combinedRulesFor('.upgrade')).toMatchObject({background:'transparent',opacity:'1',filter:'none'});
+    expect(css).not.toContain('panel_glass_notches.png');
+    expect(css).not.toContain('button_rectangle_depth_border.png');
   });
 
-  it('uses distinct original available/disabled/hover/pressed faces without tinting or fading', () => {
-    expect(combinedRulesFor('.shell.in-battle .upgrade.affordable')['border-image-source']).toContain('/button_rectangle_depth_flat.png');
-    expect(combinedRulesFor('.shell.in-battle .upgrade:disabled')).toMatchObject({ opacity: '1', filter: 'none', background: 'transparent' });
-    expect(combinedRulesFor('.shell.in-battle .upgrade:disabled')['border-image-source']).toContain('/button_rectangle_depth_flat_grey.png');
-    expect(combinedRulesFor('.shell.in-battle .upgrade.affordable:hover:not(:disabled)')).toMatchObject({ filter: 'none' });
-    expect(combinedRulesFor('.shell.in-battle .upgrade.affordable:hover:not(:disabled)')['border-image-source']).toContain('/button_rectangle_depth_gloss.png');
-    expect(combinedRulesFor('.shell.in-battle .upgrade.affordable:active')['border-image-source']).toContain('/button_rectangle_flat.png');
-    for (const rule of rules.filter(rule => rule.selectors.some(selector => /battle-resources|battle-menu|in-battle.*upgrade/.test(selector)))) {
-      if (rule.declarations.filter) expect(rule.declarations.filter).toBe('none');
-      if (rule.declarations.opacity) expect(rule.declarations.opacity).toBe('1');
-      if (rule.declarations['z-index']) expect(Number(rule.declarations['z-index'])).toBeGreaterThanOrEqual(0);
-    }
+  it('uses original neutral normal/hover/pressed faces and one blue primary action without fading', () => {
+    expect(combinedRulesFor('.upgrade.affordable')['border-image-source']).toContain('/button_rectangle_depth_flat_grey.png');
+    expect(combinedRulesFor('.upgrade:disabled')).toMatchObject({opacity:'1',filter:'none',background:'transparent'});
+    expect(combinedRulesFor('.upgrade:disabled')['border-image-source']).toContain('/button_rectangle_flat_grey.png');
+    expect(combinedRulesFor('.upgrade:hover:not(:disabled)')['border-image-source']).toContain('/button_rectangle_depth_gloss_grey.png');
+    expect(combinedRulesFor('.upgrade:active:not(:disabled)')['border-image-source']).toContain('/button_rectangle_flat_grey.png');
+    expect(combinedRulesFor('.main-button:not(.secondary)')['border-image-source']).toContain('/button_rectangle_depth_flat.png');
+    expect(combinedRulesFor('.main-button:not(.secondary):hover:not(:disabled)')['border-image-source']).toContain('/button_rectangle_depth_gloss.png');
+    expect(combinedRulesFor('.main-button:not(.secondary):active:not(:disabled)')['border-image-source']).toContain('/button_rectangle_flat.png');
+  });
+
+  it('keeps a compact two-column menu, a pack cross icon and 44px touch targets', () => {
+    document.body.innerHTML=battleMenuMarkup;
+    expect(document.querySelector('#battle-menu-close .kenney-close-icon')?.getAttribute('aria-hidden')).toBe('true');
+    expect(document.querySelector('.battle-menu-panel > .hint')).toBeNull();
+    expect(document.querySelector('#battle-menu-save')?.getAttribute('aria-label')).toContain('Сохранить забег');
+    expect(combinedRulesFor('.battle-menu-panel .menu-actions')).toMatchObject({display:'grid','grid-template-columns':'repeat(2,minmax(0,1fr))'});
+    expect(combinedRulesFor('.battle-menu-panel .menu-actions button')['min-height']).toBe('44px');
+    expect(combinedRulesFor('.battle-menu-close')).toMatchObject({'min-width':'44px','min-height':'44px'});
+    expect(combinedRulesFor('.battle-menu-panel #battle-menu-return')['grid-column']).toBe('1/-1');
+    expect(combinedRulesFor('.kenney-close-icon').background).toContain('/icon_cross_red.png');
+    expect(combinedRulesFor('.kenney-close-icon')).toMatchObject({width:'18px',height:'18px'});
   });
 
   it('has every CSS-referenced sprite present, licensed and byte-identical to its provenance hash', () => {
@@ -221,7 +239,7 @@ describe('shipped original Kenney skins (asset and authored CSS checks)', () => 
     }
     // Pin the two primary visible faces so changing artwork and its manifest
     // together cannot silently replace the original source artwork.
-    expect(manifest.find(record => record.file === 'kenney-sci-fi/panel_glass_notches.png')?.sha256).toBe('a795f82da6da7bcc984f50d6550e31ea8224d4eb859d435faa0a7cd1647e156e');
+    expect(manifest.find(record => record.file === 'kenney-sci-fi/panel_glass_screws.png')?.sha256).toBe('6059efb0bbff5597104ecaef460d120eb30e31b174a7556e6122cec70419cc94');
     expect(manifest.find(record => record.file === 'kenney-ui/button_rectangle_depth_flat.png')?.sha256).toBe('6c709a45aae0330ffff5b060d9f14cc2297839f664e0a4c9e516d90ad085ec0b');
     for (const pack of ['kenney-ui', 'kenney-sci-fi']) expect(readFileSync(`${assetRoot}${pack}/License.txt`, 'utf8')).toContain('Creative Commons Zero, CC0');
   });

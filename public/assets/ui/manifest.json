@@ -1,10 +1,17 @@
 [
   {
-    "file": "kenney-sci-fi/panel_glass_notches.png",
+    "file": "kenney-sci-fi/panel_glass_screws.png",
     "source": "https://kenney.nl/assets/ui-pack-sci-fi",
-    "original": "PNG/Extra/Default/panel_glass_notches.png",
+    "original": "PNG/Extra/Default/panel_glass_screws.png",
     "license": "CC0-1.0",
-    "sha256": "a795f82da6da7bcc984f50d6550e31ea8224d4eb859d435faa0a7cd1647e156e"
+    "sha256": "6059efb0bbff5597104ecaef460d120eb30e31b174a7556e6122cec70419cc94"
+  },
+  {
+    "file": "kenney-sci-fi/button_square_header_large_rectangle_screws.png",
+    "source": "https://kenney.nl/assets/ui-pack-sci-fi",
+    "original": "PNG/Blue/Default/button_square_header_large_rectangle_screws.png",
+    "license": "CC0-1.0",
+    "sha256": "a5825514812a57fa021b193e6681ace1cdb27a3c440d65998c64794acdc3a115"
   },
   {
     "file": "kenney-sci-fi/bar_round_gloss_small.png",
@@ -26,13 +33,6 @@
     "original": "PNG/Extra/Default/bar_shadow_round_outline_small.png",
     "license": "CC0-1.0",
     "sha256": "1b8b8b7226ebab4bb9a8117df169c0710fa02d1659e309fe7c6cb1a11f7f7f72"
-  },
-  {
-    "file": "kenney-ui/button_rectangle_depth_border.png",
-    "source": "https://kenney.nl/assets/ui-pack",
-    "original": "PNG/Blue/Default/button_rectangle_depth_border.png",
-    "license": "CC0-1.0",
-    "sha256": "19dd881d5c38d58e93db451152356a8ecb1375b247615d4e340b678233398b01"
   },
   {
     "file": "kenney-ui/button_rectangle_depth_flat.png",
@@ -63,10 +63,24 @@
     "sha256": "7de9ba1d4bca313fd2c02e3595f3d699c1201d84d70a3c69828e56782d585ce7"
   },
   {
-    "file": "kenney-ui/button_rectangle_depth_flat_red.png",
+    "file": "kenney-ui/button_rectangle_depth_gloss_grey.png",
     "source": "https://kenney.nl/assets/ui-pack",
-    "original": "PNG/Red/Default/button_rectangle_depth_flat.png",
+    "original": "PNG/Grey/Default/button_rectangle_depth_gloss.png",
     "license": "CC0-1.0",
-    "sha256": "8dd648ea9b80a780fb387c235d4f6bbdadd4f4768c663639edb2c7e5174a69f0"
+    "sha256": "2c87de0c067e93fdda3adcbfe6ca78c9cd35d6f524b45b2fdb4fb394f457973d"
+  },
+  {
+    "file": "kenney-ui/button_rectangle_flat_grey.png",
+    "source": "https://kenney.nl/assets/ui-pack",
+    "original": "PNG/Grey/Default/button_rectangle_flat.png",
+    "license": "CC0-1.0",
+    "sha256": "c91ee37858be6035143a8ae26588741e9350e5f42aed548e3ee00910092239e8"
+  },
+  {
+    "file": "kenney-ui/icon_cross_red.png",
+    "source": "https://kenney.nl/assets/ui-pack",
+    "original": "PNG/Red/Default/icon_cross.png",
+    "license": "CC0-1.0",
+    "sha256": "a82d428cfe4e89c11317533e6b4fd6566d236f0bc0e816f8659a822e37241202"
   }
 ]
