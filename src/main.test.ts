@@ -151,6 +151,55 @@ describe('fullscreen battle actual UI flows', () => {
     expect(saved().profile.runCounter).toBe(1);
   });
 
+  it('puts the resource HUD, scene workspace and upgrades in separate sibling layout regions', async () => {
+    await boot(); click('#start');
+    const shell = element('.shell'), hud = element('#battle-hud'), workspace = element('.workspace'), upgrades = element('#upgrades');
+    for (const region of [hud, workspace, upgrades]) expect(region.parentElement).toBe(shell);
+    expect(element('.arena-wrap').parentElement).toBe(workspace);
+    expect(element('#arena').parentElement).toBe(element('.arena-wrap'));
+    expect(element('#arena canvas').parentElement).toBe(element('#arena'));
+    expect(hud.querySelectorAll('.battle-resources > .battle-resource')).toHaveLength(4);
+    for (const selector of ['#battle-wave', '#battle-hp', '#battle-gold', '#battle-crystals', '#battle-menu-toggle', '#boss', '#battle-notice']) {
+      expect(hud.contains(element(selector)), `${selector} belongs to the reserved status row`).toBe(true);
+      expect(workspace.contains(element(selector)), `${selector} must not cover the arena`).toBe(false);
+    }
+    expect(upgrades.querySelectorAll(':scope > .upgrade')).toHaveLength(4);
+    expect(hud.contains(upgrades)).toBe(false);
+    expect(workspace.contains(upgrades)).toBe(false);
+  });
+
+  it('shows final-boss health inside the status row, retaining it through save and resume', async () => {
+    const initial = fundedRun(), run = initial.run!;
+    run.wave = 30; run.lastPaidWave = 29; run.earnedCrystals = 29; run.spawned = 1; run.nextEntityId = 2;
+    run.enemies = [{ id: `${run.id}:1`, kind: 'boss', x: 0, y: 11, hp: 312, maxHp: 624, damage: 42, speed: .7, attackInterval: 2, attackCooldown: 0 }];
+    await boot(initial); click('#resume');
+    expect(element('#battle-wave').textContent).toBe('30 / 30');
+    expect(element('#boss').parentElement).toBe(element('#battle-hud'));
+    expect(hidden('#boss')).toBe(false);
+    expect(element('#boss-fill').style.width).toBe('50%');
+    openDrawer(); click('#battle-menu-save');
+    expect(hidden('#boss')).toBe(true);
+    click('#resume');
+    expect(hidden('#boss')).toBe(false);
+    expect(element('#boss-fill').style.width).toBe('50%');
+    expect(saved().run!.enemies).toEqual(initial.run!.enemies);
+  });
+
+  it('reports save failure in the reserved status row without inserting an arena overlay', async () => {
+    await boot();
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new DOMException('Storage quota exhausted', 'QuotaExceededError'); });
+    click('#start');
+    const notice = element('#battle-notice');
+    expect(hidden('#battle-hud')).toBe(false);
+    expect(hidden('#battle-notice')).toBe(false);
+    expect(notice.parentElement).toBe(element('#battle-hud'));
+    expect(notice.getAttribute('role')).toBe('status');
+    expect(notice.textContent).toContain('Не удалось сохранить прогресс');
+    expect(notice.textContent).toBe(element('#notice').textContent);
+    expect(element('.workspace').contains(notice)).toBe(false);
+    expect(element('.shell').classList.contains('in-battle')).toBe(true);
+  });
+
   it('menu open pauses real simulation, makes background inert, and restores focus and progression on close', async () => {
     await boot(); click('#start'); advanceFrames(3);
     const before = elapsed();

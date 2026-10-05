@@ -4,254 +4,308 @@
 @media(max-width:720px){.shell{padding:14px 12px 12px;gap:12px}.brand-name{font-size:20px}.brand-mark{height:36px;width:36px}.brand-sub{font-size:8px}.pill{display:none}.icon-button{min-height:39px;min-width:39px}.workspace{display:flex;flex-direction:column;gap:12px;min-height:0}.arena-wrap{order:0;min-height:0;height:47svh;max-height:470px;flex:none;border-radius:13px}.panel{order:1;border-radius:13px;padding:20px;gap:12px}.panel h1{font-size:30px}.panel .help-list{display:none}.panel .panel-bottom{margin-top:0}.panel .tag-row{display:none}.panel.menu-panel{display:grid;grid-template-columns:1fr 1fr;gap:12px 20px}.menu-panel .menu-intro,.menu-panel .separator,.menu-panel .hint{grid-column:1/-1}.menu-panel .menu-actions{grid-column:2;grid-row:2/4;display:flex;flex-direction:column;justify-content:center;gap:8px}.menu-panel .currency{grid-column:1}.menu-panel .menu-intro p{margin-top:8px}.menu-panel .menu-intro .eyebrow{margin-bottom:6px}.menu-panel .panel-bottom{display:none}.combat-panel{display:grid;grid-template-columns:1fr 1fr;gap:12px 18px}.combat-panel .combat-wave{grid-column:1;grid-row:1}.combat-panel .combat-health{grid-column:2;grid-row:1;align-self:center}.combat-panel .combat-stats{grid-column:1/-1;display:flex;gap:10px}.combat-panel .stat-box{padding:9px 12px;flex:1;display:flex;justify-content:space-between;align-items:center}.combat-panel .stat-box span{margin:0;font-size:10px}.combat-panel .stat-box strong{font-size:18px}.combat-panel .combat-actions{grid-column:1/-1;display:flex;gap:8px}.combat-panel .combat-actions button{flex:1;min-height:42px}.combat-panel .help-list,.combat-panel .hint,.combat-panel .separator,.combat-panel .wave-dots,.combat-panel .keyboard{display:none}.wave-label strong{font-size:28px}.combat-wave .eyebrow{font-size:8px;margin-bottom:6px}.combat-wave p{font-size:10px;margin-top:5px}.upgrades{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.upgrade{min-height:109px;padding:12px}.upgrade-title{font-size:11px}.upgrade-value{font-size:17px}.upgrade-data{margin-top:10px}.upgrade-sub{font-size:9px}.section-head{margin:2px 2px -4px}.section-head span{font-size:9px;max-width:155px;text-align:right}.foot{font-size:8px}.foot span:last-child{display:none}.arena-top{top:12px;left:12px;right:12px}.arena-label{font-size:8px;padding:7px 9px}.arena-label span{display:none}.arena-bottom{bottom:12px;left:12px;right:12px}.coordinate{font-size:8px}.arena-note{font-size:8px;max-width:160px;text-align:right}.floating-message{top:48px;font-size:10px;max-width:90%;white-space:normal}.boss-bar{top:45px;left:13%;right:13%}.keyboard{display:none}.result-panel h1{font-size:32px}.modal{padding:23px}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 
-/* Combat is a full-viewport scene; the workshop keeps its original layout. */
+/* The approved Kenney skin is visible from the first screen, not only in combat.
+   Keep the workshop/result layout above; replace only artwork and text colors. */
+.panel,.modal{
+  border:16px solid transparent;border-radius:0;
+  border-image:url('/assets/ui/kenney-sci-fi/panel_glass_notches.png') 16 fill / 16px stretch;
+  background:transparent;box-shadow:none;color:#253645;
+}
+.panel h1,.modal h2{color:#19394d}
+.panel h1 small{color:#43566a}
+.panel .eyebrow{color:#32617a}
+.panel p,.modal p{color:#465369}
+.panel .hint{color:#546174!important}
+.panel .separator{background:#a5adbd}
+.panel .tag{border-color:#9ea9bb;color:#465369;border-radius:0}
+.panel .currency strong{color:#173c55}
+.panel .currency span{color:#546174}
+.panel .currency .symbol{color:#08729c}
+.panel .currency.gold .symbol{color:#754714}
+.panel .help-item b{color:#32617a}
+.panel .help-item span{color:#465369}
+.panel .stat-box{
+  border:5px solid transparent;border-radius:0;
+  border-image:url('/assets/ui/kenney-ui/button_rectangle_depth_border.png') 8 fill / 5px stretch;
+  background:transparent;
+}
+.panel .stat-box span{color:#465369}
+.panel .stat-box strong{color:#19394d}
+.panel .stat-box.crystals strong{color:#075e85}
+.panel .stat-box.gold strong{color:#754714}
+.panel .result-emblem,.brand-mark{
+  border:5px solid transparent;border-radius:0;
+  border-image:url('/assets/ui/kenney-ui/button_rectangle_depth_flat.png') 8 fill / 5px stretch;
+  background:transparent;color:#082c42;
+}
+.main-button,.small-button,.icon-button,.upgrade{
+  border:6px solid transparent;border-radius:0;
+  border-image:url('/assets/ui/kenney-ui/button_rectangle_depth_flat.png') 8 fill / 6px stretch;
+  background:transparent;color:#082c42;box-shadow:none;filter:none;opacity:1;text-shadow:none;
+}
+.small-button{min-height:44px}
+.icon-button{min-width:44px;min-height:44px}
+.main-button.secondary,.small-button{
+  border:6px solid transparent;
+  border-image:url('/assets/ui/kenney-ui/button_rectangle_depth_border.png') 8 fill / 6px stretch;
+  background:transparent;color:#203d52;box-shadow:none;
+}
+.main-button:hover:not(:disabled),.small-button:hover:not(:disabled),.icon-button:hover:not(:disabled),.upgrade:hover:not(:disabled){
+  border-image-source:url('/assets/ui/kenney-ui/button_rectangle_depth_gloss.png');filter:none;
+}
+.main-button:active:not(:disabled),.small-button:active:not(:disabled),.icon-button:active:not(:disabled),.upgrade:active:not(:disabled){
+  border-image-source:url('/assets/ui/kenney-ui/button_rectangle_flat.png');transform:translateY(1px);
+}
+.upgrade.affordable{
+  border-color:transparent;border-image-source:url('/assets/ui/kenney-ui/button_rectangle_depth_flat.png');
+  background:transparent;box-shadow:none;
+}
+.main-button:disabled,.small-button:disabled,.icon-button:disabled,.upgrade:disabled{
+  border-image-source:url('/assets/ui/kenney-ui/button_rectangle_depth_flat_grey.png');
+  background:transparent;color:#465267;opacity:1;filter:none;box-shadow:none;
+}
+.upgrade .stat-icon{border:0;border-radius:0;background:transparent;color:inherit}
+.upgrade .upgrade-level{background:transparent;border-radius:0;color:inherit}
+.upgrade .upgrade-value small,.upgrade .upgrade-sub,.upgrade .upgrade-price,.upgrade.meta .upgrade-price{color:inherit}
+
+/* Combat uses three real layout regions: status, arena, upgrades.
+   Only dialogs cover the arena; the live HUD never overlays the playfield. */
 .battle-hud,.battle-menu-overlay{display:none}
+body.battle-active{overflow:hidden;overscroll-behavior:none}
 .shell.in-battle{
-  position:fixed;inset:0;isolation:isolate;display:block;max-width:none;
-  min-height:0;height:100svh;height:100dvh;margin:0;padding:0;overflow:hidden;
+  position:fixed;inset:0;display:grid;grid-template-rows:auto minmax(0,1fr) auto;
+  grid-template-columns:minmax(0,1fr);width:100%;max-width:none;
+  min-height:0;height:100svh;height:100dvh;margin:0;padding:0;gap:0;
+  overflow:hidden;background:#111c27;
 }
-.shell.in-battle .workspace{display:block;min-height:0;height:100%;margin:0}
-.shell.in-battle .arena-wrap{
-  position:fixed;inset:0;z-index:0;width:100%;height:100%;max-height:none;
-  min-height:0;margin:0;border:0;border-radius:0;
-}
-.shell.in-battle .arena canvas{touch-action:none}
 .shell.in-battle .topbar,.shell.in-battle .panel,.shell.in-battle .section-head,
 .shell.in-battle .foot,.shell.in-battle .arena-top,.shell.in-battle .arena-bottom,
-.shell.in-battle .floating-message{display:none}
+.shell.in-battle .floating-message,.shell.in-battle>#notice{display:none}
+.shell.in-battle .workspace{
+  grid-row:2;grid-column:1;display:block;position:relative;min-height:0;
+  min-width:0;height:100%;margin:0;padding:0;gap:0;overflow:hidden;
+}
+.shell.in-battle .arena-wrap{
+  position:relative;width:100%;height:100%;max-height:none;min-height:0;
+  margin:0;border:0;border-radius:0;background:#0b1921;
+}
+.arena{background:radial-gradient(ellipse at center,#28434a 0%,#12262e 65%,#0b1921 100%)}
+.shell.in-battle .arena canvas{touch-action:none}
 .shell.in-battle .battle-hud{
-  position:fixed;z-index:20;
-  top:max(14px,env(safe-area-inset-top));
-  left:max(16px,env(safe-area-inset-left));
-  right:max(16px,env(safe-area-inset-right));
-  display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
-  pointer-events:none;
+  grid-row:1;grid-column:1;position:relative;display:grid;
+  grid-template-columns:minmax(0,720px) auto;justify-content:center;align-items:stretch;
+  gap:8px;min-width:0;width:100%;padding:10px 16px;
+  padding-top:max(10px,env(safe-area-inset-top));
+  padding-left:max(16px,env(safe-area-inset-left));
+  padding-right:max(16px,env(safe-area-inset-right));
+  background:#182533;border-bottom:2px solid #081522;
+}
+/* Raw Kenney Sci-Fi artwork: 64x64 PNG, 16px chamfers and opaque center.
+   Direct nine-slice + fill keeps the complete artwork visible; no tinted layers. */
+.battle-resources,.battle-menu-panel{
+  border:16px solid transparent;
+  border-image:url('/assets/ui/kenney-sci-fi/panel_glass_notches.png') 16 fill / 16px stretch;
+  border-radius:0;background:transparent;color:#253645;box-shadow:none;
 }
 .battle-resources{
-  display:flex;align-items:stretch;gap:0;min-width:0;max-width:calc(100% - 62px);
-  padding:11px 6px;border:1px solid #bedbd326;border-radius:12px;
-  background:#12282ee8;box-shadow:0 5px 20px #07181e25;backdrop-filter:blur(14px);
+  display:grid;grid-template-columns:.9fr 1.35fr 1fr 1fr;
+  min-width:0;min-height:68px;padding:0 2px;border-width:12px;
+  border-image-width:12px;
 }
 .battle-resource{
-  position:relative;display:flex;flex-direction:column;justify-content:center;
-  gap:5px;min-width:76px;padding:0 15px;color:#eff8f3;
-  font-variant-numeric:tabular-nums;
+  display:flex;flex-direction:column;justify-content:center;gap:4px;
+  min-width:0;padding:0 16px;line-height:1.1;font-variant-numeric:tabular-nums;
 }
-.battle-resource+.battle-resource{border-left:1px solid #b7d5cb20}
+.battle-resource+.battle-resource{border-left:1px solid #959eaf}
 .battle-resource>span,.battle-resource>small{
-  color:#a3bab9;font-size:9px;font-weight:750;letter-spacing:.075em;line-height:1.2;
+  color:#455369;font-size:10px;font-weight:800;letter-spacing:.025em;line-height:1.2;
 }
-.battle-resource>strong{font-size:18px;font-weight:750;line-height:1.1;white-space:nowrap}
-.battle-resource.gold>strong{color:var(--gold)}
-.battle-resource.crystals>strong{color:var(--cyan)}
-.battle-resource .health-track{height:3px;margin:0;background:#06191dcc;border-radius:2px}
-.battle-resource .health-fill{border-radius:2px}
-.battle-menu-toggle{
-  flex:none;display:flex;align-items:center;justify-content:center;gap:8px;
-  min-width:48px;min-height:48px;padding:11px 13px;pointer-events:auto;
-  border:1px solid #bedbd33b;border-radius:11px;background:#12282ef0;
-  color:#e0ede9;box-shadow:0 5px 20px #07181e25;backdrop-filter:blur(14px);
-  font-size:10px;font-weight:800;letter-spacing:.09em;
+.battle-resource>strong{color:#183347;font-size:20px;font-weight:850;line-height:1.05;white-space:nowrap}
+.battle-resource.gold>strong{color:#754714}
+.battle-resource.crystals>strong{color:#075e85}
+.battle-resource .health-track,.boss-track{
+  height:10px;margin:0;border:0;border-radius:0;background:transparent;
+  background-image:url('/assets/ui/kenney-sci-fi/bar_shadow_round_outline_small.png');
+  background-size:100% 100%;background-repeat:no-repeat;overflow:hidden;
 }
-.battle-menu-toggle svg{width:18px;height:18px;flex:none}
+.battle-resource .health-fill,.boss-fill{
+  height:100%;border-radius:0;background:transparent;
+  background-image:url('/assets/ui/kenney-sci-fi/bar_round_gloss_small.png');
+  background-size:100% 100%;background-repeat:no-repeat;transition:width .12s;
+}
+.battle-resource .health-fill.low,.boss-fill{
+  background-image:url('/assets/ui/kenney-sci-fi/bar_round_gloss_small_red.png');
+}
+/* UI Pack buttons use the original filled face, edge highlight and lower depth.
+   8px source slices cover the 4px corners and 8px lower edge at native scale. */
+.battle-menu-toggle,.battle-menu-close,.battle-menu-panel .menu-actions button,
+.shell.in-battle .upgrade{
+  border:6px solid transparent;border-radius:0;
+  border-image:url('/assets/ui/kenney-ui/button_rectangle_depth_flat.png') 8 fill / 6px stretch;
+  background:transparent;color:#082c42;box-shadow:none;filter:none;opacity:1;
+  text-shadow:none;
+}
+.battle-menu-toggle:hover:not(:disabled),.battle-menu-close:hover:not(:disabled),
+.battle-menu-panel .menu-actions button:hover:not(:disabled),
+.shell.in-battle .upgrade.affordable:hover:not(:disabled){
+  border-image-source:url('/assets/ui/kenney-ui/button_rectangle_depth_gloss.png');filter:none;
+}
+.battle-menu-toggle:active,.battle-menu-close:active,
+.battle-menu-panel .menu-actions button:active,.shell.in-battle .upgrade.affordable:active{
+  border-image-source:url('/assets/ui/kenney-ui/button_rectangle_flat.png');transform:translateY(1px);
+}
+.battle-menu-toggle,.battle-menu-close{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  min-width:48px;min-height:48px;padding:6px 10px;
+  font-size:11px;font-weight:850;letter-spacing:.025em;
+}
+.battle-menu-toggle svg{width:20px;height:20px;flex:none}
+.battle-menu-close{width:44px;height:44px;min-width:44px;min-height:44px;padding:0;font-size:25px}
 .shell.in-battle .upgrades{
-  position:fixed;z-index:15;
-  left:max(16px,env(safe-area-inset-left));
-  right:max(16px,env(safe-area-inset-right));
-  bottom:max(16px,env(safe-area-inset-bottom));
-  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
-  max-width:780px;margin:0 auto;gap:8px;
+  grid-row:3;grid-column:1;position:relative;display:grid;
+  grid-template-columns:repeat(4,minmax(0,190px));justify-content:center;
+  gap:8px;width:100%;max-width:none;min-width:0;margin:0;padding:10px 16px;
+  padding-bottom:max(10px,env(safe-area-inset-bottom));
+  padding-left:max(16px,env(safe-area-inset-left));
+  padding-right:max(16px,env(safe-area-inset-right));
+  border-top:2px solid #081522;background:#182533;
 }
 .shell.in-battle .upgrade{
-  min-width:0;min-height:102px;padding:12px;border-radius:11px;
-  background:#142b32ef;border-color:#a0cbc83d;
-  box-shadow:0 5px 20px #061a2540;backdrop-filter:blur(12px);
+  min-width:0;min-height:102px;padding:6px 7px 8px;
+  border-image-source:url('/assets/ui/kenney-ui/button_rectangle_depth_flat_grey.png');
+  color:#35465a;transition:transform .1s;
 }
-.shell.in-battle .upgrade:disabled{opacity:1;color:#c0cdcb;background:#12252bf0;border-color:#718f922f}
-.shell.in-battle .upgrade:disabled .upgrade-price{color:#a7a08d}
-.shell.in-battle .upgrade.affordable{background:linear-gradient(150deg,#28484cf5,#172f36f5);border-color:#7be4d48a}
-.shell.in-battle .upgrade-title{gap:6px;font-size:11px;line-height:1.25}
-.shell.in-battle .stat-icon{width:23px;height:23px;border-radius:6px;font-size:13px;flex:none}
-.shell.in-battle .upgrade-level{font-size:8px;padding:3px 4px}
-.shell.in-battle .upgrade-data{margin-top:9px;gap:5px;flex-wrap:wrap}
-.shell.in-battle .upgrade-value{font-size:19px;line-height:1.15}
-.shell.in-battle .upgrade-value small{font-size:9px}
-.shell.in-battle .upgrade-price{font-size:12px;line-height:1.2}
-.shell.in-battle .upgrade-sub{font-size:9px;line-height:1.35;margin-top:6px;color:#a1b9b9;overflow-wrap:anywhere}
-.shell.in-battle .boss-bar{
-  position:fixed;z-index:12;top:calc(max(14px,env(safe-area-inset-top)) + 78px);
-  left:50%;right:auto;transform:translateX(-50%);width:min(320px,70vw);
-  padding:8px 11px;border-radius:7px;background:#292427e6;pointer-events:none;
+.shell.in-battle .upgrade.affordable{
+  border-image-source:url('/assets/ui/kenney-ui/button_rectangle_depth_flat.png');
+  background:transparent;color:#082c42;
 }
-.shell.in-battle .boss-bar b{font-size:9px}
-.shell.in-battle .boss-track{height:3px;margin-top:5px}
-.shell.in-battle .paused-overlay{z-index:18;padding:24px 24px 150px}
+.shell.in-battle .upgrade:disabled{
+  border-image-source:url('/assets/ui/kenney-ui/button_rectangle_depth_flat_grey.png');
+  background:transparent;color:#465267;opacity:1;filter:none;box-shadow:none;
+}
+.shell.in-battle .upgrade-top{align-items:flex-start;gap:5px}
+.shell.in-battle .upgrade-title{font-size:11px;gap:6px;line-height:1.25;font-weight:850}
+.shell.in-battle .stat-icon{display:none}
+.shell.in-battle .upgrade-level{
+  padding:0;border:0;border-radius:0;background:transparent;color:inherit;
+  font-size:9px;font-weight:650;line-height:1.3;white-space:nowrap;
+}
+.shell.in-battle .upgrade-data{margin-top:8px;gap:5px;align-items:baseline;flex-wrap:wrap}
+.shell.in-battle .upgrade-value{font-size:21px;font-weight:850;line-height:1.1;letter-spacing:-.02em}
+.shell.in-battle .upgrade-value small{font-size:10px;font-weight:650;color:inherit;margin-left:3px}
+.shell.in-battle .upgrade-price,.shell.in-battle .upgrade:disabled .upgrade-price{
+  font-size:13px;font-weight:850;line-height:1.2;color:inherit;text-shadow:none;white-space:nowrap;
+}
+.shell.in-battle .upgrade-sub{font-size:9px;font-weight:650;line-height:1.25;margin-top:5px;color:inherit}
+/* Boss and storage messages belong to the reserved status row, too. */
+.shell.in-battle .battle-hud .boss-bar{
+  grid-column:1/-1;position:static;inset:auto;transform:none;width:auto;
+  margin:0;padding:7px 13px;border:0;border-radius:0;background:#38272e;
+}
+.shell.in-battle .boss-bar b{display:block;margin-bottom:5px;font-size:10px;color:#ffadb9;letter-spacing:.08em}
+.shell.in-battle .boss-track{height:9px;margin-top:0}
+.shell.in-battle .battle-notice,.shell.in-battle .battle-hud .status-warning{
+  grid-column:1/-1;position:static;inset:auto;transform:none;width:auto;margin:0;
+  padding:8px 12px;border-radius:0;background:#f1d79a;color:#553e16;font-size:11px;line-height:1.4;
+}
+.shell.in-battle .paused-overlay{padding:24px;background:#091c29b8;z-index:4}
 .shell.in-battle .paused-overlay h2{font-size:26px;letter-spacing:-.03em}
-.shell.in-battle .status-warning{
-  position:fixed;z-index:25;top:calc(max(14px,env(safe-area-inset-top)) + 82px);
-  left:50%;transform:translateX(-50%);width:min(460px,calc(100% - 32px));
-  margin:0;font-size:11px;box-shadow:0 5px 20px #07181e40;
-}
-.shell.in-battle .fatal{position:fixed;z-index:26;padding:32px 24px 160px}
+.shell.in-battle .fatal{position:absolute;padding:24px;z-index:8}
 .battle-menu-overlay{
   position:fixed;inset:0;z-index:40;padding:24px;
   padding-top:max(24px,env(safe-area-inset-top));
   padding-bottom:max(24px,env(safe-area-inset-bottom));
-  background:#06151bc4;backdrop-filter:blur(9px);pointer-events:auto;
-  overflow:auto;overscroll-behavior:contain;
+  background:#06151bc4;backdrop-filter:blur(7px);overflow:auto;overscroll-behavior:contain;
 }
 .shell.in-battle .battle-menu-overlay{display:flex;align-items:center;justify-content:center}
 .battle-menu-panel{
-  width:min(360px,100%);max-height:100%;overflow:auto;
-  padding:24px;border:1px solid #91beb63d;border-radius:17px;
-  background:linear-gradient(155deg,#233c43,#15282f 85%);
-  box-shadow:0 24px 90px #02121866;display:flex;flex-direction:column;gap:18px;
-  color:#e7ecec;
+  width:min(380px,100%);max-height:100%;overflow:auto;padding:12px;
+  display:flex;flex-direction:column;gap:16px;
 }
 .battle-menu-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
-.battle-menu-panel h2{margin:0;font-size:25px;letter-spacing:-.04em}
-.battle-menu-close{
-  min-width:44px;min-height:44px;display:grid;place-items:center;
-  padding:8px;border:1px solid #91beb629;border-radius:9px;
-  background:#294249;color:#c4d9d5;font-size:22px;line-height:1;
-}
-.battle-menu-panel p{margin:0;color:#a8bfc0;font-size:12px;line-height:1.6}
+.battle-menu-panel .eyebrow{color:#32617a;font-size:9px;letter-spacing:.1em;margin-bottom:6px}
+.battle-menu-panel h2{margin:0;color:#19394d;font-size:27px;letter-spacing:-.035em}
+.battle-menu-panel p{margin:0;color:#465369;font-size:12px;line-height:1.6}
+.battle-menu-panel .hint{color:#546174!important}
 .battle-menu-panel .menu-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-.battle-menu-panel .menu-grid>div{min-width:0;padding:11px;border:1px solid #a0cbc812;border-radius:8px;background:#0a202763}
-.battle-menu-panel .menu-grid span{display:block;color:#8faeaf;font-size:10px;margin-bottom:5px}
-.battle-menu-panel .menu-grid strong{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
+.battle-menu-panel .menu-grid>div{
+  min-width:0;padding:8px 10px;border:1px solid #acb4c2;background:#c4cad8;
+}
+.battle-menu-panel .menu-grid span{display:block;color:#465369;font-size:10px;margin-bottom:5px}
+.battle-menu-panel .menu-grid strong{color:#19394d;font-size:18px;font-weight:800;font-variant-numeric:tabular-nums}
 .battle-menu-panel .menu-actions{display:flex;flex-direction:column;gap:8px}
-.battle-menu-panel .menu-actions button{width:100%;min-height:44px}
-.battle-menu-panel .keyboard{display:flex;flex-wrap:wrap;font-size:10px;line-height:1.6}
+.battle-menu-panel .menu-actions button{width:100%;min-height:46px;padding:6px 8px;font-size:12px;font-weight:800}
+.battle-menu-panel .menu-actions .secondary,.battle-menu-panel .menu-actions .small-button{
+  border-image-source:url('/assets/ui/kenney-ui/button_rectangle_depth_border.png');color:#203d52;
+}
+.battle-menu-panel .menu-actions .small-button.danger{
+  border-image-source:url('/assets/ui/kenney-ui/button_rectangle_depth_flat_red.png');color:#fff;
+}
+.battle-menu-panel .keyboard{display:flex;flex-wrap:wrap;color:#465369;font-size:10px;line-height:1.6}
 .modal-backdrop{z-index:60}
 @media(max-width:800px){
-  .shell.in-battle .upgrade-top{align-items:flex-start;gap:5px}
-  .shell.in-battle .upgrade-title{font-size:10px}
-  .shell.in-battle .stat-icon{display:none}
-  .shell.in-battle .upgrade-level{white-space:normal;text-align:right}
+  .battle-resource{padding:0 12px}
+  .battle-resource>strong{font-size:18px}
+  .shell.in-battle .upgrade-top{flex-direction:column;gap:3px}
+  .shell.in-battle .upgrade-title{font-size:11px}
+  .shell.in-battle .upgrade-data{margin-top:6px}
+  .shell.in-battle .upgrade-level{font-size:9px}
 }
 @media(max-width:600px){
   .shell.in-battle .battle-hud{
-    top:max(8px,env(safe-area-inset-top));
-    left:max(8px,env(safe-area-inset-left));right:max(8px,env(safe-area-inset-right));gap:6px;
+    grid-template-columns:minmax(0,1fr) 44px;gap:6px;padding:7px 6px;
+    padding-top:max(7px,env(safe-area-inset-top));
+    padding-left:max(6px,env(safe-area-inset-left));
+    padding-right:max(6px,env(safe-area-inset-right));
   }
-  .battle-resources{flex:1;display:grid;grid-template-columns:.85fr 1.3fr 1fr 1fr;max-width:none;padding:9px 2px;border-radius:9px;min-height:50px}
-  .battle-resource{min-width:0;padding:0 7px;gap:4px}
-  .battle-resource>span,.battle-resource>small{font-size:8px;letter-spacing:0}
+  .battle-resources{
+    grid-template-columns:.82fr 1.28fr 1fr 1fr;min-height:52px;
+    padding:0;border-width:9px;border-image-width:9px;
+  }
+  .battle-resource{padding:0 5px;gap:4px}
+  .battle-resource>span,.battle-resource>small{font-size:9px;letter-spacing:0}
   .battle-resource>strong{font-size:14px;letter-spacing:-.035em}
-  .battle-menu-toggle{min-width:44px;min-height:50px;padding:10px;border-radius:9px;gap:0;font-size:0}
-  .battle-menu-toggle svg{width:20px;height:20px}
+  .battle-resource .health-track{height:7px}
+  .battle-menu-toggle{width:44px;min-width:44px;min-height:44px;padding:0;gap:0}
+  .battle-menu-toggle span{display:none}
   .shell.in-battle .upgrades{
-    left:max(8px,env(safe-area-inset-left));right:max(8px,env(safe-area-inset-right));
-    bottom:max(8px,env(safe-area-inset-bottom));gap:5px;
-    grid-template-columns:repeat(4,minmax(0,1fr));
+    grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;padding:7px 6px;
+    padding-bottom:max(7px,env(safe-area-inset-bottom));
+    padding-left:max(6px,env(safe-area-inset-left));
+    padding-right:max(6px,env(safe-area-inset-right));
   }
-  .shell.in-battle .upgrade{min-height:117px;padding:9px 8px;border-radius:8px}
-  .shell.in-battle .upgrade-top{display:flex;flex-direction:column;align-items:stretch;gap:4px}
-  .shell.in-battle .upgrade-title{display:block;min-height:24px;font-size:10px;line-height:1.2;overflow-wrap:anywhere}
-  .shell.in-battle .upgrade-level{font-size:8px;padding:0;background:transparent;color:#9ab5b3;text-align:left;line-height:1.25}
-  .shell.in-battle .upgrade-data{flex-direction:column;align-items:flex-start;gap:5px;margin-top:7px}
-  .shell.in-battle .upgrade-value{font-size:17px;white-space:nowrap}
-  .shell.in-battle .upgrade-value small{font-size:8px;margin-left:2px}
-  .shell.in-battle .upgrade-price{font-size:11px;max-width:100%;white-space:normal;overflow-wrap:anywhere}
-  .shell.in-battle .upgrade-sub{font-size:8px;margin-top:5px;line-height:1.35}
-  .shell.in-battle .boss-bar{top:calc(max(8px,env(safe-area-inset-top)) + 60px);width:min(280px,72vw);padding:6px 9px}
-  .shell.in-battle .status-warning{top:calc(max(8px,env(safe-area-inset-top)) + 62px);width:calc(100% - 16px)}
-  .battle-menu-overlay{padding:16px;padding-top:max(16px,env(safe-area-inset-top));padding-bottom:max(16px,env(safe-area-inset-bottom))}
-  .battle-menu-panel{padding:20px;gap:15px;border-radius:14px}
+  .shell.in-battle .upgrade{min-height:97px;padding:4px 3px 5px;border-width:5px;border-image-width:5px}
+  .shell.in-battle .upgrade-title{display:block;min-width:0;max-width:100%;font-size:11px;min-height:27px;line-height:1.2;overflow-wrap:anywhere}
+  .shell.in-battle .upgrade-top{gap:2px}
+  .shell.in-battle .upgrade-level{font-size:9px;line-height:1.2}
+  .shell.in-battle .upgrade-data{flex-direction:column;align-items:flex-start;gap:4px;margin-top:5px}
+  .shell.in-battle .upgrade-value{font-size:18px;white-space:nowrap}
+  .shell.in-battle .upgrade-value small{font-size:9px;margin-left:2px}
+  .shell.in-battle .upgrade-price,.shell.in-battle .upgrade:disabled .upgrade-price{font-size:12px;white-space:normal;overflow-wrap:anywhere}
+  .shell.in-battle .upgrade-sub{display:none}
+  .battle-menu-overlay{padding:12px;padding-top:max(12px,env(safe-area-inset-top));padding-bottom:max(12px,env(safe-area-inset-bottom))}
+  .battle-menu-panel{padding:8px;gap:13px}
 }
 @media(max-width:360px){
   .battle-resource{padding:0 4px}
-  .battle-resource>span,.battle-resource>small{font-size:7px}
+  .battle-resource>span,.battle-resource>small{font-size:8px}
   .battle-resource>strong{font-size:12px}
-  .shell.in-battle .upgrade{padding:8px 6px}
-  .shell.in-battle .upgrade-title{font-size:9px}
-  .shell.in-battle .upgrade-value{font-size:15px}
-  .shell.in-battle .upgrade-price{font-size:10px}
+  .shell.in-battle .upgrade{padding:4px 2px 5px}
+  .shell.in-battle .upgrade-title{font-size:10px;min-height:24px}
+  .shell.in-battle .upgrade-value{font-size:16px}
+  .shell.in-battle .upgrade-value small{font-size:8px}
 }
 @media(max-height:500px) and (min-width:601px){
-  .shell.in-battle .upgrades{bottom:max(8px,env(safe-area-inset-bottom));max-width:700px}
-  .shell.in-battle .upgrade{min-height:88px;padding:8px 10px}
+  .shell.in-battle .battle-hud{padding-top:max(6px,env(safe-area-inset-top));padding-bottom:6px}
+  .battle-resources{min-height:56px;border-width:9px;border-image-width:9px}
+  .battle-resource>strong{font-size:16px}
+  .shell.in-battle .upgrades{padding-top:6px;padding-bottom:max(6px,env(safe-area-inset-bottom))}
+  .shell.in-battle .upgrade{min-height:79px;padding:4px 7px}
+  .shell.in-battle .upgrade-top{flex-direction:row}
+  .shell.in-battle .upgrade-title{font-size:10px}
+  .shell.in-battle .upgrade-value{font-size:18px}
   .shell.in-battle .upgrade-data{margin-top:5px}
-  .shell.in-battle .upgrade-sub{margin-top:3px}
-  .battle-menu-panel{padding:18px;gap:12px}
-  .shell.in-battle .paused-overlay{padding-bottom:100px;gap:8px}
+  .shell.in-battle .upgrade-sub{display:none}
+  .battle-menu-panel{padding:8px;gap:10px}
 }
-body.battle-active{overflow:hidden;overscroll-behavior:none}
-.battle-menu-panel .small-button.danger{color:#ebb29c;border-color:#d788633b;background:#3b3232}
-
-/* Original Kenney CC0 artwork. Nine-slice frames preserve corners at every viewport.
-   Tint is CSS-only: shipped PNGs remain byte-for-byte original (see manifest.json). */
-.battle-resources,.battle-menu-panel{position:relative;isolation:isolate;border-color:transparent;border-radius:3px;background:linear-gradient(135deg,#17363df5,#0d252df2);box-shadow:0 6px 28px #02182040,inset 0 1px 0 #b2fff210}
-.battle-resources::before,.battle-menu-panel::before{
-  content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
-  border:12px solid transparent;
-  border-image:url('/assets/ui/kenney-sci-fi/panel_glass_notches.png') 18 / 12px stretch;
-  filter:sepia(1) saturate(1.35) hue-rotate(112deg) brightness(.72);opacity:.66;
-}
-.battle-resources{padding:13px 6px}
-.battle-resource+.battle-resource{border-left-color:#7cdbd52e}
-.battle-resource>span{color:#a0c4c5;text-transform:uppercase;font-size:8px;letter-spacing:.1em}
-.battle-resource>strong{text-shadow:0 1px 8px #011b2699}
-.battle-resource.wave>strong{color:#dbf7ef}
-.battle-resource .health-track{height:6px;background:#03161dbb;box-shadow:0 0 0 1px #7acecd25;border-radius:4px}
-.battle-resource .health-fill{
-  background:transparent url('/assets/ui/kenney-sci-fi/bar_round_gloss_small.png') left center / 100% 100% no-repeat;
-  border-radius:4px;filter:hue-rotate(-18deg) saturate(.85) brightness(1.2);
-}
-.battle-resource .health-fill.low{filter:hue-rotate(155deg) saturate(.8) brightness(1.35)}
-.battle-menu-toggle,.battle-menu-close,.battle-menu-panel .menu-actions button,.shell.in-battle .upgrade{
-  position:relative;isolation:isolate;border-color:transparent;border-radius:3px;
-}
-.battle-menu-toggle::before,.battle-menu-close::before,.battle-menu-panel .menu-actions button::before,.shell.in-battle .upgrade::before{
-  content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
-  border:6px solid transparent;
-  border-image:url('/assets/ui/kenney-ui/button_rectangle_depth_border.png') 8 / 5px stretch;
-  filter:hue-rotate(-18deg) saturate(.55) brightness(.8);opacity:.66;
-}
-.battle-menu-toggle{background:#123039f5;color:#d8f7ed;box-shadow:0 5px 20px #01161e40}
-.battle-menu-toggle:hover:not(:disabled)::before,.battle-menu-close:hover:not(:disabled)::before,.battle-menu-panel .menu-actions button:hover:not(:disabled)::before{opacity:1}
-.shell.in-battle .upgrade{background:linear-gradient(140deg,#18353df5,#102830f5);box-shadow:0 5px 24px #03172055;transition:background .15s,transform .15s,box-shadow .15s}
-.shell.in-battle .upgrade:disabled{background:linear-gradient(140deg,#182e36f5,#10252cf5);border-color:transparent}
-.shell.in-battle .upgrade:disabled::before{filter:grayscale(.8) brightness(.6);opacity:.48}
-.shell.in-battle .upgrade.affordable{background:linear-gradient(140deg,#24505af5,#10323df5);border-color:transparent;box-shadow:0 5px 24px #03172055,inset 0 0 20px #5edfcc0c}
-.shell.in-battle .upgrade.affordable::before{opacity:1;filter:hue-rotate(-18deg) saturate(.7) brightness(1.1)}
-.shell.in-battle .upgrade.affordable:hover{box-shadow:0 0 17px #6ce5d329,0 5px 24px #03172055}
-.shell.in-battle .upgrade.affordable:active{transform:translateY(2px)}
-.shell.in-battle .stat-icon{border-color:#8addd239;background:#24494e;color:#a1e9dc;border-radius:3px}
-.shell.in-battle .upgrade-level{background:#0c242ca6;border:1px solid #83c9c41c;border-radius:2px;color:#9cc6c3}
-.shell.in-battle .upgrade-price{text-shadow:0 1px 8px #35281055}
-.battle-menu-panel{padding:28px;gap:18px}
-.battle-menu-panel::before{border-image-width:14px;opacity:.62}
-.battle-menu-panel .eyebrow{font-size:9px;letter-spacing:.14em;margin-bottom:6px}
-.battle-menu-panel h2{font-size:27px;letter-spacing:-.035em}
-.battle-menu-close{background:#173a43;color:#c8efea}
-.battle-menu-panel .menu-grid>div{border-radius:3px;border-color:#8ae1d623;background:#071f285e}
-.battle-menu-panel .menu-grid strong{color:#d7eee8}
-.battle-menu-panel .menu-actions button{background:#16323b;color:#d4eae5;box-shadow:none;font-size:12px;padding:12px 14px}
-.battle-menu-panel .menu-actions .main-button:not(.secondary){background:transparent;color:#edffff;text-shadow:0 1px 2px #003e4b}
-.battle-menu-panel .menu-actions .main-button:not(.secondary)::before{
-  border-image-source:url('/assets/ui/kenney-ui/button_rectangle_depth_flat.png');
-  border-image-slice:8 fill;filter:hue-rotate(-18deg) saturate(.7) brightness(.62);opacity:1;
-}
-.battle-menu-panel .menu-actions .small-button.danger{background:#302d31;color:#e5b0a0;border-color:transparent}
-.battle-menu-panel .menu-actions .small-button.danger::before{filter:sepia(1) saturate(.7) hue-rotate(318deg) brightness(.65);opacity:.65}
-@media(max-width:600px){
-  .battle-resources{padding:10px 2px;border-radius:3px}
-  .battle-resources::before{border-image-width:9px}
-  .battle-resource>span{font-size:8px;letter-spacing:0}
-  .battle-menu-toggle{border-radius:3px}
-  .shell.in-battle .upgrade{border-radius:3px}
-  .shell.in-battle .upgrade-level{border:0;background:transparent}
-  .battle-menu-panel{padding:24px 21px;gap:15px;border-radius:3px}
-}
-@media(max-width:360px){
-  .battle-resource>span{font-size:8px}
-  .battle-resources::before{border-image-width:7px}
-  .battle-menu-panel{padding:22px 18px}
-}
-@media(max-height:500px) and (min-width:601px){.battle-menu-panel{padding:20px;gap:12px}}
-
-/* Non-playable surround for the fixed portrait arena on differently shaped screens. */
-.arena{background:radial-gradient(ellipse at center,#28434a 0%,#12262e 65%,#0b1921 100%)}
-.shell.in-battle .arena-wrap{background:#0b1921}
+@media(prefers-reduced-motion:reduce){.shell.in-battle .upgrade,.battle-resource .health-fill,.boss-fill{transition:none}}

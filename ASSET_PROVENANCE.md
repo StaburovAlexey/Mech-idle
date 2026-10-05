@@ -25,16 +25,24 @@
 
 - Страница: https://kenney.nl/assets/ui-pack-sci-fi
 - Архив: https://kenney.nl/media/pages/assets/ui-pack-sci-fi/b67c2acd31-1724181109/kenney_ui-pack-space-expansion.zip
-- `PNG/Extra/Default/panel_glass_notches.png` → `public/assets/ui/kenney-sci-fi/panel_glass_notches.png`: девятисегментная рамка ресурсов и меню боя
-- `PNG/Blue/Default/bar_round_gloss_small.png` → `public/assets/ui/kenney-sci-fi/bar_round_gloss_small.png`: полоса здоровья турели
+- `PNG/Extra/Default/panel_glass_notches.png` → `public/assets/ui/kenney-sci-fi/panel_glass_notches.png`: заполненные светлые панели главного меню, мастерской, результатов, ресурсов, диалогов и меню боя; исходные фаски и белые края сохранены
+- `PNG/Blue/Default/bar_round_gloss_small.png` → `public/assets/ui/kenney-sci-fi/bar_round_gloss_small.png`: синяя полоса здоровья турели
+- `PNG/Red/Default/bar_round_gloss_small.png` → `public/assets/ui/kenney-sci-fi/bar_round_gloss_small_red.png`: красная полоса при низком здоровье турели и полоса Колосса
+- `PNG/Extra/Default/bar_shadow_round_outline_small.png` → `public/assets/ui/kenney-sci-fi/bar_shadow_round_outline_small.png`: подложка полос здоровья
 - Лицензия: `public/assets/ui/kenney-sci-fi/License.txt`
 
 ### UI Pack
 
 - Страница: https://kenney.nl/assets/ui-pack
 - Архив: https://kenney.nl/media/pages/assets/ui-pack/f651646eab-1718203990/kenney_ui-pack.zip
-- `PNG/Blue/Default/button_rectangle_depth_border.png` → `public/assets/ui/kenney-ui/button_rectangle_depth_border.png`: девятисегментные рамки четырёх улучшений, кнопок и переключателя меню боя
-- `PNG/Blue/Default/button_rectangle_depth_flat.png` → `public/assets/ui/kenney-ui/button_rectangle_depth_flat.png`: основная кнопка возврата в бой
+- `PNG/Blue/Default/button_rectangle_depth_border.png` → `public/assets/ui/kenney-ui/button_rectangle_depth_border.png`: заполненные светлые вторичные кнопки меню с синей рамкой
+- `PNG/Blue/Default/button_rectangle_depth_flat.png` → `public/assets/ui/kenney-ui/button_rectangle_depth_flat.png`: синие основные кнопки, доступные улучшения мастерской и боя, переключатель меню и кнопка возврата в бой
+- `PNG/Blue/Default/button_rectangle_depth_gloss.png` → `public/assets/ui/kenney-ui/button_rectangle_depth_gloss.png`: оригинальное подсвеченное состояние доступных кнопок при наведении
+- `PNG/Blue/Default/button_rectangle_flat.png` → `public/assets/ui/kenney-ui/button_rectangle_flat.png`: оригинальная плоская грань нажатой кнопки
+- `PNG/Grey/Default/button_rectangle_depth_flat.png` → `public/assets/ui/kenney-ui/button_rectangle_depth_flat_grey.png`: серое состояние недоступных кнопок и улучшений мастерской и боя
+- `PNG/Red/Default/button_rectangle_depth_flat.png` → `public/assets/ui/kenney-ui/button_rectangle_depth_flat_red.png`: красная кнопка завершения забега
 - Лицензия: `public/assets/ui/kenney-ui/License.txt`
 
-Все четыре PNG сохранены побайтово без изменений. Оттенок, прозрачность и масштабирование задаются только CSS; центральная заливка рамок опущена там, где нужна тёмная подложка. SHA-256 и пути внутри архивов приведены в `public/assets/ui/manifest.json`. Шрифты из наборов не включены: используется системный шрифт с поддержкой кириллицы.
+Все десять PNG сохранены побайтово без изменений. Их исходные цвета и заполненные центральные области используются напрямую, без CSS-фильтров, тонирования и пониженной прозрачности. Светлая панель размером 64×64 разрезается на девять сегментов по 16 исходным пикселям для сохранения фасок. Кнопки 192×64 используют 8-пиксельные сегменты, сохраняющие углы и нижний объёмный край. Полосы здоровья 96×16 масштабируются как цельные изображения.
+
+SHA-256 и пути внутри архивов приведены в `public/assets/ui/manifest.json`. Шрифты из наборов не включены: используется системный шрифт с поддержкой кириллицы. Верхние ресурсы и нижние улучшения находятся в отдельных строках CSS Grid; 3D-поле занимает только среднюю строку и не рисуется под игровыми панелями.

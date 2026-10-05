@@ -14,6 +14,20 @@
     "sha256": "63a3c8127a0734418d8c3059ba77b83e6617a42fc7a3b592590b3f83f989df20"
   },
   {
+    "file": "kenney-sci-fi/bar_round_gloss_small_red.png",
+    "source": "https://kenney.nl/assets/ui-pack-sci-fi",
+    "original": "PNG/Red/Default/bar_round_gloss_small.png",
+    "license": "CC0-1.0",
+    "sha256": "029e23c64fb539fbe9cf52800ebc5af5e649aee410f83158e57052f5b239c962"
+  },
+  {
+    "file": "kenney-sci-fi/bar_shadow_round_outline_small.png",
+    "source": "https://kenney.nl/assets/ui-pack-sci-fi",
+    "original": "PNG/Extra/Default/bar_shadow_round_outline_small.png",
+    "license": "CC0-1.0",
+    "sha256": "1b8b8b7226ebab4bb9a8117df169c0710fa02d1659e309fe7c6cb1a11f7f7f72"
+  },
+  {
     "file": "kenney-ui/button_rectangle_depth_border.png",
     "source": "https://kenney.nl/assets/ui-pack",
     "original": "PNG/Blue/Default/button_rectangle_depth_border.png",
@@ -26,5 +40,33 @@
     "original": "PNG/Blue/Default/button_rectangle_depth_flat.png",
     "license": "CC0-1.0",
     "sha256": "6c709a45aae0330ffff5b060d9f14cc2297839f664e0a4c9e516d90ad085ec0b"
+  },
+  {
+    "file": "kenney-ui/button_rectangle_depth_gloss.png",
+    "source": "https://kenney.nl/assets/ui-pack",
+    "original": "PNG/Blue/Default/button_rectangle_depth_gloss.png",
+    "license": "CC0-1.0",
+    "sha256": "a17548efecebe7cb8bb7bc6e71510b4a9a7dbbc31accfe0a2e3e565bf58b5839"
+  },
+  {
+    "file": "kenney-ui/button_rectangle_flat.png",
+    "source": "https://kenney.nl/assets/ui-pack",
+    "original": "PNG/Blue/Default/button_rectangle_flat.png",
+    "license": "CC0-1.0",
+    "sha256": "83084c953e57d7506f90600df77f36a8c6156abea0b8ea0e4b3885a596cee2c8"
+  },
+  {
+    "file": "kenney-ui/button_rectangle_depth_flat_grey.png",
+    "source": "https://kenney.nl/assets/ui-pack",
+    "original": "PNG/Grey/Default/button_rectangle_depth_flat.png",
+    "license": "CC0-1.0",
+    "sha256": "7de9ba1d4bca313fd2c02e3595f3d699c1201d84d70a3c69828e56782d585ce7"
+  },
+  {
+    "file": "kenney-ui/button_rectangle_depth_flat_red.png",
+    "source": "https://kenney.nl/assets/ui-pack",
+    "original": "PNG/Red/Default/button_rectangle_depth_flat.png",
+    "license": "CC0-1.0",
+    "sha256": "8dd648ea9b80a780fb387c235d4f6bbdadd4f4768c663639edb2c7e5174a69f0"
   }
 ]

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { SpawnGeometry } from './spawnGeometry';
 import { arenaViewport, cameraSpawnGeometry, configureArenaCamera } from './viewport';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { createWastelandLayout, WASTELAND_LIMITS, type GroundPoint } from './decoration';
 
 export interface SceneEnemy { id: number | string; kind: 'normal' | 'fast' | 'boss'; x: number; y: number; hp: number; maxHp: number }
 export interface SceneFrame {
@@ -19,7 +20,7 @@ type Kind = SceneEnemy['kind'];
 type Piece = { g: THREE.BufferGeometry; color: THREE.ColorRepresentation; p?: number[]; r?: number[]; s?: number[] };
 type Particle = { x: number; y: number; z: number; vx: number; vy: number; vz: number; life: number; max: number; color: number };
 type UnitBatch = { body: THREE.InstancedMesh; leftLeg: THREE.InstancedMesh; rightLeg: THREE.InstancedMesh; leftArm: THREE.InstancedMesh; rightArm: THREE.InstancedMesh; glow: THREE.InstancedMesh; count: number; scale: number; hips: number; shoulders: number };
-const C = { sand: 0x968c76, tile: 0xb1a38a, cream: 0xe8dbc0, creamLight: 0xf8ecd4, teal: 0x21666a, tealLight: 0x398c8c, cyan: 0x40eeff, charcoal: 0x343d40, dark: 0x1c292e, black: 0x151e21, steel: 0x637075, red: 0xd04d3c, redLight: 0xf47754, amber: 0xffbb43, hazard: 0xdcae43 };
+const C = { cream: 0xe8dbc0, creamLight: 0xf8ecd4, teal: 0x21666a, tealLight: 0x398c8c, cyan: 0x40eeff, charcoal: 0x343d40, dark: 0x1c292e, black: 0x151e21, steel: 0x637075, red: 0xd04d3c, redLight: 0xf47754, amber: 0xffbb43, hazard: 0xdcae43 };
 const MAX_UNITS = 50;
 const MAX_BULLETS = 80;
 const MAX_PARTICLES = 100;
@@ -70,7 +71,6 @@ function part(g: THREE.BufferGeometry, color: THREE.ColorRepresentation, x = 0, 
 function matrix(x: number, y: number, z: number, ry = 0, sx = 1, sy = sx, sz = sx) {
   v3.set(x, y, z); q4.setFromEuler(eul.set(0, ry, 0)); sc.set(sx, sy, sz); return m4.compose(v3, q4, sc);
 }
-function seeded(n: number) { return (Math.sin(n * 127.1 + 311.7) * 43758.5453) % 1; }
 
 /** Original procedural models. No downloaded models, textures, or runtime services. */
 export class SceneView {
@@ -152,7 +152,7 @@ export class SceneView {
     this.turretRing = new THREE.Mesh(ring(1.40, 1.45, 64), new THREE.MeshBasicMaterial({ color: C.cyan, transparent: true, opacity: .62, toneMapped: false, depthWrite: false }));
     this.turretRing.position.y = .095; this.scene.add(this.turretRing);
     // Centerline is exactly the simulation's firing radius, with subtle ground paint.
-    this.rangeRing = new THREE.Mesh(ring(.9982, 1.0018, 256), new THREE.MeshBasicMaterial({ color: 0xe6faff, transparent: true, opacity: .38, toneMapped: false, depthWrite: false, side: THREE.DoubleSide }));
+    this.rangeRing = new THREE.Mesh(ring(.994, 1.006, 256), new THREE.MeshBasicMaterial({ color: 0xe6faff, transparent: true, opacity: .56, toneMapped: false, depthWrite: false, side: THREE.DoubleSide }));
     this.rangeRing.position.y = .076; this.rangeRing.scale.set(10, 1, 10); this.scene.add(this.rangeRing);
     this.observer = new ResizeObserver(() => this.resize()); this.observer.observe(container);
     this.resize();
@@ -165,87 +165,69 @@ export class SceneView {
     const mesh = new THREE.InstancedMesh(g, material, n); mesh.count = 0; mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); mesh.frustumCulled = false; this.scene.add(mesh); return mesh;
   }
   private buildArena() {
-    const a: Piece[] = [], lights: Piece[] = [], trim: Piece[] = [];
-    a.push(part(cyl(11.65, .52, 8), C.dark, 0, -.30, 0, 0, Math.PI / 8));
-    a.push(part(cyl(11.33, .18, 8), 0x756e61, 0, -.08, 0, 0, Math.PI / 8));
-    // Hand-laid, subtly varied tiles with real seams, merged into a single draw.
-    let tile = 0;
-    for (let x = -10; x <= 10; x += 1.25) for (let z = -10; z <= 10; z += 1.25) {
-      if (Math.max(Math.abs(x), Math.abs(z)) > 10.1 || Math.abs(x) + Math.abs(z) > 14.5) continue;
-      const color = new THREE.Color(C.tile); color.multiplyScalar(.89 + Math.abs(seeded(++tile)) * .19);
-      a.push(part(box(1.225, .055, 1.225), color, x, .02, z));
-      if (tile % 13 === 0) a.push(part(box(.20, .007, .025), 0x817b6c, x + .24, .052, z - .28, 0, .7));
+    const layout = createWastelandLayout();
+    const surfaces: Piece[] = [], rubble: Piece[] = [], vegetation: Piece[] = [];
+    // Ground meshes use matte earth colors, preserving the turquoise / red unit contrast.
+    const earthMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0, roughness: 1, flatShading: true, side: THREE.DoubleSide });
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshStandardMaterial({ color: 0x928970, roughness: 1, metalness: 0 }));
+    ground.name = 'wasteland-continuous-ground';
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = WASTELAND_LIMITS.groundHeight;
+    this.scene.add(ground);
+
+    const flatPolygon = (points: readonly GroundPoint[]) => {
+      const shape = new THREE.Shape();
+      points.forEach(([x, z], i) => i ? shape.lineTo(x, -z) : shape.moveTo(x, -z));
+      shape.closePath();
+      const geometry = new THREE.ShapeGeometry(shape);
+      geometry.rotateX(-Math.PI / 2);
+      return geometry;
+    };
+    for (const surface of layout.surfaces) surfaces.push(part(flatPolygon(surface.points), surface.color, 0, surface.height));
+    for (const crack of layout.cracks) {
+      const [x1, z1] = crack.from, [x2, z2] = crack.to;
+      const dx = x2 - x1, dz = z2 - z1, length = Math.hypot(dx, dz);
+      const nx = -dz / length * crack.width / 2, nz = dx / length * crack.width / 2;
+      surfaces.push(part(flatPolygon([[x1 + nx, z1 + nz], [x2 + nx, z2 + nz], [x2 - nx, z2 - nz], [x1 - nx, z1 - nz]]), 0x41473d, 0, .057));
     }
-    // Low chamfered rim: it frames the playable circle without hiding attackers.
-    for (let i = 0; i < 8; i++) {
-      const angle = i * Math.PI / 4;
-      const x = Math.sin(angle) * 10.67, z = Math.cos(angle) * 10.67;
-      a.push(part(bevelBox(8.22, .32, .40, .055), C.charcoal, x, .13, z, 0, angle));
-      a.push(part(box(7.92, .055, .16), 0x9a9683, x, .32, z, 0, angle));
-      for (let k = -3; k <= 3; k++) {
-        const lx = k * .92;
-        const wx = x + Math.cos(angle) * lx, wz = z - Math.sin(angle) * lx;
-        a.push(part(box(.38, .018, .21), k % 2 ? C.hazard : 0x5b605a, wx, .354, wz, 0, angle + .35));
+    // Flat, irregular patches are all merged once; no tile seams or enclosing arena rim.
+    this.addGeometry(merge(surfaces), earthMaterial).name = 'wasteland-road-dust-and-cracks';
+
+    for (const piece of layout.rubble) {
+      const { x, z, width, depth, height, rotation, color, kind } = piece;
+      if (kind === 'rust') {
+        // Flattened corrugated sheet metal with a bent-looking jagged outline.
+        rubble.push(part(flatPolygon([[-width / 2, -depth / 2], [width * .3, -depth * .48], [width / 2, -depth * .2], [width * .4, depth / 2], [-width * .4, depth * .35]]), color, x, WASTELAND_LIMITS.groundHeight + height, z, 0, rotation));
+        for (let i = -2; i <= 2; i++) {
+          const offset = width * i / 6;
+          rubble.push(part(box(.025, .025, depth * .72), 0x5a4d3d, x + Math.cos(rotation) * offset, WASTELAND_LIMITS.groundHeight + height, z - Math.sin(rotation) * offset, 0, rotation));
+        }
+      } else {
+        // Partly buried, broad low fragments do not hide any approaching mech.
+        rubble.push({ g: new THREE.DodecahedronGeometry(1, 0), color, p: [x, WASTELAND_LIMITS.groundHeight + height * .25, z], s: [width / 2, height * .65, depth / 2], r: [0, rotation, 0] });
+        if (kind === 'concrete') rubble.push(part(box(width * .6, .025, .035), 0x575b51, x, WASTELAND_LIMITS.groundHeight + height * .72, z, 0, rotation + .22));
       }
-      for (const side of [-1, 1]) {
-        const wx = x + Math.cos(angle) * side * 3.94, wz = z - Math.sin(angle) * side * 3.94;
-        a.push(part(bevelBox(.28, .48, .63), C.steel, wx, .17, wz, 0, angle));
-        lights.push(part(box(.11, .025, .16), C.cyan, wx, .423, wz, 0, angle));
+    }
+    this.addGeometry(merge(rubble), earthMaterial).name = 'wasteland-low-wreckage';
+
+    for (const tuft of layout.grass) {
+      // Five tapered blades per tuft, all low-poly and merged rather than animated.
+      for (let i = 0; i < 5; i++) {
+        const angle = tuft.rotation + i * 2.39996;
+        const height = tuft.height * (.55 + i * .09), lean = tuft.spread * (.45 + i * .1);
+        const blade = new THREE.BufferGeometry();
+        blade.setAttribute('position', new THREE.Float32BufferAttribute([-.027, 0, 0, .027, 0, 0, lean, height, .015], 3));
+        blade.computeVertexNormals();
+        vegetation.push(part(blade, i % 2 ? 0x8a8154 : 0x746c47, tuft.x, WASTELAND_LIMITS.groundHeight, tuft.z, 0, angle));
       }
     }
-    // Technical paint and broken white calibration circle around the emplacement.
-    for (let i = 0; i < 24; i++) {
-      const ang = i * Math.PI / 12;
-      trim.push(part(box(.24, .012, i % 6 === 0 ? .32 : .07), 0xe7dac0, Math.sin(ang) * 1.77, .059, Math.cos(ang) * 1.77, 0, ang));
-    }
-    for (let i = 0; i < 4; i++) {
-      const ang = i * Math.PI / 2;
-      trim.push(part(box(.075, .012, 1.4), 0xcdbea0, Math.sin(ang) * 8.65, .060, Math.cos(ang) * 8.65, 0, ang));
-      trim.push(part(box(.55, .012, .06), 0xcdbea0, Math.sin(ang) * 9.38, .060, Math.cos(ang) * 9.38, 0, ang));
-    }
-    // Four compact coolant columns, retaining the reference's cyan / graphite language.
-    for (const [x, z] of [[-8, -8], [8, -8], [-8, 8], [8, 8]]) {
-      a.push(part(cyl(.47, .18, 6, .58), C.dark, x, .14, z));
-      a.push(part(cyl(.27, .16, 8, .34), C.cream, x, .34, z));
-      a.push(part(cyl(.21, 1.04, 8), C.teal, x, .92, z));
-      lights.push(part(cyl(.17, .81, 8), C.cyan, x, .91, z));
-      a.push(part(cyl(.31, .19, 8), C.charcoal, x, 1.43, z));
-      a.push(part(cyl(.24, .06, 8), C.cream, x, 1.56, z));
-      for (let j = 0; j < 3; j++) { const t = j * Math.PI * 2 / 3; a.push(part(box(.07, .92, .06), C.charcoal, x + Math.sin(t) * .22, .92, z + Math.cos(t) * .22)); }
-      for (let j = 0; j < 4; j++) { const t = j * Math.PI / 2; a.push(part(bevelBox(.21, .30, .30), C.charcoal, x + Math.sin(t) * .39, .22, z + Math.cos(t) * .39, 0, t)); }
-    }
-    // Industrial cargo outside the firing zone, with beveled panels and amber markings.
-    for (let i = 0; i < 10; i++) {
-      const ang = i * Math.PI * 2 / 10 + .12;
-      const x = Math.sin(ang) * 12.3, z = Math.cos(ang) * 12.3;
-      const h = .55 + (i % 3) * .19;
-      a.push(part(bevelBox(1.05, h, .85, .09), i % 2 ? C.charcoal : C.teal, x, h / 2 - .07, z, 0, ang));
-      a.push(part(bevelBox(.82, .065, .66), C.cream, x, h - .01, z, 0, ang));
-      a.push(part(box(.07, h + .035, .88), 0x728080, x - Math.cos(ang) * .32, h / 2 - .06, z + Math.sin(ang) * .32, 0, ang));
-      a.push(part(box(.07, h + .035, .88), 0x728080, x + Math.cos(ang) * .32, h / 2 - .06, z - Math.sin(ang) * .32, 0, ang));
-      trim.push(part(box(.22, .018, .19), C.hazard, x, h + .03, z, 0, ang));
-    }
-    // Angular far-ground silhouettes and a dark sand plinth visually ground the diorama.
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshStandardMaterial({ color: 0x24363b, roughness: 1 })); ground.rotation.x = -Math.PI / 2; ground.position.y = .006; this.scene.add(ground);
-    for (let i = 0; i < 16; i++) {
-      const ang = i * Math.PI * 2 / 16 + .15, r = 14.7 + (i % 3) * 1.6;
-      a.push({ g: new THREE.DodecahedronGeometry(1, 0), color: i % 2 ? 0x435158 : 0x526067, p: [Math.sin(ang) * r, -.5, Math.cos(ang) * r], s: [1.3 + (i % 3) * .4, .8 + (i % 4) * .35, 1.4], r: [0, ang, .18] });
-    }
-    this.addGeometry(merge(a)); this.addGeometry(merge(lights), this.glowMaterial); this.addGeometry(merge(trim));
-    this.addFloorLabels();
-    // Cheap soft contact shadows, no shadow maps or full-screen postprocessing.
+    this.addGeometry(merge(vegetation), earthMaterial).name = 'wasteland-dry-scrub';
+
+    // Cheap baked turret contact shadow, no shadow maps or full-screen postprocessing.
     const shadowCanvas = document.createElement('canvas'); shadowCanvas.width = shadowCanvas.height = 64;
     const ctx = shadowCanvas.getContext('2d')!; const gradient = ctx.createRadialGradient(32, 32, 1, 32, 32, 31); gradient.addColorStop(0, 'rgba(0,0,0,.6)'); gradient.addColorStop(.55, 'rgba(0,0,0,.24)'); gradient.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = gradient; ctx.fillRect(0, 0, 64, 64);
     const texture = new THREE.CanvasTexture(shadowCanvas); this.allTextures.add(texture);
     const shadow = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 4.4), new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false, opacity: .9 })); shadow.rotation.x = -Math.PI / 2; shadow.position.set(.25, .071, .25); this.scene.add(shadow);
-  }
-
-  private addFloorLabels() {
-    const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 128;
-    const ctx = canvas.getContext('2d')!;
-    ctx.fillStyle = '#ded2b5'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = 'bold 70px monospace'; ctx.fillText('SECTOR  //  07', 512, 64);
-    const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace; this.allTextures.add(texture);
-    const label = new THREE.Mesh(new THREE.PlaneGeometry(4.7, .59), new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: .38, depthWrite: false })); label.rotation.x = -Math.PI / 2; label.position.set(0, .065, 8.3); this.scene.add(label);
   }
 
   private buildTurret() {
