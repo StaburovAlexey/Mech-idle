@@ -91,6 +91,7 @@ describe('battle controls and keyboard target semantics', () => {
     for (const [index, button] of buttons.entries()) {
       const stat = STAT_KEYS[index];
       expect(button.id).toBe(`upgrade-${stat}`);
+      expect(button.getAttribute('aria-label')).toBe(STAT_LABELS[stat].title);
       expect(button.querySelector('.upgrade-title')?.textContent).toContain(STAT_LABELS[stat].title);
       for (const selector of ['.upgrade-top', '.upgrade-level', '.upgrade-data', '.upgrade-value', '.upgrade-price', '.upgrade-sub']) {
         expect(button.querySelectorAll(selector)).toHaveLength(1);
@@ -187,7 +188,7 @@ describe('shipped original Kenney skins (asset and authored CSS checks)', () => 
       expect(header['pointer-events']).toBe('none');
     }
     expect(combinedRulesFor('.battle-resources').height).toBe('64px');
-    expect(combinedRulesFor('.battle-menu-head').height).toBe('64px');
+    expect(combinedRulesFor('.battle-menu-head')).toMatchObject({height:'64px',margin:'0'});
     for(const selector of ['.battle-resources::before','.battle-menu-head::before'])
       expect(combinedRulesFor(selector)['border-image']).toContain('button_square_header_large_rectangle_screws.png');
     expect(combinedRulesFor('.battle-menu-panel')['border-image']).toContain('panel_glass_screws.png');
@@ -205,6 +206,8 @@ describe('shipped original Kenney skins (asset and authored CSS checks)', () => 
     expect(combinedRulesFor('.upgrade:disabled')['border-image-source']).toContain('/button_rectangle_flat_grey.png');
     expect(combinedRulesFor('.upgrade:hover:not(:disabled)')['border-image-source']).toContain('/button_rectangle_depth_gloss_grey.png');
     expect(combinedRulesFor('.upgrade:active:not(:disabled)')['border-image-source']).toContain('/button_rectangle_flat_grey.png');
+    expect(combinedRulesFor('.main-button.secondary')['border-image']).toContain('button_rectangle_depth_flat_grey.png');
+    expect(combinedRulesFor('.main-button.secondary').border).toBe('4px solid transparent');
     expect(combinedRulesFor('.main-button:not(.secondary)')['border-image-source']).toContain('/button_rectangle_depth_flat.png');
     expect(combinedRulesFor('.main-button:not(.secondary):hover:not(:disabled)')['border-image-source']).toContain('/button_rectangle_depth_gloss.png');
     expect(combinedRulesFor('.main-button:not(.secondary):active:not(:disabled)')['border-image-source']).toContain('/button_rectangle_flat.png');

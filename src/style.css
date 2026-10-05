@@ -59,7 +59,11 @@
 .main-button:not(.secondary){
   border-image-source:url('/assets/ui/kenney-ui/button_rectangle_depth_flat.png');color:#fff;
 }
-.main-button.secondary,.small-button{background:transparent;color:#4a4d5b;box-shadow:none}
+.main-button.secondary,.small-button{
+  border:4px solid transparent;
+  border-image:url('/assets/ui/kenney-ui/button_rectangle_depth_flat_grey.png') 8 fill / 4px stretch;
+  background:transparent;color:#4a4d5b;box-shadow:none;
+}
 .small-button{min-height:44px;padding:7px 10px}
 .icon-button{min-width:44px;min-height:44px}
 .main-button:hover:not(:disabled),.small-button:hover:not(:disabled),.icon-button:hover:not(:disabled),.upgrade:hover:not(:disabled),.battle-menu-toggle:hover:not(:disabled){
@@ -141,7 +145,7 @@ body.battle-active{overflow:hidden;overscroll-behavior:none}
   content:'';position:absolute;left:0;top:38px;bottom:8px;width:1px;background:#b1b4c1;
 }
 .battle-resource>span,.battle-resource>small{
-  color:#fff;font-size:10px;font-weight:750;letter-spacing:.015em;line-height:12px;
+  color:#fff;font-size:10px;font-weight:750;letter-spacing:.015em;line-height:12px;white-space:nowrap;
 }
 .battle-resource>strong{color:#3d4253;font-size:18px;font-weight:800;line-height:20px;margin-top:14px;white-space:nowrap}
 .battle-resource.gold>strong{color:#8c602e}
@@ -211,7 +215,7 @@ body.battle-active{overflow:hidden;overscroll-behavior:none}
   border-image:url('/assets/ui/kenney-sci-fi/panel_glass_screws.png') 12 fill / 12px stretch;
   background:transparent;color:#4a4d5b;box-shadow:none;
 }
-.battle-menu-head{position:relative;flex:none;height:64px;margin:-12px -12px 0}
+.battle-menu-head{position:relative;flex:none;height:64px;margin:0}
 .battle-menu-panel h2{position:absolute;top:7px;left:14px;right:46px;margin:0;color:#fff;font-size:17px;line-height:21px;font-weight:750;letter-spacing:0}
 .battle-menu-panel .eyebrow{position:absolute;left:14px;top:42px;color:#686b7a;font-size:10px;line-height:13px;font-weight:650;letter-spacing:.02em}
 .battle-menu-close{
@@ -294,7 +298,7 @@ body.battle-active{overflow:hidden;overscroll-behavior:none}
 }
 @media(max-width:360px){
   .battle-resource{padding-left:4px;padding-right:4px}
-  .battle-resource>span,.battle-resource>small{font-size:8px}
+  .battle-resource>span,.battle-resource>small{font-size:9px}
   .battle-resource>strong{font-size:12px}
   .battle-resource.health>strong{font-size:11px}
   .shell.in-battle .upgrade{padding:6px 3px}
