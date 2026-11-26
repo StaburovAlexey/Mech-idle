@@ -25,15 +25,15 @@ test('ships self-contained arena assets and all runtime animation clips', () => 
   }
 });
 
-test('ships the original Quaternius station modules as one self-contained GLB', () => {
-  const data = readFileSync(new URL('../public/assets/reactor/quaternius-station.glb', import.meta.url));
-  expect(data.toString('ascii', 0, 4)).toBe('glTF');
-  const json = JSON.parse(data.toString('utf8', 20, 20 + data.readUInt32LE(12)));
-  expect(json.nodes.map((node: {name: string}) => node.name)).toEqual(expect.arrayContaining([
-    'Door_Frame_A', 'Door_DarkMetal', 'ShortWall_DarkMetal2_Straight', 'Column_Pipes', 'Prop_Crate3',
-  ]));
-  expect(json.images.every((image: {uri?: string}) => !image.uri)).toBe(true);
-  expect(data.length).toBeLessThan(360000);
+test('ships the city models with embedded standard textures and no decoder dependencies', () => {
+  for (const file of ['ruined-apartment-shell', 'wrecked-bus', 'rubble-heap-medium']) {
+    const data = readFileSync(new URL('../public/assets/city/' + file + '.glb', import.meta.url));
+    expect(data.toString('ascii', 0, 4)).toBe('glTF');
+    const json = JSON.parse(data.toString('utf8', 20, 20 + data.readUInt32LE(12)));
+    expect(json.images.every((image: { uri?: string; mimeType: string }) => !image.uri && image.mimeType === 'image/jpeg')).toBe(true);
+    expect(json.extensionsRequired ?? []).not.toContain('KHR_texture_basisu');
+    expect(json.extensionsRequired ?? []).not.toContain('EXT_meshopt_compression');
+  }
 });
 
 test('samples gait by travel, with clip-specific strides scaled to the actual model', () => {

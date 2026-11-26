@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { SceneView } from './scene';
 import { SPAWN_RADIUS } from './spawnGeometry';
 
-function buildStation() {
+function buildCity() {
   const context = { createRadialGradient: () => ({ addColorStop() {} }), fillRect() {}, fillStyle: '' };
   vi.stubGlobal('document', { createElement: () => ({ width: 0, height: 0, getContext: () => context }) });
   const scene = new THREE.Scene(), allTextures = new Set<THREE.Texture>();
@@ -20,38 +20,50 @@ function buildStation() {
 
 afterEach(() => vi.unstubAllGlobals());
 
-describe('Quaternius reactor arena geometry', () => {
-  it('generates a steel deck and reactor hull before optional model loads with bounded mesh cost', () => {
-    const scene = buildStation();
-    const station = scene.getObjectByName('quaternius-reactor-arena')!;
-    expect(station).toBeInstanceOf(THREE.Group);
-    expect(station.children.map(child => child.name)).toEqual([
-      'station-deck-base', 'station-deck-panels', 'station-reactors-and-hull', 'station-reactor-light', 'station-gate-fallback',
+describe('complete ruined-city environment', () => {
+  it('generates the sand and skyline before optional model loads with bounded mesh cost', () => {
+    const scene = buildCity();
+    const city = scene.getObjectByName('ruined-city')!;
+    expect(city).toBeInstanceOf(THREE.Group);
+    expect(city.children.map(child => child.name)).toEqual([
+      'city-continuous-ground', 'city-sand-and-drifts', 'city-sand-rubble', 'city-ruined-blocks',
     ]);
     let triangles = 0;
-    station.traverse(o => {
+    city.traverse(o => {
       if (o instanceof THREE.Mesh) triangles += (o.geometry.index?.count ?? o.geometry.getAttribute('position').count) / 3;
     });
-    expect(triangles).toBeLessThan(5500);
+    expect(triangles).toBeLessThan(17500);
   });
 
   it('keeps all arena surfaces below the existing portals and firing circle', () => {
-    const scene = buildStation();
-    const ground = scene.getObjectByName('station-deck-base') as THREE.Mesh;
-    const deck = scene.getObjectByName('station-deck-panels') as THREE.Mesh;
+    const scene = buildCity();
+    const ground = scene.getObjectByName('city-continuous-ground') as THREE.Mesh;
+    const plaza = scene.getObjectByName('city-sand-and-drifts') as THREE.Mesh;
     const ray = new THREE.Raycaster();
     for (const radius of [0, 10, SPAWN_RADIUS]) for (let i = 0; i < 24; i++) {
       const angle = i * Math.PI / 12;
       ray.set(new THREE.Vector3(Math.cos(angle) * radius, 1, Math.sin(angle) * radius), new THREE.Vector3(0, -1, 0));
-      const hits = ray.intersectObjects([ground, deck]);
+      const hits = ray.intersectObjects([ground, plaza]);
       expect(hits[0].point.y).toBeGreaterThanOrEqual(.048 - 1e-6);
       expect(hits[0].point.y).toBeLessThan(.067);
     }
   });
 
-  it('keeps the tall reactor hull behind and beyond the enemy spawn circle', () => {
-    const scene = buildStation();
-    const building = scene.getObjectByName('station-reactors-and-hull') as THREE.Mesh;
+  it('puts sand banks over the bases of the buses and the ruined facade', () => {
+    const scene = buildCity();
+    const city = scene.getObjectByName('ruined-city')!;
+    const sand = scene.getObjectByName('city-sand-and-drifts') as THREE.Mesh;
+    const ray = new THREE.Raycaster();
+    for (const [x, z] of [[-6.05, 12.72], [7.12, 12.52], [-5.2, -16.2]]) {
+      const from = city.localToWorld(new THREE.Vector3(x, 3, z));
+      ray.set(from, new THREE.Vector3(0, -1, 0));
+      expect(ray.intersectObject(sand)[0].point.y).toBeGreaterThan(.30);
+    }
+  });
+
+  it('keeps the tall generated blocks behind and beyond the enemy spawn circle', () => {
+    const scene = buildCity();
+    const building = scene.getObjectByName('city-ruined-blocks') as THREE.Mesh;
     const pos = building.geometry.getAttribute('position');
     for (let i = 0; i < pos.count; i++) expect(pos.getZ(i)).toBeLessThan(-SPAWN_RADIUS);
   });
