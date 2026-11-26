@@ -81,13 +81,16 @@ export function calculateStats(meta: Levels, levels: Levels = emptyLevels()): St
 export function getStats(state: GameState, includePending = false): Stats {
   return calculateStats(state.profile.meta, state.run ? (includePending ? state.run.levels : state.run.activeLevels) : emptyLevels());
 }
+const classicWaveCount = (wave: number) => 6 + Math.floor((wave - 1) * .55);
 export function waveConfig(wave: number): WaveConfig {
   if (wave === 30) return { count: 1, interval: 1.5, jitter: .2, fastEvery: 0, rangedEvery: 0, burstSize: 1, boss: true };
-  return { count: 6 + Math.floor((wave - 1) * .55), interval: 1.5, jitter: .2, fastEvery: wave >= 4 ? 4 : 0, rangedEvery: wave >= 6 ? 5 : 0, burstSize: wave % 5 === 0 ? Math.min(5, 3 + Math.floor(wave / 10)) : 1, boss: false };
+  return { count: 3 * classicWaveCount(wave), interval: wave === 1 ? 1.65 : 1.5, jitter: .2, fastEvery: wave >= 4 ? 4 : 0, rangedEvery: wave >= 6 ? 5 : 0, burstSize: wave % 5 === 0 ? Math.min(5, 3 + Math.floor(wave / 10)) : 1, boss: false };
 }
+const MAX_RUN_KILLS = Array.from({ length: WAVE_COUNT }, (_, i) => waveConfig(i + 1).count).reduce((a, b) => a + b, 0);
+const MAX_RUN_GOLD = Math.max(4000, (MAX_RUN_KILLS - 1) * BASE_ENEMIES.fast.reward + BASE_ENEMIES.boss.reward);
 export function enemyStats(kind: EnemyKind, wave: number) {
   const b = BASE_ENEMIES[kind];
-  return { maxHp: kind === 'boss' ? b.hp : Math.ceil(b.hp * (100 + 10 * (wave - 1)) / 100), damage: kind === 'boss' ? b.damage : Math.ceil(b.damage * (100 + 6 * (wave - 1)) / 100), speed: b.speed, attackInterval: b.attackInterval, reward: b.reward };
+  return { maxHp: kind === 'boss' ? b.hp : Math.ceil(b.hp * (100 + 10 * (wave - 1)) / 100), damage: kind === 'boss' ? b.damage : Math.ceil(b.damage * (100 + 6 * (wave - 1)) / 100), speed: 2 * b.speed, attackInterval: b.attackInterval, reward: b.reward };
 }
 export function startRun(state: GameState, seed = 1): GameState {
   if (state.run) return state;
@@ -337,7 +340,7 @@ export function serializeState(state: GameState): string {
 export function parseState(json: string): GameState | null {
   try {
     const value: unknown = JSON.parse(json);
-    if (!validateState(value)) return null;
+    if (!validateState(value, true)) return null;
     const state = clone(value);
     // Legacy v1 saves may contain already-paid upgrades awaiting a wave boundary.
     // Activate them once, preserving HP, currency, projectiles, and firing-cycle progress.
@@ -345,6 +348,12 @@ export function parseState(json: string): GameState | null {
     state.events = [];
     if (state.run && state.run.spawnMode !== 'circle') migrateCircleSpawns(state.run);
     if (state.run && state.run.combatMode !== 'telegraphed') migrateTelegraphedCombat(state.run);
+    if (state.run) {
+      // Old saves retain their positions, rewards and already-completed waves.
+      const run = state.run;
+      for (const enemy of run.enemies) enemy.speed = enemyStats(enemy.kind, run.wave).speed;
+      if (run.phase === 'interwave') run.spawned = waveConfig(run.wave).count;
+    }
     // Check the migrated shape too; malformed legacy data cannot become a new save.
     return validateState(state) ? state : null;
   } catch { return null; }
@@ -387,13 +396,13 @@ const str = (v: unknown): v is string => typeof v === 'string' && v.length > 0 &
 const keys = (v: Record<string, any>, names: string[]) => Object.keys(v).length === names.length && names.every(n => Object.hasOwn(v, n));
 function validLevels(v: unknown, cap: number): v is Levels { return object(v) && keys(v, [...STAT_KEYS]) && STAT_KEYS.every(k => int(v[k], 0, cap)); }
 function validStats(v: unknown): v is Stats { return object(v) && keys(v, ['damage','maxHp','attackSpeed','regen','range']) && num(v.damage, 10, 80) && num(v.maxHp, 100, 800) && num(v.attackSpeed, 1, 5) && num(v.regen, 0, 9.5) && v.range === 10; }
-export function validateState(value: unknown): value is GameState {
+export function validateState(value: unknown, allowClassicPace = false): value is GameState {
   if (!object(value) || !keys(value, ['version','profile','run','result','events']) || value.version !== 1 || !Array.isArray(value.events) || value.events.length !== 0) return false;
   const p = value.profile;
   if (!object(p) || !keys(p, ['crystals','meta','runCounter']) || !int(p.crystals) || !validLevels(p.meta, META_CAP) || !int(p.runCounter)) return false;
   if (value.result !== null) {
     const r = value.result;
-    if (!object(r) || !keys(r, ['outcome','runId','wave','completedWaves','kills','earnedGold','earnedCrystals','duration','finalStats']) || !['defeat','victory'].includes(r.outcome) || !str(r.runId) || !int(r.wave,1,30) || !int(r.completedWaves,0,30) || !int(r.kills,0,1000) || !int(r.earnedGold,0,4000) || !int(r.earnedCrystals,0,30) || r.earnedCrystals !== r.completedWaves || !num(r.duration,0,1e7) || !validStats(r.finalStats) || (r.outcome === 'victory' && (r.wave !== 30 || r.completedWaves !== 30)) || (r.outcome === 'defeat' && r.completedWaves !== r.wave - 1)) return false;
+    if (!object(r) || !keys(r, ['outcome','runId','wave','completedWaves','kills','earnedGold','earnedCrystals','duration','finalStats']) || !['defeat','victory'].includes(r.outcome) || !str(r.runId) || !int(r.wave,1,30) || !int(r.completedWaves,0,30) || !int(r.kills,0,MAX_RUN_KILLS) || !int(r.earnedGold,0,MAX_RUN_GOLD) || !int(r.earnedCrystals,0,30) || r.earnedCrystals !== r.completedWaves || !num(r.duration,0,1e7) || !validStats(r.finalStats) || (r.outcome === 'victory' && (r.wave !== 30 || r.completedWaves !== 30)) || (r.outcome === 'defeat' && r.completedWaves !== r.wave - 1)) return false;
   }
   if (value.run === null) return true;
   if (value.result !== null) return false;
@@ -407,7 +416,7 @@ export function validateState(value: unknown): value is GameState {
   if (Object.hasOwn(r, 'spawnGeometry') && !validSpawnGeometry(r.spawnGeometry) || Object.hasOwn(r, 'nextArrival') && !num(r.nextArrival, 0, 1e7)) return false;
   if (!str(r.id) || r.id !== `run-${p.runCounter}-${r.seed}` || !int(r.seed,1,0xffffffff) || !int(r.rngState,1,0xffffffff) || !int(r.wave,1,30) || !['combat','interwave'].includes(r.phase) || typeof r.paused !== 'boolean' || !num(r.time,0,1e7) || !int(r.tick,0,3e8) || Math.abs(r.time-r.tick*DT)>1e-6 || !num(r.phaseTime,0,1e7) || !validLevels(r.levels,RUN_CAP) || !validLevels(r.activeLevels,RUN_CAP) || STAT_KEYS.some(k=>r.activeLevels[k]>r.levels[k])) return false;
   const stats = calculateStats(p.meta,r.activeLevels);
-  if (!num(r.hp,Number.MIN_VALUE,stats.maxHp + 1e-6) || !int(r.gold,0,4000) || !int(r.spawned,0,waveConfig(r.wave).count) || !num(r.spawnCooldown,-1e7,telegraphed ? 7.71 : 1.71) || !num(r.shotCooldown,0,1.01) || !int(r.nextEntityId,1,100000) || !int(r.lastSector,-1,11) || !int(r.sectorStreak,0,2) || !int(r.lastPaidWave,0,29) || !int(r.kills,0,1000) || !int(r.earnedGold,0,4000) || !int(r.earnedCrystals,0,29) || r.lastPaidWave!==r.earnedCrystals || r.gold>r.earnedGold || r.lastPaidWave !== (r.phase === 'combat' ? r.wave-1 : r.wave) || (r.phase === 'interwave' && (r.wave===30 || r.phaseTime>=2.000001))) return false;
+  if (!num(r.hp,Number.MIN_VALUE,stats.maxHp + 1e-6) || !int(r.gold,0,MAX_RUN_GOLD) || !int(r.spawned,0,waveConfig(r.wave).count) || !num(r.spawnCooldown,-1e7,telegraphed ? 7.71 : 1.71) || !num(r.shotCooldown,0,1.01) || !int(r.nextEntityId,1,100000) || !int(r.lastSector,-1,11) || !int(r.sectorStreak,0,2) || !int(r.lastPaidWave,0,29) || !int(r.kills,0,MAX_RUN_KILLS) || !int(r.earnedGold,0,MAX_RUN_GOLD) || !int(r.earnedCrystals,0,29) || r.lastPaidWave!==r.earnedCrystals || r.gold>r.earnedGold || r.lastPaidWave !== (r.phase === 'combat' ? r.wave-1 : r.wave) || (r.phase === 'interwave' && (r.wave===30 || r.phaseTime>=2.000001))) return false;
   if (!Array.isArray(r.enemies) || r.enemies.length>30 || !Array.isArray(r.warnings) || r.warnings.length>(circle ? telegraphed ? 5 : 1 : 30) || r.warnings.length>r.spawned || !Array.isArray(r.bullets) || r.bullets.length>100 || !Array.isArray(r.paidKillIds) || r.paidKillIds.length!==r.kills || new Set(r.paidKillIds).size!==r.paidKillIds.length) return false;
   if (telegraphed && circle && r.enemies.length + r.warnings.length > MAX_ENEMIES) return false;
   const validId = (id: unknown): id is string => str(id) && id.startsWith(`${r.id}:`) && /^[1-9]\d*$/.test(id.slice(r.id.length+1)) && int(Number(id.slice(r.id.length+1)),1,r.nextEntityId-1);
@@ -420,7 +429,7 @@ export function validateState(value: unknown): value is GameState {
     if (!object(e) || !keys(e,['id','kind','x','y','hp','maxHp','damage','speed','attackInterval','attackCooldown', ...(telegraphed ? ['attackPhase','attackTime','attackDuration'] : [])]) || !validId(e.id) || ids.has(e.id) || !validKind(e.kind) || !position(e)) return false;
     ids.add(e.id);
     const base = enemyStats(e.kind,r.wave);
-    if (e.maxHp!==base.maxHp || e.damage!==base.damage || e.speed!==base.speed || e.attackInterval!==base.attackInterval || !num(e.hp,Number.MIN_VALUE,e.maxHp) || !num(e.attackCooldown,0,base.attackInterval)) return false;
+    if (e.maxHp!==base.maxHp || e.damage!==base.damage || (e.speed!==base.speed && (!allowClassicPace || e.speed!==BASE_ENEMIES[e.kind as EnemyKind].speed)) || e.attackInterval!==base.attackInterval || !num(e.hp,Number.MIN_VALUE,e.maxHp) || !num(e.attackCooldown,0,base.attackInterval)) return false;
     if (e.kind === 'ranged' && Math.hypot(e.x,e.y) < attackConfig('ranged').range - 1e-6) return false;
     if (telegraphed) {
       const attack = attackConfig(e.kind);
@@ -450,6 +459,6 @@ export function validateState(value: unknown): value is GameState {
     ids.add(p.id); sourceIds.add(p.sourceId);
   }
   if (r.targetId!==null && !r.enemies.some((e: Enemy)=>e.id===r.targetId)) return false;
-  if (r.phase==='interwave' && (r.enemies.length || r.warnings.length || r.bullets.length || (telegraphed && r.enemyProjectiles.length) || r.spawned!==waveConfig(r.wave).count)) return false;
+  if (r.phase==='interwave' && (r.enemies.length || r.warnings.length || r.bullets.length || (telegraphed && r.enemyProjectiles.length) || (r.spawned!==waveConfig(r.wave).count && (!allowClassicPace || r.spawned!==classicWaveCount(r.wave))))) return false;
   return true;
 }

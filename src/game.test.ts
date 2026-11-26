@@ -34,9 +34,9 @@ function play(seed: number, checkpoint = false): GameState {
   while (s.run && s.run.tick < 100000) {
     const r = s.run;
     // Deterministic zero-meta strategy: alternate damage/speed and add regeneration every four waves.
-    const key: StatKey = r.levels.regen < Math.floor(r.wave / 4) ? 'regen' : r.levels.damage < r.levels.attackSpeed + 1 ? 'damage' : 'attackSpeed';
+    const key: StatKey = r.wave < 3 && r.levels.attackSpeed < 2 ? 'attackSpeed' : r.levels.regen < Math.floor(r.wave / 4) ? 'regen' : r.levels.damage < r.levels.attackSpeed + 1 ? 'damage' : 'attackSpeed';
     s = buyRunUpgrade(s, key);
-    s = step(s);
+    s = step(s, 8);
     if (checkpoint && s.run && s.run.wave !== oldWave) {
       oldWave = s.run.wave;
       const loaded = parseState(serializeState(s)); expect(loaded).not.toBeNull(); s = loaded!;
@@ -191,14 +191,16 @@ describe('immediate upgrade timing', () => {
 
 describe('deterministic combat and timing', () => {
   it('uses exact enemy growth, first fast wave4, and only one exact boss on wave30', () => {
-    expect(waveConfig(1)).toEqual({ count: 6, interval: 1.5, jitter: .2, fastEvery: 0, rangedEvery: 0, burstSize: 1, boss: false });
+    expect(waveConfig(1)).toEqual({ count: 18, interval: 1.65, jitter: .2, fastEvery: 0, rangedEvery: 0, burstSize: 1, boss: false });
+    for (let wave = 1; wave < 30; wave++) expect(waveConfig(wave).count).toBe(3 * (6 + Math.floor((wave - 1) * .55)));
+    expect(enemyStats('ranged', 6).speed).toBe(2);
     expect(waveConfig(3).fastEvery).toBe(0); expect(waveConfig(4).fastEvery).toBe(4);
-    expect(enemyStats('ordinary', 1)).toEqual({ maxHp: 20, damage: 10, speed: 1, attackInterval: 2, reward: 3 });
-    expect(enemyStats('fast', 4)).toEqual({ maxHp: 16, damage: 9, speed: 1.8, attackInterval: 2, reward: 4 });
+    expect(enemyStats('ordinary', 1)).toEqual({ maxHp: 20, damage: 10, speed: 2, attackInterval: 2, reward: 3 });
+    expect(enemyStats('fast', 4)).toEqual({ maxHp: 16, damage: 9, speed: 3.6, attackInterval: 2, reward: 4 });
     expect(enemyStats('ordinary', 29).maxHp).toBe(76);
     expect(enemyStats('ordinary', 19).maxHp).toBe(56); // no floating-point ceil-to57 drift
     expect(waveConfig(30).count).toBe(1);
-    expect(enemyStats('boss', 30)).toEqual({ maxHp: 624, damage: 42, speed: .7, attackInterval: 2, reward: 50 });
+    expect(enemyStats('boss', 30)).toEqual({ maxHp: 624, damage: 42, speed: 1.4, attackInterval: 2, reward: 50 });
   });
   it('shows a warning on the radius12 circle for half a second before the mech walks', () => {
     let s = step(startRun(createState(), 77));
@@ -207,16 +209,21 @@ describe('deterministic combat and timing', () => {
     s = step(s, 14); expect(s.run?.enemies).toHaveLength(0);
     s = step(s); expect(s.run?.warnings).toHaveLength(0); expect(s.events.some(e => e.type === 'spawn' && e.id === w.id)).toBe(true);
   });
-  it('first-wave spacing stays within1.5±.2 seconds and sector streak never exceeds2', () => {
+  it('keeps opening-wave spacing and never spawns more than twice in a row from one sector', () => {
     let s = startRun(createState(), 999), ticks: number[] = [];
-    for (let i = 0; i < 400; i++) {
+    s.profile.meta.damage = 10;
+    const config = waveConfig(1);
+    for (let i = 0; i < 1200 && ticks.length < config.count; i++) {
       s = step(s);
       if (s.events.some(e => e.type === 'warning')) ticks.push(s.run!.tick);
       expect(s.run?.sectorStreak ?? 0).toBeLessThanOrEqual(2);
     }
-    expect(ticks).toHaveLength(6);
-    for (let i = 1; i < ticks.length; i++) expect((ticks[i] - ticks[i-1]) * DT).toBeGreaterThanOrEqual(1.3);
-    for (let i = 1; i < ticks.length; i++) expect((ticks[i] - ticks[i-1]) * DT).toBeLessThanOrEqual(1.7 + 1e-9);
+    expect(ticks).toHaveLength(config.count);
+    for (let i = 1; i < ticks.length; i++) {
+      const gap = (ticks[i] - ticks[i-1]) * DT;
+      expect(gap).toBeGreaterThanOrEqual(config.interval - config.jitter - 1e-9);
+      expect(gap).toBeLessThanOrEqual(config.interval + config.jitter + DT);
+    }
   });
   it('selects nearest automatically, ties by stable numeric ID, and bullets travel at16', () => {
     const s = startRun(createState(), 1), r = s.run!;
@@ -378,7 +385,7 @@ describe('boundaries, outcomes, and persistence', () => {
     expect(migrated.warnings).toHaveLength(1); expect(migrated.warnings[0]).toMatchObject({ id: warnings[0].id, kind: 'ordinary', remaining: .5 });
     expect(Math.hypot(migrated.warnings[0].x, migrated.warnings[0].y)).toBeCloseTo(12, 12);
     expect(migrated.warnings[0].x / migrated.warnings[0].y).toBeCloseTo(warnings[0].x / warnings[0].y, 12);
-    expect(migrated.spawned).toBe(4); expect(migrated.spawnCooldown).toBe(1.5);
+    expect(migrated.spawned).toBe(4); expect(migrated.spawnCooldown).toBe(waveConfig(1).interval);
     expect(migrated.spawnGeometry).toBeUndefined(); expect(migrated.nextArrival).toBeUndefined(); expect(restored.events).toEqual([]);
     const migratedJson = serializeState(restored);
     expect(serializeState(parseState(migratedJson)!)).toBe(migratedJson);
@@ -390,12 +397,13 @@ describe('boundaries, outcomes, and persistence', () => {
       for (const event of playing.events) if (event.type === 'spawn') { spawnTimes.push(playing.run!.tick); spawnIds.push(event.id); }
       expect(playing.run!.warnings.every(w => w.remaining <= .5)).toBe(true);
     }
-    expect(playing.run!.phase).toBe('interwave'); expect(playing.run!.spawned).toBe(6);
-    expect(spawnTimes).toHaveLength(3); expect((spawnTimes[1] - spawnTimes[0]) * DT).toBeCloseTo(1.5, 12);
+    expect(playing.run!.phase).toBe('interwave'); expect(playing.run!.spawned).toBe(18);
+    expect(spawnTimes).toHaveLength(15);
+    expect(Math.abs((spawnTimes[1] - spawnTimes[0]) * DT - waveConfig(1).interval)).toBeLessThan(DT);
     expect(spawnIds).toContain(warnings[0].id); expect(spawnIds).not.toContain(warnings[1].id); expect(spawnIds).not.toContain(warnings[2].id);
     expect(spawnIds.slice(1).every(id => Number(id.split(':').pop()) >= r.nextEntityId)).toBe(true);
-    expect(playing.run!.kills).toBe(6); expect(new Set(playing.run!.paidKillIds).size).toBe(6);
-    expect(playing.run!.gold).toBe(18); expect(playing.run!.earnedGold).toBe(18);
+    expect(playing.run!.kills).toBe(18); expect(new Set(playing.run!.paidKillIds).size).toBe(18);
+    expect(playing.run!.gold).toBe(54); expect(playing.run!.earnedGold).toBe(54);
     expect(playing.profile.crystals).toBe(1); expect(playing.run!.earnedCrystals).toBe(1);
     expect(step(parseState(serializeState(playing))!, 30).profile.crystals).toBe(1);
   });
@@ -479,8 +487,33 @@ describe('boundaries, outcomes, and persistence', () => {
     expect(s.result?.outcome).toBe('victory'); expect(s.result?.completedWaves).toBe(30);
     expect(s.profile.crystals).toBe(30); expect(s.result?.earnedCrystals).toBe(30); expect(s.run).toBeNull();
     expect(parseState(serializeState(s))?.result?.outcome).toBe('victory');
-    expect(s.result!.duration).toBeLessThan(20 * 60);
+    expect(s.result!.kills).toBe(1153);
+    expect(s.result!.duration).toBeLessThan(36 * 60);
   }, 20000);
+});
+
+describe('legacy pace and crowd counts', () => {
+  it('upgrades legacy enemy speed in place without changing positions, health or earned gold', () => {
+    const active = atWave(4, 11);
+    const foe = enemy(active, 'fast', 8);
+    active.run!.enemies = [foe];
+    active.run!.spawned = 1;
+    const old = JSON.parse(serializeState(active));
+    old.run.enemies[0].speed = 1.8;
+    const restored = parseState(JSON.stringify(old));
+    expect(restored?.run?.enemies[0]).toEqual(foe);
+    old.run.enemies[0].speed = 2.5;
+    expect(parseState(JSON.stringify(old))).toBeNull();
+  });
+  it('does not replay a completed wave when restoring an old interwave save', () => {
+    const cleared = clearAtNextTick(atWave(4, 22));
+    const old = JSON.parse(serializeState(cleared));
+    old.run.spawned = 7;
+    const restored = parseState(JSON.stringify(old))!;
+    expect(restored.run).toMatchObject({ phase: 'interwave', spawned: 21, earnedCrystals: 4, lastPaidWave: 4 });
+    expect(step(restored, 60).run).toMatchObject({ wave: 5, spawned: 0 });
+    expect(restored.profile.crystals).toBe(4);
+  });
 });
 
 describe('telegraphed attack states and hostile projectiles', () => {
@@ -641,7 +674,10 @@ describe('circle crowds and combat-save migration', () => {
   });
   it.each([5, 10, 15, 20, 25])('wave%s surrounds the turret in separated3–5 unit crowds while retaining its total count', wave => {
     let s = atWave(wave), spawns = 0, crowds = 0, maxConcurrent = 0;
-    for (let tick = 0; tick < 1600 && s.run?.phase === 'combat'; tick++) {
+    s.profile.meta.damage = 10; s.profile.meta.attackSpeed = 10;
+    s.run!.activeLevels.damage = s.run!.levels.damage = 15;
+    s.run!.activeLevels.attackSpeed = s.run!.levels.attackSpeed = 15;
+    for (let tick = 0; tick < 4200 && s.run?.phase === 'combat'; tick++) {
       s = step(s);
       const warnings = s.events.filter((e): e is Extract<GameEvent, { type: 'warning' | 'spawn' }> => e.type === 'warning');
       if (warnings.length) {
