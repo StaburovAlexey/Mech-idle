@@ -3,12 +3,20 @@ import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import type { EnemyAnimationState } from './enemyAnimation';
 import type { EnemyModelKind } from './enemyModels';
+import { SPAWN_RADIUS } from './spawnGeometry';
 
 const assetRoot = import.meta.env.BASE_URL + 'assets/oplot/';
 const kinds = ['normal', 'fast', 'ranged', 'boss'] as const;
 const sources = ['Mike', 'Leela', 'Stan', 'George'] as const;
 const movement = ['Walk', 'Run', 'Walk', 'Walk'] as const;
 const attacks = ['Punch', 'SwordSlash', 'Shoot', 'Punch'] as const;
+
+// Travel per loop in model heights, calibrated from the planted Foot.L/R motion in each GLB.
+const stride: Record<EnemyModelKind, number> = { normal: 1.28, fast: 2.40, ranged: 1.06, boss: 1.08 };
+
+export function walkClipTime(kind: EnemyModelKind, radius: number, height: number, duration: number) {
+  return (Math.max(0, SPAWN_RADIUS - radius) / (height * stride[kind]) % 1) * duration;
+}
 
 export async function loadOplotModels() {
   const loader = new GLTFLoader();
@@ -33,7 +41,7 @@ export class ImportedMechs {
 
   begin() { this.used.clear(); }
 
-  place(enemy: EnemyAnimationState & { x: number; y: number }, angle: number, elapsed: number, height: number, preview: boolean) {
+  place(enemy: EnemyAnimationState & { x: number; y: number }, angle: number, elapsed: number, height: number, preview: boolean, elevation: number) {
     const {kind} = enemy;
     const index = this.used.get(kind) ?? 0;
     this.used.set(kind, index + 1);
@@ -52,7 +60,7 @@ export class ImportedMechs {
       pool[index] = actor = { root, mixer, actions };
     }
     actor.root.visible = true;
-    actor.root.position.set(enemy.x, .09, enemy.y);
+    actor.root.position.set(enemy.x, elevation, enemy.y);
     actor.root.rotation.y = angle;
     const i = kinds.indexOf(kind), phase = enemy.attackPhase ?? 'approach';
     const attack = !preview && phase !== 'approach';
@@ -67,7 +75,7 @@ export class ImportedMechs {
     const t = enemy.attackTime ?? 0;
     const p = Math.min(1, t / Math.max(.001, enemy.attackDuration ?? 1));
     const contact = kind === 'ranged' ? .5 : .52;
-    let sample = (elapsed + index * .15) % duration;
+    let sample = preview ? (elapsed + i * .15) % duration : walkClipTime(kind, Math.hypot(enemy.x, enemy.y), height, duration);
     if (attack) {
       if (phase === 'windup') sample = duration * contact * p;
       else if (phase === 'strike' && kind === 'boss') {

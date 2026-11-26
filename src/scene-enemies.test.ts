@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { SceneView, type SceneFrame } from './scene';
 import { createEnemyModel, type EnemyModelKind } from './enemyModels';
 import { attackConfig } from './game';
+import { createPortalMesh, PORTAL_CAPACITY } from './spawnPortal';
 
 /** Exercise real instance updates/disposal on CPU; this deliberately does not claim WebGL coverage. */
 function cpuScene() {
@@ -27,7 +28,7 @@ function cpuScene() {
     view.batches[kind] = { model, parts, byName, count: 0 };
   }
   for (const name of ['shadowMesh', 'impactMesh', 'hpBack', 'hpFront']) view[name] = mesh(24);
-  view.bulletMesh = mesh(80); view.enemyProjectileMesh = mesh(32); view.particleMesh = mesh(100); view.warningMesh = mesh(32);
+  view.bulletMesh = mesh(80); view.enemyProjectileMesh = mesh(32); view.particleMesh = mesh(100); view.portals = createPortalMesh(); view.arrivals = new Map(); view.scene.add(view.portals.mesh);
   for (const name of ['rangeRing', 'turretRing', 'targetRing']) { view[name] = new THREE.Mesh(new THREE.RingGeometry(.9, 1, 8), new THREE.MeshBasicMaterial()); view.scene.add(view[name]); }
   return view;
 }
@@ -64,11 +65,41 @@ describe('real enemy instance rendering', () => {
     view.dispose();
   });
 
+  it('opens a red portal before a spawn, raises that mech, and closes it on simulation time', () => {
+    const view = cpuScene(), current = frame();
+    const enemy = { ...current.enemies[0], id: 'arrival', x: 12, y: 0, attackPhase: 'approach' as const };
+    const point = { id: enemy.id, kind: enemy.kind, x: enemy.x, y: enemy.y };
+    view.render({ ...current, warnings: [{ ...point, remaining: .25 }], enemies: [] }, .016);
+    expect(view.portals.mesh.count).toBe(1);
+    expect(view.portals.timing.getX(0)).toBeCloseTo(-.25);
+    const arrival = { ...current, enemies: [enemy] };
+    view.render({ ...arrival, spawns: [{ ...point, time: 20 }] }, .016);
+    expect(view.portals.timing.getX(0)).toBe(0);
+    expect(view.shadowMesh.count).toBe(0);
+    const part = view.batches.normal.parts[0].mesh;
+    const position = new THREE.Matrix4();
+    part.getMatrixAt(0, position);
+    const buried = position.elements[13];
+    view.render({ ...arrival, paused: true }, .05);
+    part.getMatrixAt(0, position);
+    expect(position.elements[13]).toBe(buried);
+    expect(view.portals.timing.getX(0)).toBe(0);
+    view.render({ ...arrival, elapsed: 20.68 }, .016);
+    part.getMatrixAt(0, position);
+    expect(position.elements[13]).toBeGreaterThan(buried + 1.5);
+    expect(view.shadowMesh.count).toBe(1);
+    view.render({ ...arrival, elapsed: 20.84 }, .016);
+    expect(view.portals.mesh.count).toBe(0);
+    view.dispose();
+  });
+
   it('caps instance pools and releases shared resources exactly once on repeated disposal', () => {
     const view = cpuScene(), current = frame();
     current.enemies = Array.from({ length: 70 }, (_, i) => ({ ...current.enemies[0], id: i }));
     current.enemyProjectiles = Array.from({ length: 90 }, (_, i) => ({ id: i, x: i, y: 1 }));
+    current.warnings = Array.from({ length: 90 }, (_, i) => ({ id: String(i), x: 1, y: 2, kind: 'normal', remaining: .2 }));
     view.render(current, .016);
+    expect(view.portals.mesh.count).toBe(PORTAL_CAPACITY);
     expect(view.batches.normal.count).toBe(24); expect(view.enemyProjectileMesh.count).toBe(32);
     const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>();
     view.scene.traverse((object: THREE.Object3D) => { if (object instanceof THREE.Mesh) { geometries.add(object.geometry); materials.add(object.material as THREE.Material); } });
