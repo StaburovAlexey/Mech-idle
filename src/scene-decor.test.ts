@@ -21,12 +21,12 @@ function buildCity() {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('complete ruined-city environment', () => {
-  it('generates the street and skyline before optional model loads with bounded mesh cost', () => {
+  it('generates the plaza and skyline before optional model loads with bounded mesh cost', () => {
     const scene = buildCity();
     const city = scene.getObjectByName('ruined-city')!;
     expect(city).toBeInstanceOf(THREE.Group);
     expect(city.children.map(child => child.name)).toEqual([
-      'city-continuous-ground', 'city-intersection', 'city-street-rubble', 'city-ruined-blocks',
+      'city-continuous-ground', 'city-plaza', 'city-plaza-rubble', 'city-ruined-blocks',
     ]);
     let triangles = 0;
     city.traverse(o => {
@@ -38,12 +38,12 @@ describe('complete ruined-city environment', () => {
   it('keeps all arena surfaces below the existing portals and firing circle', () => {
     const scene = buildCity();
     const ground = scene.getObjectByName('city-continuous-ground') as THREE.Mesh;
-    const streets = scene.getObjectByName('city-intersection') as THREE.Mesh;
+    const plaza = scene.getObjectByName('city-plaza') as THREE.Mesh;
     const ray = new THREE.Raycaster();
     for (const radius of [0, 10, SPAWN_RADIUS]) for (let i = 0; i < 24; i++) {
       const angle = i * Math.PI / 12;
       ray.set(new THREE.Vector3(Math.cos(angle) * radius, 1, Math.sin(angle) * radius), new THREE.Vector3(0, -1, 0));
-      const hits = ray.intersectObjects([ground, streets]);
+      const hits = ray.intersectObjects([ground, plaza]);
       expect(hits[0].point.y).toBeGreaterThanOrEqual(.048 - 1e-6);
       expect(hits[0].point.y).toBeLessThan(.067);
     }

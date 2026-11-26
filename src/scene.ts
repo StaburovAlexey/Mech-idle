@@ -207,30 +207,17 @@ export class SceneView {
       surface.push(part(new THREE.PlaneGeometry(w, d), color, x, y, z, -Math.PI / 2, angle));
     const block = (list: Piece[], w: number, h: number, d: number, color: number, x: number, y: number, z: number, tilt = 0) =>
       list.push(part(box(w, h, d), color, x, y, z, 0, tilt));
-    flat(9.6, 65, 0x32373b, 0, 0);
-    flat(65, 7.5, 0x373b3e, 0, 0, .053);
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-      flat(22, 28, 0x514d49, sx * 16.1, sz * 19, .054);
-      flat(1.45, 25.6, 0x7c7469, sx * 5.34, sz * 17, .055);
-      flat(25.4, 1.32, 0x7c7469, sx * 17.4, sz * 4.36, .056);
-      for (let i = 0; i < 9; i++) {
-        if (i % 5 !== 2) {
-          flat(.15, .78, 0x928376, sx * 4.68, sz * (4.6 + i * 1.08), .057);
-          flat(.78, .14, 0x918270, sx * (5.55 + i * 1.08), sz * 3.62, .057);
-        }
-      }
-      for (let i = -3; i <= 3; i++) {
-        if ((i + 3) % 4 !== 1) flat(.34, 1.20, 0xa7a096, i * .96, sz * 4.1, .059, i % 2 ? -.025 : .025);
-      }
-    }
-    for (const sign of [-1, 1]) for (let i = 0; i < 7; i++) {
-      flat(.095, 1.28, 0xb9a46d, sign * .14, sign * (6 + i * 2.28), .057);
-      flat(1.27, .10, 0xa89a7a, sign * (7 + i * 2.28), sign * .14, .058);
+    // Broken concrete slabs form an open plaza rather than streets or lane markings.
+    const slabs = [0x5f5c56, 0x656058, 0x6b665d, 0x585651, 0x625f59];
+    for (let row = -5; row <= 4; row++) for (let col = -4; col <= 4; col++) {
+      const shade = slabs[((row * 17 + col * 41) >>> 0) % slabs.length];
+      const x = col * 3.5 + (row % 2 ? .75 : -.3), z = row * 3.55;
+      flat(3.42, 3.46, shade, x, z, .052, ((col + row * 2) % 5) * .012);
     }
 
     let seed = 8179;
     const random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296);
-    // Irregular sunken patches interrupt otherwise straight asphalt and road markings.
+    // Irregular sunken patches break up the concrete plaza.
     for (const [x, z, radius] of [[2.9, -7.4, 1.12], [-3.8, 6.3, .84], [7.2, -1.85, 1.4], [-8.35, 2.2, 1.1], [.85, 13.0, 1.32], [-1.3, -12.25, .81]]) {
       const points = Array.from({ length: 9 }, (_, i) => {
         const a = i * Math.PI * 2 / 9, r = radius * (.67 + random() * .45);
@@ -279,8 +266,8 @@ export class SceneView {
     ruinedShell(10.8, -17.5, 5.1, 3);
     ruinedShell(17.0, -19.8, 5.4, 4);
     ruinedShell(-7.5, -23.5, 5.1, 3);
-    this.addGeometry(merge(surface), concrete, city).name = 'city-intersection';
-    this.addGeometry(merge(debris), concrete, city).name = 'city-street-rubble';
+    this.addGeometry(merge(surface), concrete, city).name = 'city-plaza';
+    this.addGeometry(merge(debris), concrete, city).name = 'city-plaza-rubble';
     this.addGeometry(merge(shells), concrete, city).name = 'city-ruined-blocks';
 
     // Cheap baked turret contact shadow, no shadow maps or full-screen postprocessing.
