@@ -84,7 +84,9 @@ export function getStats(state: GameState, includePending = false): Stats {
 const classicWaveCount = (wave: number) => 6 + Math.floor((wave - 1) * .55);
 export function waveConfig(wave: number): WaveConfig {
   if (wave === 30) return { count: 1, interval: 1.5, jitter: .2, fastEvery: 0, rangedEvery: 0, burstSize: 1, boss: true };
-  return { count: 3 * classicWaveCount(wave), interval: wave === 1 ? 1.65 : 1.5, jitter: .2, fastEvery: wave >= 4 ? 4 : 0, rangedEvery: wave >= 6 ? 5 : 0, burstSize: wave % 5 === 0 ? Math.min(5, 3 + Math.floor(wave / 10)) : 1, boss: false };
+  const interval = wave === 1 ? 1.65 : wave < 5 ? 1.28 : wave < 10 ? 1.13 : wave < 20 ? .98 : .84;
+  const burstSize = wave % 5 === 0 ? Math.min(5, 3 + Math.floor(wave / 10)) : wave < 7 ? 2 : wave < 16 ? 3 : 4;
+  return { count: 3 * classicWaveCount(wave), interval, jitter: .2, fastEvery: wave >= 4 ? 4 : 0, rangedEvery: wave >= 6 ? 5 : 0, burstSize, boss: false };
 }
 const MAX_RUN_KILLS = Array.from({ length: WAVE_COUNT }, (_, i) => waveConfig(i + 1).count).reduce((a, b) => a + b, 0);
 const MAX_RUN_GOLD = Math.max(4000, (MAX_RUN_KILLS - 1) * BASE_ENEMIES.fast.reward + BASE_ENEMIES.boss.reward);
@@ -150,8 +152,12 @@ function newId(run: Run): string { return `${run.id}:${run.nextEntityId++}`; }
 function queueSpawn(state: GameState): void {
   const r = state.run!, config = waveConfig(r.wave);
   const remaining = config.count - r.spawned;
-  // Keep the final crowd together: eight units are 3+5, never 3+3+2.
-  const size = config.burstSize === 1 ? 1 : remaining <= 5 ? remaining : Math.min(config.burstSize, remaining - 3);
+  // Give a fresh turret time to afford upgrades before the first pairs.
+  const warmup = r.wave === 1 && r.spawned < 9;
+  const group = warmup ? 1 : config.burstSize;
+  // Fold the tail into full groups instead of leaving one foe when avoidable.
+  const minGroup = Math.min(3, group);
+  const size = group === 1 ? 1 : remaining <= Math.min(5, group + minGroup - 1) ? remaining : Math.min(group, remaining - minGroup);
   if (r.enemies.length + r.warnings.length + size > MAX_ENEMIES) return;
   let sector = Math.floor(random(r) * 12);
   if (sector === r.lastSector && r.sectorStreak >= 2) sector = (sector + 1 + Math.floor(random(r) * 11)) % 12;
@@ -167,8 +173,8 @@ function queueSpawn(state: GameState): void {
     r.warnings.push(warning); r.spawned++;
     state.events.push({ type: 'warning', id: warning.id, kind, x: warning.x, y: warning.y });
   }
-  // Bursts retain the same average spawn budget as the ordinary cadence.
-  r.spawnCooldown = config.interval * size + (random(r) * 2 - 1) * config.jitter;
+  // Interval is an average per foe; a batch advances the same spawn budget as its individual members.
+  r.spawnCooldown = (r.wave === 1 && !warmup ? 1.15 : config.interval) * size + (random(r) * 2 - 1) * config.jitter;
 }
 
 function enterAttackPhase(state: GameState, enemy: Enemy, phase: AttackPhase, duration: number): void {

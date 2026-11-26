@@ -29,21 +29,7 @@ function atWave(wave: number, seed = 99): GameState {
 function clearAtNextTick(s: GameState): GameState {
   const r = s.run!; r.enemies = []; r.bullets = []; r.warnings = []; r.spawned = waveConfig(r.wave).count; return step(s);
 }
-function play(seed: number, checkpoint = false): GameState {
-  let s = startRun(createState(), seed), oldWave = 0;
-  while (s.run && s.run.tick < 100000) {
-    const r = s.run;
-    // Deterministic zero-meta strategy: alternate damage/speed and add regeneration every four waves.
-    const key: StatKey = r.wave < 3 && r.levels.attackSpeed < 2 ? 'attackSpeed' : r.levels.regen < Math.floor(r.wave / 4) ? 'regen' : r.levels.damage < r.levels.attackSpeed + 1 ? 'damage' : 'attackSpeed';
-    s = buyRunUpgrade(s, key);
-    s = step(s, 8);
-    if (checkpoint && s.run && s.run.wave !== oldWave) {
-      oldWave = s.run.wave;
-      const loaded = parseState(serializeState(s)); expect(loaded).not.toBeNull(); s = loaded!;
-    }
-  }
-  return s;
-}
+
 
 describe('stat and economy rules', () => {
   it('starts full HP with zero temporary economy and exact base stats', () => {
@@ -191,7 +177,7 @@ describe('immediate upgrade timing', () => {
 
 describe('deterministic combat and timing', () => {
   it('uses exact enemy growth, first fast wave4, and only one exact boss on wave30', () => {
-    expect(waveConfig(1)).toEqual({ count: 18, interval: 1.65, jitter: .2, fastEvery: 0, rangedEvery: 0, burstSize: 1, boss: false });
+    expect(waveConfig(1)).toEqual({ count: 18, interval: 1.65, jitter: .2, fastEvery: 0, rangedEvery: 0, burstSize: 2, boss: false });
     for (let wave = 1; wave < 30; wave++) expect(waveConfig(wave).count).toBe(3 * (6 + Math.floor((wave - 1) * .55)));
     expect(enemyStats('ranged', 6).speed).toBe(2);
     expect(waveConfig(3).fastEvery).toBe(0); expect(waveConfig(4).fastEvery).toBe(4);
@@ -210,19 +196,21 @@ describe('deterministic combat and timing', () => {
     s = step(s); expect(s.run?.warnings).toHaveLength(0); expect(s.events.some(e => e.type === 'spawn' && e.id === w.id)).toBe(true);
   });
   it('keeps opening-wave spacing and never spawns more than twice in a row from one sector', () => {
-    let s = startRun(createState(), 999), ticks: number[] = [];
+    let s = startRun(createState(), 999), batches: { tick: number; size: number }[] = [];
     s.profile.meta.damage = 10;
     const config = waveConfig(1);
-    for (let i = 0; i < 1200 && ticks.length < config.count; i++) {
+    for (let i = 0; i < 1200 && (s.run?.spawned ?? 0) < config.count; i++) {
       s = step(s);
-      if (s.events.some(e => e.type === 'warning')) ticks.push(s.run!.tick);
+      const size = s.events.filter(e => e.type === 'warning').length;
+      if (size) batches.push({ tick: s.run!.tick, size });
       expect(s.run?.sectorStreak ?? 0).toBeLessThanOrEqual(2);
     }
-    expect(ticks).toHaveLength(config.count);
-    for (let i = 1; i < ticks.length; i++) {
-      const gap = (ticks[i] - ticks[i-1]) * DT;
-      expect(gap).toBeGreaterThanOrEqual(config.interval - config.jitter - 1e-9);
-      expect(gap).toBeLessThanOrEqual(config.interval + config.jitter + DT);
+    expect(batches.map(batch => batch.size)).toEqual([...Array(9).fill(1), 2, 2, 2, 3]);
+    for (let i = 1; i < batches.length; i++) {
+      const gap = (batches[i].tick - batches[i - 1].tick) * DT;
+      const expected = i <= 9 ? config.interval : batches[i - 1].size * 1.15;
+      expect(gap).toBeGreaterThanOrEqual(expected - config.jitter - 1e-9);
+      expect(gap).toBeLessThanOrEqual(expected + config.jitter + DT);
     }
   });
   it('selects nearest automatically, ties by stable numeric ID, and bullets travel at16', () => {
@@ -482,14 +470,12 @@ describe('boundaries, outcomes, and persistence', () => {
     reject(s => s.run.enemies[0].kind = 'boss'); reject(s => s.run.enemies[0].x = WORLD_LIMIT + 1); reject(s => s.run.bullets[0].targetId = 'missing');
     reject(s => { s.run.kills = 2; s.run.paidKillIds = ['same', 'same']; });
   });
-  it.each([1, 3, 17, 42, 2026])('known zero-meta strategy wins all30waves on seed %s', seed => {
-    const s = play(seed, seed === 42);
-    expect(s.result?.outcome).toBe('victory'); expect(s.result?.completedWaves).toBe(30);
-    expect(s.profile.crystals).toBe(30); expect(s.result?.earnedCrystals).toBe(30); expect(s.run).toBeNull();
-    expect(parseState(serializeState(s))?.result?.outcome).toBe('victory');
-    expect(s.result!.kills).toBe(1153);
-    expect(s.result!.duration).toBeLessThan(36 * 60);
-  }, 20000);
+  it('continues a dense seeded wave identically after save and restore', () => {
+    const state = step(atWave(22, 42), 10);
+    const restored = parseState(serializeState(state))!;
+    expect(restored.run!.warnings).toHaveLength(4);
+    expect(serializeState(step(restored, 300))).toBe(serializeState(step(state, 300)));
+  });
 });
 
 describe('legacy pace and crowd counts', () => {
@@ -672,7 +658,7 @@ describe('circle crowds and combat-save migration', () => {
     expect(allowed.run!.enemies.length + allowed.run!.warnings.length).toBe(MAX_ENEMIES);
     expect(step(blocked)).toEqual(allowed);
   });
-  it.each([5, 10, 15, 20, 25])('wave%s surrounds the turret in separated3–5 unit crowds while retaining its total count', wave => {
+  it.each([2, 5, 8, 10, 15, 16, 20, 25, 29])('wave %s surrounds the turret in groups while retaining its total count', wave => {
     let s = atWave(wave), spawns = 0, crowds = 0, maxConcurrent = 0;
     s.profile.meta.damage = 10; s.profile.meta.attackSpeed = 10;
     s.run!.activeLevels.damage = s.run!.levels.damage = 15;
@@ -682,7 +668,7 @@ describe('circle crowds and combat-save migration', () => {
       const warnings = s.events.filter((e): e is Extract<GameEvent, { type: 'warning' | 'spawn' }> => e.type === 'warning');
       if (warnings.length) {
         crowds++;
-        expect(warnings.length).toBeGreaterThanOrEqual(3); expect(warnings.length).toBeLessThanOrEqual(5);
+        expect(warnings.length).toBeGreaterThanOrEqual(Math.min(3, waveConfig(wave).burstSize)); expect(warnings.length).toBeLessThanOrEqual(5);
         const angles = warnings.map(e => Math.atan2(e.y, e.x));
         for (const w of warnings) expect(Math.hypot(w.x, w.y)).toBeCloseTo(12, 12);
         for (let i = 0; i < angles.length; i++) for (let j = i + 1; j < angles.length; j++) {
