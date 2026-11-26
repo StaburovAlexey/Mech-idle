@@ -75,5 +75,17 @@ test.each([['Mike', 'Walk', .50], ['Leela', 'Run', .42], ['Stan', 'Walk', .72], 
     expect(span(after) / span(before)).toBeCloseTo(ratio, 2);
     expect(Math.max(...after.map((s, i) => Math.abs(s.y - before[i].y)))).toBeLessThan(.005);
     expect(Math.max(...after.map(s => s.gap))).toBeLessThan(.022);
+    if (name === 'Mike' || name === 'Stan') {
+      const legs = ['UpperLegL', 'LowerLegL', 'UpperLegR', 'LowerLegR'].map(name => scene.getObjectByName(name)!);
+      const action = mixer.clipAction(edited).play();
+      mixer.update(0);
+      let last = legs.map(leg => leg.quaternion.clone());
+      for (let i = 1; i <= 200; i++) {
+        action.time = edited.duration * i / 200; mixer.update(0);
+        for (const [j, leg] of legs.entries()) expect(leg.quaternion.angleTo(last[j])).toBeLessThan(.18);
+        last = legs.map(leg => leg.quaternion.clone());
+      }
+      action.stop();
+    }
   },
 );
