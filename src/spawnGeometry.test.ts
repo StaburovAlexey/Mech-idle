@@ -75,7 +75,7 @@ describe('fixed world-space circle spawning', () => {
       if (s.run) s.run.hp = getStats(s).maxHp;
       const warnings = s.events.filter(e => e.type === 'warning');
       if (warnings.length) batches.push({ tick, size: warnings.length });
-      for (const e of warnings) warningAt.set(e.id, tick);
+      for (const e of warnings) if (e.type === 'warning') warningAt.set(e.id, tick);
       for (const e of s.events) if (e.type === 'spawn') {
         expect(tick - warningAt.get(e.id)!).toBe(15);
         spawned++;
