@@ -1,6 +1,6 @@
 # Визуальные и звуковые материалы
 
-Основные модели турели, врагов и дальних руин поставляются локально в `public/assets/oplot/`. При недоступности GLB остаются оригинальные процедурные модели. Поле, частицы, значки и favicon созданы для прототипа. Запросов к сайтам авторов во время игры нет; интерфейс использует оригинальные PNG Kenney.
+Модели турели и врагов поставляются локально в `public/assets/oplot/`, окружение разрушенного города — в `public/assets/city/`. При недоступности GLB бой остаётся доступным с процедурным окружением и резервными моделями. Запросов к сайтам авторов во время игры нет.
 
 Визуальное направление: предоставленные пользователем сгенерированные концепты «Турель и мехи / Концепт 01» и утверждённый «Враги / 2D концепт 02», с кремово-бирюзовой турелью и красно-графитовыми мехами. Исходные изображения не включены в репозиторий и не загружаются игрой. Процедурные резервные модели — упрощённая интерпретация этих силуэтов.
 
@@ -10,7 +10,8 @@
 
 - **PolygonDan**, [3D Turret PBR texture + Flat Diff Texture](https://opengameart.org/content/3d-turret-pbr-texture-flat-diff-texture). Из FBX и авторской цветовой текстуры без PBR собран `turret.glb`. Основание, вращающаяся верхняя часть и ствол с отдачей разделены; текстура уменьшена.
 - **Quaternius**, [Animated Mech Pack](https://quaternius.com/packs/animatedmech), GLB из [конвертации trebeljahr/quaternius-showcase](https://github.com/trebeljahr/quaternius-showcase/tree/main/public/glb/mech_pack). Mike — Штурм, Leela — Рывок, Stan — Стрелок, George — Колосс. Оставлены только используемые клипы, текстуры уменьшены. Анимации подстроены под исходные фазы боя.
-- **Majadroid / Maik Hoffmann**, [3D Apocalyptic Building / City](https://opengameart.org/content/3d-apocalyptic-building-city-cc0). Высотки 01, 03 и 05 конвертированы в GLB; геометрия и текстуры уменьшены для мобильной сцены. Исходные текстуры набора — CC0 Textures (AmbientCG).
+- **tevy**, [Ruined Apartment Shell v2](https://tevy.dev/models/ruined-apartment-shell), [Rusted City Bus Wreck v1](https://tevy.dev/models/wrecked-bus), [Medium Rubble Heap v1](https://tevy.dev/models/rubble-heap-medium), CC0. Использованы варианты LOD2. GLB перепакованы без Meshopt и Basis; текстуры уменьшены до 384 px по длинной стороне. Стёкла автобуса без отдельного прохода преломления.
+- Перекрёсток, разметка, тротуары, трещины, мелкий мусор и часть разрушенных кварталов сгенерированы геометрией Three.js; растровый фон не используется.
 
 Суммарный размер GLB не равен объёму видеопамяти. Оригинальные исходники и лицензии доступны на страницах авторов. [Текст CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
 

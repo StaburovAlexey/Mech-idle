@@ -4,7 +4,7 @@
 
 [Играть в браузере](https://staburovalexey.github.io/Mech-idle/) · [Репозиторий](https://github.com/StaburovAlexey/Mech-idle)
 
-Авторы 3D-моделей: PolygonDan, Quaternius и Majadroid. [Источники и лицензии](ASSET_PROVENANCE.md).
+Авторы 3D-моделей: PolygonDan, Quaternius и tevy. [Источники и лицензии](ASSET_PROVENANCE.md).
 
 ## Запуск
 
@@ -52,7 +52,7 @@ Web Locks разрешает запись только одной вкладке
 - `src/game.ts`: чистая детерминированная симуляция, 30 тиков/с, экономика, волны, развитие и проверка снимков
 - `src/scene.ts`, `src/oplotModels.ts`: Three.js-сцена, локальные GLB, пулы моделей и снарядов, эффекты, ортографическая камера и процедурный резерв
 - `src/enemyModels.ts`, `src/enemyAnimation.ts`: резервные геометрии и позы, а также визуальные импульсы, синхронизированные с фазами атак
-- `src/decoration.ts`, `src/outerScenery.ts`: детерминированная пустошь и промышленные руины вне круга появления
+- `src/scene.ts`: разрушенный город с генерируемыми улицами и локальными 3D-моделями tevy.
 - `src/spawnGeometry.ts` и `src/viewport.ts`: фиксированная окружность появления и камера с постоянной шириной мира
 - `src/main.ts`, `src/style.css`: русскоязычный адаптивный HUD, мастерская, результаты и управление
 - `src/persistence.ts`: атомарная запись, backup, блокировка вкладок и причины паузы

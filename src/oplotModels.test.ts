@@ -16,12 +16,23 @@ function manifest(file: string) {
 test('ships self-contained arena assets and all runtime animation clips', () => {
   const turret = manifest('turret');
   expect(turret.nodes.map((node: { name: string }) => node.name)).toEqual(expect.arrayContaining(['Base', 'Head', 'Barrel']));
-  for (const file of ['ruin-1', 'ruin-3', 'ruin-5']) expect(manifest(file).meshes.length).toBeGreaterThan(0);
+
   for (const [file, walk, attack] of [['Mike', 'Walk', 'Punch'], ['Leela', 'Run', 'SwordSlash'], ['Stan', 'Walk', 'Shoot'], ['George', 'Walk', 'Punch']]) {
     const mech = manifest(file);
     expect(mech.skins).toHaveLength(1);
     expect(mech.animations.map((clip: { name: string }) => clip.name).sort()).toEqual(['Idle', walk, attack].sort());
     expect(mech.images.every((image: { uri?: string }) => !image.uri)).toBe(true);
+  }
+});
+
+test('ships the city models with embedded standard textures and no decoder dependencies', () => {
+  for (const file of ['ruined-apartment-shell', 'wrecked-bus', 'rubble-heap-medium']) {
+    const data = readFileSync(new URL('../public/assets/city/' + file + '.glb', import.meta.url));
+    expect(data.toString('ascii', 0, 4)).toBe('glTF');
+    const json = JSON.parse(data.toString('utf8', 20, 20 + data.readUInt32LE(12)));
+    expect(json.images.every((image: { uri?: string; mimeType: string }) => !image.uri && image.mimeType === 'image/jpeg')).toBe(true);
+    expect(json.extensionsRequired ?? []).not.toContain('KHR_texture_basisu');
+    expect(json.extensionsRequired ?? []).not.toContain('EXT_meshopt_compression');
   }
 });
 
