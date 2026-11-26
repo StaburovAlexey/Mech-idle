@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 /** The world width stays fixed; taller displays reveal more ground vertically. */
-export const FIELD_HALF_WIDTH = 12.35;
+export const FIELD_HALF_WIDTH = 10.65;
 export interface GameplayViewport { x:number; y:number; width:number; height:number }
 /** Phone portraits fill the entire scene width. Wide desktop views are centered. */
 export function arenaViewport(width:number,height:number):GameplayViewport {
@@ -14,7 +14,7 @@ export function arenaViewport(width:number,height:number):GameplayViewport {
 export function configureArenaCamera(camera: THREE.OrthographicCamera, width=390, height=650): void {
   const w=Math.max(1,Number.isFinite(width)?width:1),h=Math.max(1,Number.isFinite(height)?height:1);
   const halfW=FIELD_HALF_WIDTH,halfH=halfW*h/w;
-  const direction=new THREE.Vector3(14,21.6,17).normalize();
+  const direction=new THREE.Vector3(14,13,17).normalize();
   const groundRadius=Math.hypot(halfW,halfH/direction.y)+10;
   const distance=Math.max(60,groundRadius+20);
   camera.left=-halfW;camera.right=halfW;camera.top=halfH;camera.bottom=-halfH;
