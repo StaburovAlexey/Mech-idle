@@ -5,6 +5,7 @@ import { createEnemyModel, type EnemyModel, type EnemyModelPart, type EnemyModel
 import { computeEnemyPose, type AttackPhase, type PartPose } from './enemyAnimation';
 import { createWastelandLayout, WASTELAND_LIMITS, type GroundPoint } from './decoration';
 import { createOuterScenery } from './outerScenery';
+import { ImportedMechs, loadOplotModels } from './oplotModels';
 
 export interface SceneEnemy { id: number | string; kind: EnemyModelKind; x: number; y: number; hp: number; maxHp: number; attackPhase?: AttackPhase; attackTime?: number; attackDuration?: number }
 export interface SceneFrame {
@@ -78,7 +79,7 @@ function matrix(x: number, y: number, z: number, ry = 0, sx = 1, sy = sx, sz = s
   v3.set(x, y, z); q4.setFromEuler(eul.set(0, ry, 0)); sc.set(sx, sy, sz); return m4.compose(v3, q4, sc);
 }
 
-/** Original procedural models. No downloaded models, textures, or runtime services. */
+/** Local visual assets with procedural fallback; simulation state is unchanged. */
 export class SceneView {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
@@ -87,6 +88,9 @@ export class SceneView {
   private material = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: .34, roughness: .68, flatShading: true });
   private glowMaterial = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false });
   private turretHead = new THREE.Group();
+  private turretBase = new THREE.Group();
+  private outerScenery!: THREE.Group;
+  private importedMechs?: ImportedMechs;
   private turretGlow = new THREE.Group();
   private barrel: THREE.Group;
   private flash: THREE.Mesh;
@@ -172,6 +176,7 @@ export class SceneView {
     this.rangeRing.position.y = .076; this.rangeRing.scale.set(10, 1, 10); this.scene.add(this.rangeRing);
     this.observer = new ResizeObserver(() => this.resize()); this.observer.observe(container);
     this.resize();
+    void this.loadModels();
   }
 
   private addGeometry(g: THREE.BufferGeometry, material: THREE.Material = this.material, parent: THREE.Object3D = this.scene) {
@@ -181,7 +186,7 @@ export class SceneView {
     const mesh = new THREE.InstancedMesh(g, material, n); mesh.count = 0; mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); mesh.frustumCulled = false; this.scene.add(mesh); return mesh;
   }
   private buildArena() {
-    this.scene.add(createOuterScenery());
+    this.scene.add(this.outerScenery = createOuterScenery());
     const layout = createWastelandLayout();
     const surfaces: Piece[] = [], rubble: Piece[] = [], vegetation: Piece[] = [];
     // Ground meshes use matte earth colors, preserving the turquoise / red unit contrast.
@@ -260,7 +265,9 @@ export class SceneView {
       base.push(part(box(.15, .12, .018), C.dark, Math.sin(ang) * 1.10, .34, Math.cos(ang) * 1.10, 0, ang));
       const g = part(box(.19, .085, .035), C.cyan, Math.sin(ang) * .70, .85, Math.cos(ang) * .70, 0, ang); glow.push(g);
     }
-    this.addGeometry(merge(base)); this.addGeometry(merge(glow), this.glowMaterial);
+    this.addGeometry(merge(base), this.material, this.turretBase);
+    this.addGeometry(merge(glow), this.glowMaterial, this.turretBase);
+    this.scene.add(this.turretBase);
     head.push(part(bevelBox(1.68, .81, 1.32, .14), C.cream, 0, 1.39, -.04));
     head.push(part(bevelBox(1.78, .59, .76, .11), C.teal, 0, 1.33, -.28));
     head.push(part(bevelBox(1.38, .09, .88, .04), C.creamLight, 0, 1.85, -.15));
@@ -288,6 +295,47 @@ export class SceneView {
     this.addGeometry(merge(gun), this.material, barrel);
     this.addGeometry(merge([part(box(.18, .21, .035), C.cyan, 0, 1.59, 2.205)]), this.glowMaterial, barrel);
     this.turretHead.add(barrel); return barrel;
+  }
+
+  private async loadModels() {
+    try {
+      const { turret, ruins, mechs } = await loadOplotModels();
+      const base = turret.scene.getObjectByName('Base');
+      const head = turret.scene.getObjectByName('Head');
+      const barrel = turret.scene.getObjectByName('Barrel');
+      if (!base || !head || !barrel) throw new Error('Missing PolygonDan turret parts');
+      for (const { scene } of [turret, ...ruins, ...mechs]) scene.traverse(o => {
+        if (!(o instanceof THREE.Mesh)) return;
+        this.allGeometries.add(o.geometry);
+        for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+          this.allMaterials.add(m);
+          for (const value of Object.values(m)) if (value instanceof THREE.Texture) this.allTextures.add(value);
+        }
+      });
+      if (this.disposed) {
+        this.allGeometries.forEach(g => g.dispose()); this.allMaterials.forEach(m => m.dispose()); this.allTextures.forEach(t => t.dispose());
+        return;
+      }
+      for (const old of this.turretHead.children) if (old !== this.flash) old.visible = false;
+      for (const old of this.turretBase.children) old.visible = false;
+      this.turretBase.add(base);
+      const recoil = new THREE.Group(); recoil.add(barrel);
+      this.turretHead.add(head, recoil); this.barrel = recoil;
+      this.flash.position.set(0, 1.68, 2.43);
+      this.outerScenery.visible = false;
+      // Keep all tall props behind the arena camera so they never cover incoming enemies.
+      const placements = [[-12, -17.5], [-16, -11], [-5, -21], [-20, -1], [4, -22]] as const;
+      placements.forEach(([x, z], index) => {
+        const model = ruins[index % ruins.length].scene.clone();
+        model.position.set(x, WASTELAND_LIMITS.groundHeight, z);
+        model.rotation.y = index * 1.4;
+        this.scene.add(model);
+      });
+      this.importedMechs = new ImportedMechs(mechs, this.scene);
+      this.renderer.domElement.dataset.art = 'oplot';
+    } catch (error) {
+      console.warn('Local Oplot models unavailable; using procedural graphics', error);
+    }
   }
 
   private buildMech(kind: Kind): UnitBatch {
@@ -336,6 +384,7 @@ export class SceneView {
     const menu = frame.phase === 'menu' || frame.phase === 'ready' || frame.phase === 'title';
     const enemies = menu && !frame.enemies.length ? this.showcase : frame.enemies;
     for (const b of Object.values(this.batches)) b.count = 0;
+    this.importedMechs?.begin();
     const next = new Map<number | string, SceneEnemy>();
     let shadowIndex = 0, hpIndex = 0, impactIndex = 0;
     const t = frame.elapsed ?? this.clock;
@@ -348,7 +397,8 @@ export class SceneView {
       const pose = computeEnemyPose(menu ? { ...enemy, attackPhase: 'recovery', attackTime: 1, attackDuration: 1 } : enemy, t);
       mRoot.copy(matrix(enemy.x, .09, enemy.y, angle));
       mRoot.multiply(this.poseMatrix([0, 0, 0], pose.root));
-      for (const part of b.parts) {
+      if (this.importedMechs) this.importedMechs.place(enemy, angle, t, b.model.height, menu);
+      else for (const part of b.parts) {
         const def = part.definition, parent = def.parent ? b.byName[def.parent]!.world : mRoot;
         part.world.multiplyMatrices(parent, this.poseMatrix(def.pivot, pose.parts[def.name]));
         part.mesh.setMatrixAt(index, part.world);
@@ -370,9 +420,10 @@ export class SceneView {
       if (old && enemy.hp < old.hp && !menu) this.sparks(enemy.x, enemy.y, false);
       next.set(enemy.id, { ...enemy });
     }
+    this.importedMechs?.end();
     if (playing) for (const [id, old] of this.previous) if (!next.has(id)) this.sparks(old.x, old.y, true);
     this.previous = menu ? new Map() : next;
-    for (const b of Object.values(this.batches)) for (const { mesh } of b.parts) { mesh.count = b.count; mesh.instanceMatrix.needsUpdate = true; }
+    for (const b of Object.values(this.batches)) for (const { mesh } of b.parts) { mesh.count = this.importedMechs ? 0 : b.count; mesh.instanceMatrix.needsUpdate = true; }
     this.impactMesh.count = impactIndex; this.impactMesh.instanceMatrix.needsUpdate = true;
     this.shadowMesh.count = shadowIndex; this.shadowMesh.instanceMatrix.needsUpdate = true;
     this.hpBack.count = this.hpFront.count = hpIndex; this.hpBack.instanceMatrix.needsUpdate = this.hpFront.instanceMatrix.needsUpdate = true;
@@ -425,10 +476,11 @@ export class SceneView {
     this.renderer.setScissorTest(false);
   }
 
-  stats() { return { drawCalls: this.renderer.info.render.calls, triangles: this.renderer.info.render.triangles, geometries: this.renderer.info.memory.geometries, textures: this.renderer.info.memory.textures, pixelRatio: this.renderer.getPixelRatio(), enemyDrawCalls: Object.values(this.batches).reduce((sum, b) => sum + (b.count ? b.parts.length : 0), 0), enemyProjectiles: this.enemyProjectileMesh.count, units: Object.values(this.batches).reduce((sum, b) => sum + b.count, 0), particles: this.particles.length }; }
+  stats() { return { drawCalls: this.renderer.info.render.calls, triangles: this.renderer.info.render.triangles, geometries: this.renderer.info.memory.geometries, textures: this.renderer.info.memory.textures, pixelRatio: this.renderer.getPixelRatio(), enemyDrawCalls: Object.values(this.batches).reduce((sum, b) => sum + (this.importedMechs ? b.count : b.count ? b.parts.length : 0), 0), enemyProjectiles: this.enemyProjectileMesh.count, units: Object.values(this.batches).reduce((sum, b) => sum + b.count, 0), particles: this.particles.length }; }
 
   dispose() {
     if (this.disposed) return; this.disposed = true; this.observer.disconnect();
+    this.importedMechs?.dispose();
     this.scene.traverse(object => { if (object instanceof THREE.Mesh) { this.allGeometries.add(object.geometry); const ms = Array.isArray(object.material) ? object.material : [object.material]; ms.forEach(m => this.allMaterials.add(m)); if (object instanceof THREE.InstancedMesh) object.dispose(); } });
     this.allGeometries.forEach(g => g.dispose()); this.allMaterials.forEach(m => m.dispose()); this.allTextures.forEach(t => t.dispose());
     this.previous.clear(); this.lastBulletIds.clear(); this.particles.length = 0; this.renderer.dispose(); this.renderer.domElement.remove();
