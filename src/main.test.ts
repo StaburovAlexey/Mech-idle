@@ -169,7 +169,7 @@ describe('fullscreen battle actual UI flows', () => {
   it('shows final-boss health inside the status row, retaining it through save and resume', async () => {
     const initial = fundedRun(), run = initial.run!;
     run.wave = 30; run.lastPaidWave = 29; run.earnedCrystals = 29; run.spawned = 1; run.nextEntityId = 2;
-    run.enemies = [{ id: `${run.id}:1`, kind: 'boss', x: 0, y: 11, hp: 312, maxHp: 624, damage: 42, speed: .7, attackInterval: 2, attackCooldown: 0, attackPhase: 'approach', attackTime: 0, attackDuration: 0 }];
+    run.enemies = [{ id: `${run.id}:1`, kind: 'boss', x: 0, y: 11, hp: 312, maxHp: 624, damage: 42, speed: 1.4, attackInterval: 2, attackCooldown: 0, attackPhase: 'approach', attackTime: 0, attackDuration: 0 }];
     await boot(initial); click('#resume');
     expect(element('#battle-wave').textContent).toBe('30 / 30');
     expect(element('#boss').parentElement).toBe(element('#battle-hud'));

@@ -22,8 +22,11 @@ describe('fixed world-space circle spawning', () => {
   });
   it.each([1, 4, 29, 30])('queues and materializes every wave%s type at exactly radius12 with only a half-second warning', wave => {
     let s = waveState(wave);
+    s.profile.meta.damage = 10; s.profile.meta.attackSpeed = 10;
+    s.run!.activeLevels.damage = s.run!.levels.damage = 15;
+    s.run!.activeLevels.attackSpeed = s.run!.levels.attackSpeed = 15;
     const warningTicks = new Map<string, number>(), counts: Record<EnemyKind, number> = { ordinary: 0, fast: 0, ranged: 0, boss: 0 };
-    for (let tick = 1; tick <= 1100 && s.run?.phase === 'combat'; tick++) {
+    for (let tick = 1; tick <= 4300 && s.run?.phase === 'combat'; tick++) {
       s = step(s);
       for (const event of s.events) {
         if (event.type !== 'warning' && event.type !== 'spawn') continue;
@@ -62,8 +65,10 @@ describe('fixed world-space circle spawning', () => {
   });
   it('keeps warning and actual spawn cadence at1.5±.2 seconds even when fast units catch up', () => {
     let s = waveState(4), warnings: number[] = [], spawns: number[] = [];
-    for (let tick = 1; tick < 500; tick++) {
+    s.profile.meta.damage = 10; s.profile.meta.attackSpeed = 10;
+    for (let tick = 1; tick < 1600 && s.run?.phase === 'combat'; tick++) {
       s = step(s);
+      if (s.run) s.run.hp = getStats(s).maxHp;
       if (s.events.some(e => e.type === 'warning')) warnings.push(tick);
       if (s.events.some(e => e.type === 'spawn')) spawns.push(tick);
     }
@@ -103,7 +108,7 @@ describe('fixed world-space circle spawning', () => {
   it('keeps the actual attack boundary at radius10', () => {
     let s = startRun(createState(), 5);
     const r = s.run!, stats = enemyStats('ordinary', 1); r.spawnCooldown = 1;
-    r.enemies = [{ id: `${r.id}:${r.nextEntityId++}`, kind: 'ordinary', x: 10.001 + DT, y: 0, hp: 20, maxHp: 20, damage: stats.damage, speed: stats.speed, attackInterval: stats.attackInterval, attackCooldown: 0, attackPhase: 'approach', attackTime: 0, attackDuration: 0 }];
+    r.enemies = [{ id: `${r.id}:${r.nextEntityId++}`, kind: 'ordinary', x: 10.001 + stats.speed * DT, y: 0, hp: 20, maxHp: 20, damage: stats.damage, speed: stats.speed, attackInterval: stats.attackInterval, attackCooldown: 0, attackPhase: 'approach', attackTime: 0, attackDuration: 0 }];
     s = step(s); expect(s.events.some(e => e.type === 'shot')).toBe(false);
     expect(getStats(s).range).toBe(10);
     s = step(s); expect(s.events.some(e => e.type === 'shot')).toBe(true);
