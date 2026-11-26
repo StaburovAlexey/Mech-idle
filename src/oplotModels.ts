@@ -4,6 +4,7 @@ import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import type { EnemyAnimationState } from './enemyAnimation';
 import type { EnemyModelKind } from './enemyModels';
 import { SPAWN_RADIUS } from './spawnGeometry';
+import { shortenStride } from './shortStride';
 
 const assetRoot = import.meta.env.BASE_URL + 'assets/oplot/';
 const kinds = ['normal', 'fast', 'ranged', 'boss'] as const;
@@ -13,9 +14,10 @@ const attacks = ['Punch', 'SwordSlash', 'Shoot', 'Punch'] as const;
 
 // Travel per loop in model heights, calibrated from the planted Foot.L/R motion in each GLB.
 const stride: Record<EnemyModelKind, number> = { normal: 1.28, fast: 2.40, ranged: 1.06, boss: 1.08 };
+const shorter: Record<EnemyModelKind, number> = { normal: .50, fast: .42, ranged: .72, boss: .50 };
 
 export function walkClipTime(kind: EnemyModelKind, radius: number, height: number, duration: number) {
-  return (Math.max(0, SPAWN_RADIUS - radius) / (height * stride[kind]) % 1) * duration;
+  return (Math.max(0, SPAWN_RADIUS - radius) / (height * stride[kind] * shorter[kind]) % 1) * duration;
 }
 
 export async function loadOplotModels() {
@@ -36,7 +38,11 @@ export class ImportedMechs {
   private used = new Map<EnemyModelKind, number>();
 
   constructor(models: GLTF[], private scene: THREE.Scene) {
-    this.source = Object.fromEntries(kinds.map((kind, i) => [kind, models[i]])) as Record<EnemyModelKind, GLTF>;
+    this.source = Object.fromEntries(kinds.map((kind, i) => {
+      const model = models[i];
+      const animations = model.animations.map(clip => clip.name === movement[i] ? shortenStride(model.scene, clip, shorter[kind]) : clip);
+      return [kind, { ...model, animations }];
+    })) as Record<EnemyModelKind, GLTF>;
   }
 
   begin() { this.used.clear(); }
