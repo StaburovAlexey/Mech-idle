@@ -43,7 +43,7 @@ describe('fixed world-space circle spawning', () => {
         }
       }
       for (const warning of s.run?.warnings ?? []) expect(warning.remaining).toBeGreaterThan(0), expect(warning.remaining).toBeLessThanOrEqual(.5);
-      expect(s.run?.warnings.length ?? 0).toBeLessThanOrEqual(1);
+      expect(s.run?.warnings.length ?? 0).toBeLessThanOrEqual(5);
       expect(s.run?.nextArrival).toBeUndefined(); expect(s.run?.spawnGeometry).toBeUndefined();
       // Keep this a spawn-contract test regardless of later-wave combat difficulty.
       if (s.run) s.run.hp = getStats(s).maxHp;
@@ -63,20 +63,31 @@ describe('fixed world-space circle spawning', () => {
     }
     expect(sectors.size).toBe(12); expect(angles.size).toBe(256);
   });
-  it('keeps warning and actual spawn cadence at1.5±.2 seconds even when fast units catch up', () => {
-    let s = waveState(4), warnings: number[] = [], spawns: number[] = [];
+  it('keeps paired portal warnings in sync with the spawns and the per-enemy cadence', () => {
+    let s = waveState(4);
     s.profile.meta.damage = 10; s.profile.meta.attackSpeed = 10;
+    const batches: { tick: number; size: number }[] = [];
+    const warningAt = new Map<string, number>();
+    const config = waveConfig(4);
+    let spawned = 0;
     for (let tick = 1; tick < 1600 && s.run?.phase === 'combat'; tick++) {
       s = step(s);
       if (s.run) s.run.hp = getStats(s).maxHp;
-      if (s.events.some(e => e.type === 'warning')) warnings.push(tick);
-      if (s.events.some(e => e.type === 'spawn')) spawns.push(tick);
+      const warnings = s.events.filter(e => e.type === 'warning');
+      if (warnings.length) batches.push({ tick, size: warnings.length });
+      for (const e of warnings) warningAt.set(e.id, tick);
+      for (const e of s.events) if (e.type === 'spawn') {
+        expect(tick - warningAt.get(e.id)!).toBe(15);
+        spawned++;
+      }
     }
-    expect(warnings).toHaveLength(waveConfig(4).count); expect(spawns).toHaveLength(warnings.length);
-    expect(spawns.map((t, i) => t - warnings[i])).toEqual(warnings.map(() => 15));
-    for (let i = 1; i < spawns.length; i++) {
-      expect((spawns[i] - spawns[i - 1]) * DT).toBeGreaterThanOrEqual(1.3);
-      expect((spawns[i] - spawns[i - 1]) * DT).toBeLessThanOrEqual(1.7 + 1e-9);
+    expect(spawned).toBe(config.count);
+    expect(batches.every(group => group.size === 2 || group.size === 3)).toBe(true);
+    for (let i = 1; i < batches.length; i++) {
+      const gap = (batches[i].tick - batches[i - 1].tick) * DT;
+      const expected = batches[i - 1].size * config.interval;
+      expect(gap).toBeGreaterThanOrEqual(expected - config.jitter - 1e-9);
+      expect(gap).toBeLessThanOrEqual(expected + config.jitter + DT);
     }
   });
   it('round-trips circle positions and half-second warnings with byte-identical seeded continuation', () => {
