@@ -1,6 +1,6 @@
 import './style.css';
 import {createState,startRun,step,buyRunUpgrade,buyMetaUpgrade,setPaused,getStats,calculateStats,runPrice,metaPrice,STAT_KEYS,RUN_CAP,META_CAP,DT,type GameState,type StatKey} from './game';
-import {SceneView,type SceneFrame} from './scene';
+import {SceneView,type SceneFrame, type SceneSpawn} from './scene';
 import {SaveRepository,PauseManager,TabLock} from './persistence';
 import {LocalPlatformAdapter} from './platform';
 import {Sound} from './audio';
@@ -127,21 +127,22 @@ function renderUI(force=false){
  }
  if(layoutChanged)scene?.resize();
 }
-function frameForScene():SceneFrame{
+function frameForScene(spawns: SceneSpawn[]):SceneFrame{
  const r=state.run,stats=getStats(state),target=r?.enemies.find(e=>e.id===r.targetId);
- return {range:stats.range,paused:pause.paused,enemies:r?.enemies.map(e=>({...e,kind:e.kind==='ordinary'?'normal':e.kind}))??[],bullets:r?.bullets??[],enemyProjectiles:r?.enemyProjectiles??[],warnings:r?.warnings??[],target:target??null,turretHPfraction:r?r.hp/stats.maxHp:1,phase:screen==='menu'&&!r?'menu':screen,elapsed:r?.time??0,shooting:state.events.some(e=>e.type==='shot')};
+ return {range:stats.range,paused:pause.paused,enemies:r?.enemies.map(e=>({...e,kind:e.kind==='ordinary'?'normal':e.kind}))??[],bullets:r?.bullets??[],enemyProjectiles:r?.enemyProjectiles??[],warnings:r?.warnings??[],spawns,target:target??null,turretHPfraction:r?r.hp/stats.maxHp:1,phase:screen==='menu'&&!r?'menu':screen,elapsed:r?.time??0,shooting:state.events.some(e=>e.type==='shot')};
 }
 function animate(now:number){
+ const spawns: SceneSpawn[] = [];
  const delta=Math.min((now-last)/1000,.15);last=now;
  if(state.run&&screen==='combat'&&!pause.paused&&!fatal&&writable){
   state=setPaused(state,false);accumulator=Math.min(accumulator+delta,.15);
   let ticks=0;while(accumulator>=DT&&ticks<5&&state.run){state=step(state);accumulator-=DT;ticks++;
-   for(const ev of state.events){if(ev.type==='shot')sound.play('shot');if(ev.type==='kill'){sound.play('kill');toast(`+${ev.amount} золота`);}if(ev.type==='waveComplete'){sound.play('wave');toast(`Волна ${ev.wave} пройдена · +1 кристалл`);}if(ev.type==='waveStart'&&ev.wave===30)toast('ВНИМАНИЕ: КОЛОСС · финальный босс');}
+   for(const ev of state.events){if(ev.type==='spawn'&&state.run)spawns.push({...ev,time:state.run.time});if(ev.type==='shot')sound.play('shot');if(ev.type==='kill'){sound.play('kill');toast(`+${ev.amount} золота`);}if(ev.type==='waveComplete'){sound.play('wave');toast(`Волна ${ev.wave} пройдена · +1 кристалл`);}if(ev.type==='waveStart'&&ev.wave===30)toast('ВНИМАНИЕ: КОЛОСС · финальный босс');}
    if(state.events.some(e=>e.type==='kill'||e.type==='waveComplete'||e.type==='runEnded'))save();
   }
   if(!state.run&&state.result){battleMenu.close();screen='result';pause.add('menu');save();renderUI(true);}
  }else accumulator=0;
- if(scene)scene.render(frameForScene(),pause.paused?0:delta);
+ if(scene)scene.render(frameForScene(spawns),pause.paused?0:delta);
  uiTimer+=delta;saveTimer+=delta;toastTimer-=delta;
  if(toastTimer<=0)$('#toast').classList.remove('show');
  if(uiTimer>=.12){renderUI();uiTimer=0;}

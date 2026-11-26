@@ -6,8 +6,11 @@ import { computeEnemyPose, type AttackPhase, type PartPose } from './enemyAnimat
 import { createWastelandLayout, WASTELAND_LIMITS, type GroundPoint } from './decoration';
 import { createOuterScenery } from './outerScenery';
 import { ImportedMechs, loadOplotModels } from './oplotModels';
+import { createPortalMesh, PORTAL_CLOSE, PORTAL_CAPACITY, spawnRise } from './spawnPortal';
 
 export interface SceneEnemy { id: number | string; kind: EnemyModelKind; x: number; y: number; hp: number; maxHp: number; attackPhase?: AttackPhase; attackTime?: number; attackDuration?: number }
+type PortalPoint = { id: string; x: number; y: number; kind: string };
+export type SceneSpawn = PortalPoint & { time: number };
 export interface SceneFrame {
   enemies: SceneEnemy[];
   bullets: { id: number | string; x: number; y: number }[];
@@ -15,7 +18,8 @@ export interface SceneFrame {
   paused?: boolean;
   target: { x: number; y: number } | null;
   turretHPfraction: number;
-  warnings?: { x: number; y: number }[];
+  warnings?: (PortalPoint & { remaining: number })[];
+  spawns?: SceneSpawn[];
   phase?: string;
   elapsed?: number;
   shooting?: boolean;
@@ -100,7 +104,8 @@ export class SceneView {
   private impactMesh: THREE.InstancedMesh;
   private shadowMesh: THREE.InstancedMesh;
   private particleMesh: THREE.InstancedMesh;
-  private warningMesh: THREE.InstancedMesh;
+  private portals = createPortalMesh();
+  private arrivals = new Map<string, SceneSpawn>();
   private hpBack: THREE.InstancedMesh;
   private hpFront: THREE.InstancedMesh;
   private targetRing: THREE.Mesh;
@@ -164,7 +169,7 @@ export class SceneView {
     this.shadowMesh = this.instances(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: shadowTexture, transparent: true, opacity: .57, depthWrite: false }), MAX_UNITS);
     this.shadowMesh.geometry.rotateX(-Math.PI / 2);
     this.particleMesh = this.instances(new THREE.OctahedronGeometry(.10, 0), new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }), MAX_PARTICLES);
-    this.warningMesh = this.instances(ring(.48, .52, 32), new THREE.MeshBasicMaterial({ color: 0xff7352, transparent: true, opacity: .75, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }), 32);
+    this.scene.add(this.portals.mesh);
     this.hpBack = this.instances(new THREE.PlaneGeometry(1, .07), new THREE.MeshBasicMaterial({ color: 0x10262b, transparent: true, opacity: .8, depthWrite: false }), MAX_UNITS);
     this.hpFront = this.instances(new THREE.PlaneGeometry(1, .045), new THREE.MeshBasicMaterial({ color: 0xff7955, toneMapped: false, depthWrite: false }), MAX_UNITS);
     this.targetRing = new THREE.Mesh(ring(.72, .755, 48), new THREE.MeshBasicMaterial({ color: 0xff7252, transparent: true, opacity: .6, toneMapped: false, depthWrite: false }));
@@ -366,12 +371,12 @@ export class SceneView {
     (this.scene.fog as THREE.FogExp2).density = .31 / this.camera.position.distanceTo(new THREE.Vector3(0, .4, 0));
   }
 
-  private sparks(x: number, z: number, death: boolean) {
-    const count = death ? 15 : 4;
+  private sparks(x: number, z: number, death: boolean, portal = false) {
+    const count = portal ? 10 : death ? 15 : 4;
     for (let i = 0; i < count && this.particles.length < MAX_PARTICLES; i++) {
       const angle = Math.random() * Math.PI * 2, speed = (death ? 2.8 : 1.5) * (.35 + Math.random());
-      const life = death ? .45 + Math.random() * .32 : .18 + Math.random() * .18;
-      this.particles.push({ x, y: death ? .7 : 1.25, z, vx: Math.cos(angle) * speed, vy: 1 + Math.random() * 2.9, vz: Math.sin(angle) * speed, life, max: life, color: i % 3 === 0 ? C.redLight : C.amber });
+      const life = death || portal ? .45 + Math.random() * .32 : .18 + Math.random() * .18;
+      this.particles.push({ x, y: portal ? .13 : death ? .7 : 1.25, z, vx: Math.cos(angle) * speed, vy: 1 + Math.random() * 2.9, vz: Math.sin(angle) * speed, life, max: life, color: portal && i % 3 !== 0 ? 0xff302b : i % 3 === 0 ? C.redLight : C.amber });
     }
   }
 
@@ -388,6 +393,12 @@ export class SceneView {
     const next = new Map<number | string, SceneEnemy>();
     let shadowIndex = 0, hpIndex = 0, impactIndex = 0;
     const t = frame.elapsed ?? this.clock;
+    if (!playing) this.arrivals.clear();
+    for (const [id, spawn] of this.arrivals) if (t - spawn.time >= PORTAL_CLOSE || t < spawn.time) this.arrivals.delete(id);
+    if (playing) for (const spawn of frame.spawns ?? []) {
+      this.arrivals.set(spawn.id, spawn);
+      this.sparks(spawn.x, spawn.y, false, true);
+    }
     const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(this.camera.quaternion);
     const cameraFacing = new THREE.Vector3(0, 0, 1).applyQuaternion(this.camera.quaternion);
     for (const enemy of enemies.slice(0, MAX_UNITS)) {
@@ -395,21 +406,26 @@ export class SceneView {
       const index = b.count++;
       const angle = Math.atan2(-enemy.x, -enemy.y);
       const pose = computeEnemyPose(menu ? { ...enemy, attackPhase: 'recovery', attackTime: 1, attackDuration: 1 } : enemy, t);
-      mRoot.copy(matrix(enemy.x, .09, enemy.y, angle));
-      mRoot.multiply(this.poseMatrix([0, 0, 0], pose.root));
-      if (this.importedMechs) this.importedMechs.place(enemy, angle, t, b.model.height, menu);
-      else for (const part of b.parts) {
-        const def = part.definition, parent = def.parent ? b.byName[def.parent]!.world : mRoot;
-        part.world.multiplyMatrices(parent, this.poseMatrix(def.pivot, pose.parts[def.name]));
-        part.mesh.setMatrixAt(index, part.world);
+      const arrival = typeof enemy.id === 'string' ? this.arrivals.get(enemy.id) : undefined;
+      const rise = arrival ? spawnRise(t - arrival.time) : 1;
+      const elevation = .09 - b.model.height * 1.08 * (1 - rise);
+      if (this.importedMechs) this.importedMechs.place(enemy, angle, this.clock, b.model.height, menu, elevation);
+      else {
+        mRoot.copy(matrix(enemy.x, elevation, enemy.y, angle));
+        mRoot.multiply(this.poseMatrix([0, 0, 0], pose.root));
+        for (const part of b.parts) {
+          const def = part.definition, parent = def.parent ? b.byName[def.parent]!.world : mRoot;
+          part.world.multiplyMatrices(parent, this.poseMatrix(def.pivot, pose.parts[def.name]));
+          part.mesh.setMatrixAt(index, part.world);
+        }
       }
       const [shadowWidth, shadowDepth] = b.model.footprint;
-      this.shadowMesh.setMatrixAt(shadowIndex++, matrix(enemy.x + .11, .067, enemy.y + .11, angle, shadowWidth * 1.25, 1, shadowDepth * 1.45));
+      if (rise > .65) this.shadowMesh.setMatrixAt(shadowIndex++, matrix(enemy.x + .11, .067, enemy.y + .11, angle, shadowWidth * 1.25, 1, shadowDepth * 1.45));
       if (pose.impact > 0 && !menu) {
         const reach = enemy.kind === 'boss' ? .90 : .72, size = (enemy.kind === 'boss' ? 1.15 : .48) * (.5 + pose.impact * .5);
         this.impactMesh.setMatrixAt(impactIndex++, matrix(enemy.x + Math.sin(angle) * reach, .08, enemy.y + Math.cos(angle) * reach, 0, size, 1, size));
       }
-      if (!menu && enemy.hp < enemy.maxHp) {
+      if (!menu && rise > .9 && enemy.hp < enemy.maxHp) {
         const fraction = Math.max(.01, enemy.hp / Math.max(1, enemy.maxHp));
         const width = enemy.kind === 'boss' ? 1.55 : .8;
         v3.set(enemy.x, b.model.height + .25, enemy.y); sc.set(width, 1, 1); m4.compose(v3, this.camera.quaternion, sc); this.hpBack.setMatrixAt(hpIndex, m4);
@@ -452,9 +468,17 @@ export class SceneView {
     (this.turretRing.material as THREE.MeshBasicMaterial).opacity = .44 + Math.sin(this.clock * 2) * .1;
     if (frame.target && playing) { this.targetRing.visible = true; this.targetRing.position.set(frame.target.x, .085, frame.target.y); }
     else this.targetRing.visible = false;
-    const warnings = (frame.warnings || []).slice(0, 32);
-    warnings.forEach((w, i) => this.warningMesh.setMatrixAt(i, matrix(w.x, .075, w.y, 0, 1.3 + Math.sin(this.clock * 8) * .2, 1, 1.3 + Math.sin(this.clock * 8) * .2)));
-    this.warningMesh.count = warnings.length; this.warningMesh.instanceMatrix.needsUpdate = true;
+    const { mesh: portalMesh, timing } = this.portals;
+    let portalIndex = 0;
+    const addPortal = (point: PortalPoint, age: number) => {
+      if (portalIndex >= PORTAL_CAPACITY) return;
+      const size = point.kind === 'boss' ? 2.6 : 1.63;
+      portalMesh.setMatrixAt(portalIndex, matrix(point.x, .081, point.y, 0, size, 1, size));
+      timing.setXY(portalIndex++, age, point.x * .73 + point.y * .41);
+    };
+    if (playing) for (const warning of frame.warnings ?? []) addPortal(warning, -warning.remaining);
+    for (const spawn of this.arrivals.values()) addPortal(spawn, t - spawn.time);
+    portalMesh.count = portalIndex; portalMesh.instanceMatrix.needsUpdate = timing.needsUpdate = true;
     let pIndex = 0;
     this.particles = this.particles.filter(p => {
       p.life -= dt; if (p.life <= 0) return false;

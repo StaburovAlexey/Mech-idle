@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from 'vitest';
+import { walkClipTime } from './oplotModels';
+import { SPAWN_RADIUS } from './spawnGeometry';
 
 function manifest(file: string) {
   const data = readFileSync(new URL('../public/assets/oplot/' + file + '.glb', import.meta.url));
@@ -18,4 +20,16 @@ test('ships self-contained arena assets and all runtime animation clips', () => 
     expect(mech.animations.map((clip: { name: string }) => clip.name).sort()).toEqual(['Idle', walk, attack].sort());
     expect(mech.images.every((image: { uri?: string }) => !image.uri)).toBe(true);
   }
+});
+
+test('samples gait by travel, with clip-specific strides scaled to the actual model', () => {
+  const radius = (travel: number) => SPAWN_RADIUS - travel;
+  expect(walkClipTime('normal', radius(0), 2, 1)).toBe(0);
+  expect(walkClipTime('normal', radius(.64), 2, 1)).toBeCloseTo(.25);
+  expect(walkClipTime('normal', radius(1.28), 2, 1)).toBeCloseTo(.50);
+  expect(walkClipTime('normal', radius(1.28), 4, 1)).toBeCloseTo(.25);
+  expect(walkClipTime('normal', radius(3.2), 2, 1)).toBeCloseTo(.25);
+  expect(walkClipTime('fast', radius(1.2), 2, 1)).toBeCloseTo(.25);
+  expect(walkClipTime('ranged', radius(.53), 2, 1)).toBeCloseTo(.25);
+  expect(walkClipTime('boss', radius(.54), 2, .8)).toBeCloseTo(.20);
 });
