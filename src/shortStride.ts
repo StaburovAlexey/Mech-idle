@@ -90,7 +90,8 @@ export function shortenStride(source: THREE.Group, clip: THREE.AnimationClip, ra
         const lower = tip.localToWorld(current.copy(offset)).distanceTo(knee);
         axis.subVectors(target, hipPoint);
         const distance = axis.length(); axis.normalize();
-        bend.subVectors(knee, hipPoint).addScaledVector(axis, -p.subVectors(knee, hipPoint).dot(axis)).normalize();
+        // Keep the knees bending forward even where the source leg is fully straight.
+        bend.set(0, 0, 1).addScaledVector(axis, -axis.z).normalize();
         const along = (upper * upper + distance * distance - lower * lower) / (2 * distance);
         kneeTarget.copy(hipPoint).addScaledVector(axis, along).addScaledVector(bend, Math.sqrt(Math.max(0, upper * upper - along * along)));
         aim(hip, knee, kneeTarget);

@@ -16,12 +16,23 @@ function manifest(file: string) {
 test('ships self-contained arena assets and all runtime animation clips', () => {
   const turret = manifest('turret');
   expect(turret.nodes.map((node: { name: string }) => node.name)).toEqual(expect.arrayContaining(['Base', 'Head', 'Barrel']));
-  for (const file of ['ruin-1', 'ruin-3', 'ruin-5']) expect(manifest(file).meshes.length).toBeGreaterThan(0);
+
   for (const [file, walk, attack] of [['Mike', 'Walk', 'Punch'], ['Leela', 'Run', 'SwordSlash'], ['Stan', 'Walk', 'Shoot'], ['George', 'Walk', 'Punch']]) {
     const mech = manifest(file);
     expect(mech.skins).toHaveLength(1);
     expect(mech.animations.map((clip: { name: string }) => clip.name).sort()).toEqual(['Idle', walk, attack].sort());
     expect(mech.images.every((image: { uri?: string }) => !image.uri)).toBe(true);
+  }
+});
+
+test('ships the city models with embedded standard textures and no decoder dependencies', () => {
+  for (const file of ['ruined-apartment-shell', 'wrecked-bus', 'rubble-heap-medium']) {
+    const data = readFileSync(new URL('../public/assets/city/' + file + '.glb', import.meta.url));
+    expect(data.toString('ascii', 0, 4)).toBe('glTF');
+    const json = JSON.parse(data.toString('utf8', 20, 20 + data.readUInt32LE(12)));
+    expect(json.images.every((image: { uri?: string; mimeType: string }) => !image.uri && image.mimeType === 'image/jpeg')).toBe(true);
+    expect(json.extensionsRequired ?? []).not.toContain('KHR_texture_basisu');
+    expect(json.extensionsRequired ?? []).not.toContain('EXT_meshopt_compression');
   }
 });
 
@@ -75,5 +86,17 @@ test.each([['Mike', 'Walk', .50], ['Leela', 'Run', .42], ['Stan', 'Walk', .72], 
     expect(span(after) / span(before)).toBeCloseTo(ratio, 2);
     expect(Math.max(...after.map((s, i) => Math.abs(s.y - before[i].y)))).toBeLessThan(.005);
     expect(Math.max(...after.map(s => s.gap))).toBeLessThan(.022);
+    if (name === 'Mike' || name === 'Stan') {
+      const legs = ['UpperLegL', 'LowerLegL', 'UpperLegR', 'LowerLegR'].map(name => scene.getObjectByName(name)!);
+      const action = mixer.clipAction(edited).play();
+      mixer.update(0);
+      let last = legs.map(leg => leg.quaternion.clone());
+      for (let i = 1; i <= 200; i++) {
+        action.time = edited.duration * i / 200; mixer.update(0);
+        for (const [j, leg] of legs.entries()) expect(leg.quaternion.angleTo(last[j])).toBeLessThan(.18);
+        last = legs.map(leg => leg.quaternion.clone());
+      }
+      action.stop();
+    }
   },
 );

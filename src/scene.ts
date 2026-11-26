@@ -3,8 +3,7 @@ import { arenaViewport, configureArenaCamera } from './viewport';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { createEnemyModel, type EnemyModel, type EnemyModelPart, type EnemyModelKind, type EnemyPartName } from './enemyModels';
 import { computeEnemyPose, type AttackPhase, type PartPose } from './enemyAnimation';
-import { createWastelandLayout, WASTELAND_LIMITS, type GroundPoint } from './decoration';
-import { createOuterScenery } from './outerScenery';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { ImportedMechs, loadOplotModels } from './oplotModels';
 import { createPortalMesh, PORTAL_CLOSE, PORTAL_CAPACITY, spawnRise } from './spawnPortal';
 
@@ -31,6 +30,8 @@ type Particle = { x: number; y: number; z: number; vx: number; vy: number; vz: n
 type UnitPartBatch = { definition: EnemyModelPart; mesh: THREE.InstancedMesh; world: THREE.Matrix4 };
 type UnitBatch = { model: EnemyModel; parts: UnitPartBatch[]; byName: Partial<Record<EnemyPartName, UnitPartBatch>>; count: number };
 const C = { cream: 0xe8dbc0, creamLight: 0xf8ecd4, teal: 0x21666a, tealLight: 0x398c8c, cyan: 0x40eeff, charcoal: 0x343d40, dark: 0x1c292e, black: 0x151e21, steel: 0x637075, red: 0xd04d3c, redLight: 0xf47754, amber: 0xffbb43, hazard: 0xdcae43 };
+const CITY_FLOOR = .048;
+const CITY_YAW = Math.atan2(14, 17) - .20;
 const MAX_UNITS = 24;
 const MAX_RENDER_DPR = 2;
 const MAX_ENEMY_PROJECTILES = 32;
@@ -94,7 +95,7 @@ export class SceneView {
   private glowMaterial = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false });
   private turretHead = new THREE.Group();
   private turretBase = new THREE.Group();
-  private outerScenery!: THREE.Group;
+  private city!: THREE.Group;
   private importedMechs?: ImportedMechs;
   private turretGlow = new THREE.Group();
   private barrel: THREE.Group;
@@ -152,6 +153,7 @@ export class SceneView {
     const sun = new THREE.DirectionalLight(0xffe7ba, 3.3); sun.position.set(-8, 18, 8); this.scene.add(sun);
     const rim = new THREE.DirectionalLight(0x73e6f8, 1.45); rim.position.set(8, 7, -13); this.scene.add(rim);
     this.buildArena();
+    void this.loadCityModels();
     this.barrel = this.buildTurret();
     this.flash = new THREE.Mesh(new THREE.OctahedronGeometry(.24, 0), new THREE.MeshBasicMaterial({ color: 0xfff1ad, toneMapped: false, transparent: true, opacity: 1 }));
     this.flash.position.set(0, 1.66, 2.36); this.flash.scale.set(1, 1, 2.8); this.flash.visible = false; this.turretHead.add(this.flash);
@@ -190,64 +192,96 @@ export class SceneView {
     const mesh = new THREE.InstancedMesh(g, material, n); mesh.count = 0; mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); mesh.frustumCulled = false; this.scene.add(mesh); return mesh;
   }
   private buildArena() {
-    this.scene.add(this.outerScenery = createOuterScenery());
-    const layout = createWastelandLayout();
-    const surfaces: Piece[] = [], rubble: Piece[] = [], vegetation: Piece[] = [];
-    // Ground meshes use matte earth colors, preserving the turquoise / red unit contrast.
-    const earthMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0, roughness: 1, flatShading: true, side: THREE.DoubleSide });
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshStandardMaterial({ color: 0x928970, roughness: 1, metalness: 0 }));
-    ground.name = 'wasteland-continuous-ground';
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.y = WASTELAND_LIMITS.groundHeight;
-    this.scene.add(ground);
+    const city = this.city = new THREE.Group();
+    city.name = 'ruined-city';
+    city.rotation.y = CITY_YAW;
+    this.scene.add(city);
+    const concrete = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .96 });
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshStandardMaterial({ color: 0x514f4e, roughness: 1 }));
+    ground.name = 'city-continuous-ground';
+    ground.rotation.x = -Math.PI / 2; ground.position.y = CITY_FLOOR;
+    city.add(ground);
 
-    const flatPolygon = (points: readonly GroundPoint[]) => {
-      const shape = new THREE.Shape();
-      points.forEach(([x, z], i) => i ? shape.lineTo(x, -z) : shape.moveTo(x, -z));
-      shape.closePath();
-      const geometry = new THREE.ShapeGeometry(shape);
-      geometry.rotateX(-Math.PI / 2);
-      return geometry;
-    };
-    for (const surface of layout.surfaces) surfaces.push(part(flatPolygon(surface.points), surface.color, 0, surface.height));
-    for (const crack of layout.cracks) {
-      const [x1, z1] = crack.from, [x2, z2] = crack.to;
-      const dx = x2 - x1, dz = z2 - z1, length = Math.hypot(dx, dz);
-      const nx = -dz / length * crack.width / 2, nz = dx / length * crack.width / 2;
-      surfaces.push(part(flatPolygon([[x1 + nx, z1 + nz], [x2 + nx, z2 + nz], [x2 - nx, z2 - nz], [x1 - nx, z1 - nz]]), 0x41473d, 0, .057));
-    }
-    // Flat, irregular patches are all merged once; no tile seams or enclosing arena rim.
-    this.addGeometry(merge(surfaces), earthMaterial).name = 'wasteland-road-dust-and-cracks';
-
-    for (const piece of layout.rubble) {
-      const { x, z, width, depth, height, rotation, color, kind } = piece;
-      if (kind === 'rust') {
-        // Flattened corrugated sheet metal with a bent-looking jagged outline.
-        rubble.push(part(flatPolygon([[-width / 2, -depth / 2], [width * .3, -depth * .48], [width / 2, -depth * .2], [width * .4, depth / 2], [-width * .4, depth * .35]]), color, x, WASTELAND_LIMITS.groundHeight + height, z, 0, rotation));
-        for (let i = -2; i <= 2; i++) {
-          const offset = width * i / 6;
-          rubble.push(part(box(.025, .025, depth * .72), 0x5a4d3d, x + Math.cos(rotation) * offset, WASTELAND_LIMITS.groundHeight + height, z - Math.sin(rotation) * offset, 0, rotation));
+    const surface: Piece[] = [], debris: Piece[] = [], shells: Piece[] = [];
+    const flat = (w: number, d: number, color: number, x: number, z: number, y = .052, angle = 0) =>
+      surface.push(part(new THREE.PlaneGeometry(w, d), color, x, y, z, -Math.PI / 2, angle));
+    const block = (list: Piece[], w: number, h: number, d: number, color: number, x: number, y: number, z: number, tilt = 0) =>
+      list.push(part(box(w, h, d), color, x, y, z, 0, tilt));
+    flat(9.6, 65, 0x32373b, 0, 0);
+    flat(65, 7.5, 0x373b3e, 0, 0, .053);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      flat(22, 28, 0x514d49, sx * 16.1, sz * 19, .054);
+      flat(1.45, 25.6, 0x7c7469, sx * 5.34, sz * 17, .055);
+      flat(25.4, 1.32, 0x7c7469, sx * 17.4, sz * 4.36, .056);
+      for (let i = 0; i < 9; i++) {
+        if (i % 5 !== 2) {
+          flat(.15, .78, 0x928376, sx * 4.68, sz * (4.6 + i * 1.08), .057);
+          flat(.78, .14, 0x918270, sx * (5.55 + i * 1.08), sz * 3.62, .057);
         }
-      } else {
-        // Partly buried, broad low fragments do not hide any approaching mech.
-        rubble.push({ g: new THREE.DodecahedronGeometry(1, 0), color, p: [x, WASTELAND_LIMITS.groundHeight + height * .25, z], s: [width / 2, height * .65, depth / 2], r: [0, rotation, 0] });
-        if (kind === 'concrete') rubble.push(part(box(width * .6, .025, .035), 0x575b51, x, WASTELAND_LIMITS.groundHeight + height * .72, z, 0, rotation + .22));
+      }
+      for (let i = -3; i <= 3; i++) {
+        if ((i + 3) % 4 !== 1) flat(.34, 1.20, 0xa7a096, i * .96, sz * 4.1, .059, i % 2 ? -.025 : .025);
       }
     }
-    this.addGeometry(merge(rubble), earthMaterial).name = 'wasteland-low-wreckage';
+    for (const sign of [-1, 1]) for (let i = 0; i < 7; i++) {
+      flat(.095, 1.28, 0xb9a46d, sign * .14, sign * (6 + i * 2.28), .057);
+      flat(1.27, .10, 0xa89a7a, sign * (7 + i * 2.28), sign * .14, .058);
+    }
 
-    for (const tuft of layout.grass) {
-      // Five tapered blades per tuft, all low-poly and merged rather than animated.
-      for (let i = 0; i < 5; i++) {
-        const angle = tuft.rotation + i * 2.39996;
-        const height = tuft.height * (.55 + i * .09), lean = tuft.spread * (.45 + i * .1);
-        const blade = new THREE.BufferGeometry();
-        blade.setAttribute('position', new THREE.Float32BufferAttribute([-.027, 0, 0, .027, 0, 0, lean, height, .015], 3));
-        blade.computeVertexNormals();
-        vegetation.push(part(blade, i % 2 ? 0x8a8154 : 0x746c47, tuft.x, WASTELAND_LIMITS.groundHeight, tuft.z, 0, angle));
+    let seed = 8179;
+    const random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296);
+    // Irregular sunken patches interrupt otherwise straight asphalt and road markings.
+    for (const [x, z, radius] of [[2.9, -7.4, 1.12], [-3.8, 6.3, .84], [7.2, -1.85, 1.4], [-8.35, 2.2, 1.1], [.85, 13.0, 1.32], [-1.3, -12.25, .81]]) {
+      const points = Array.from({ length: 9 }, (_, i) => {
+        const a = i * Math.PI * 2 / 9, r = radius * (.67 + random() * .45);
+        return new THREE.Vector2(Math.cos(a) * r, Math.sin(a) * r * .68);
+      });
+      const shape = new THREE.Shape(points);
+      surface.push(part(new THREE.ShapeGeometry(shape), 0x494441, x, .0585, z, -Math.PI / 2));
+      const dark = new THREE.Shape(points.map(p => p.clone().multiplyScalar(.73)));
+      surface.push(part(new THREE.ShapeGeometry(dark), 0x292a29, x + .03, .060, z - .03, -Math.PI / 2));
+    }
+    for (let crack = 0; crack < 44; crack++) {
+      let x = (random() - .5) * 29, z = (random() - .5) * 34;
+      if (Math.hypot(x, z) < 2.1) continue;
+      const heading = random() * Math.PI * 2;
+      for (let j = 0; j < 4; j++) {
+        const dx = Math.sin(heading + (random() - .5) * 1.4) * (.25 + random() * .8);
+        const dz = Math.cos(heading + (random() - .5) * 1.4) * (.25 + random() * .8);
+        flat(.024 + random() * .044, Math.hypot(dx, dz) + .015, 0x292a28, x + dx * .5, z + dz * .5, .061, Math.atan2(dx, dz));
+        x += dx; z += dz;
       }
     }
-    this.addGeometry(merge(vegetation), earthMaterial).name = 'wasteland-dry-scrub';
+    for (let i = 0; i < 96; i++) {
+      const side = i % 2 ? -1 : 1, x = side * (5.3 + random() * 7), z = (random() - .5) * 38;
+      if (Math.abs(z) < 4) continue;
+      const w = .10 + random() * .54, h = .05 + random() * .16, d = .12 + random() * .37;
+      const color = [0x7f7569, 0x9e8d79, 0x716758, 0x855d48][i % 4];
+      debris.push({ ...part(new THREE.DodecahedronGeometry(.68, 0), color, x, CITY_FLOOR + h * .45, z, .2, random() * 7, .13), s: [w, h, d] });
+    }
+    const ruinedShell = (x: number, z: number, width: number, levels: number) => {
+      const depth = 3.8, floorHeight = 1.33;
+      for (let level = 0; level < levels; level++) {
+        const y = CITY_FLOOR + level * floorHeight;
+        const span = width * (level === levels - 1 ? .70 : 1);
+        block(shells, span, .15, depth, 0x77716a, x, y + .10, z, .03 * level);
+        for (let bay = 0; bay < 4; bay++) {
+          const post = x - width * .47 + width * bay / 3.2;
+          if (bay + level >= 4 && (bay + level) % 3 === 0) continue;
+          const c = (bay + level) % 2 ? 0x786f68 : 0x8d8076;
+          block(shells, .24, floorHeight * ((bay + level) % 4 ? 1 : .58), .34, c, post, y + floorHeight * .50, z + depth / 2 - .08);
+          block(shells, width * .18, .28, .18, 0x725e52, post + .24, y + .34, z + depth / 2);
+        }
+        block(shells, .28, 1.14, depth * .78, 0x706961, x - span * .47, y + .65, z - .18);
+      }
+    };
+    ruinedShell(-13.8, -17.0, 5.6, 3);
+    ruinedShell(10.8, -17.5, 5.1, 3);
+    ruinedShell(17.0, -19.8, 5.4, 4);
+    ruinedShell(-7.5, -23.5, 5.1, 3);
+    this.addGeometry(merge(surface), concrete, city).name = 'city-intersection';
+    this.addGeometry(merge(debris), concrete, city).name = 'city-street-rubble';
+    this.addGeometry(merge(shells), concrete, city).name = 'city-ruined-blocks';
 
     // Cheap baked turret contact shadow, no shadow maps or full-screen postprocessing.
     const shadowCanvas = document.createElement('canvas'); shadowCanvas.width = shadowCanvas.height = 64;
@@ -301,40 +335,64 @@ export class SceneView {
     this.turretHead.add(barrel); return barrel;
   }
 
+  private async loadCityModels() {
+    const path = import.meta.env.BASE_URL + 'assets/city/';
+    const loader = new GLTFLoader();
+    const props = [
+      ['ruined-apartment-shell', [[-5.2, -16.2, .03, 9.3], [5.8, -23.1, -.14, 8.0]]],
+      ['wrecked-bus', [[-6.05, 12.05, .43, 5.2]]],
+      ['rubble-heap-medium', [[5.3, -10.6, -.48, 2.0], [-7.1, -7.7, .75, 1.7], [8.7, 9.6, -.8, 1.65]]],
+    ] as const;
+    const results = await Promise.allSettled(props.map(([name]) => loader.loadAsync(path + name + '.glb')));
+    results.forEach((result, i) => {
+      if (result.status !== 'fulfilled') return;
+      const source = result.value.scene;
+      this.registerAsset(source);
+      if (this.disposed) return;
+      const bounds = new THREE.Box3().setFromObject(source);
+      const center = bounds.getCenter(new THREE.Vector3());
+      const span = bounds.getSize(new THREE.Vector3());
+      for (const [x, z, yaw, width] of props[i][1]) {
+        const anchor = new THREE.Group(), model = source.clone();
+        model.position.sub(new THREE.Vector3(center.x, bounds.min.y, center.z));
+        anchor.position.set(x, CITY_FLOOR, z);
+        anchor.rotation.y = yaw;
+        anchor.scale.setScalar(width / Math.max(span.x, span.z));
+        anchor.add(model); this.city.add(anchor);
+      }
+    });
+    if (!this.disposed && results.every(result => result.status === 'fulfilled')) this.renderer.domElement.dataset.city = 'tevy';
+  }
+
+  private registerAsset(scene: THREE.Object3D) {
+    scene.traverse(o => {
+      if (!(o instanceof THREE.Mesh)) return;
+      const materials = Array.isArray(o.material) ? o.material : [o.material];
+      if (this.disposed) o.geometry.dispose(); else this.allGeometries.add(o.geometry);
+      for (const material of materials) {
+        if (this.disposed) material.dispose(); else this.allMaterials.add(material);
+        for (const value of Object.values(material)) if (value instanceof THREE.Texture) {
+          if (this.disposed) value.dispose(); else this.allTextures.add(value);
+        }
+      }
+    });
+  }
+
   private async loadModels() {
     try {
-      const { turret, ruins, mechs } = await loadOplotModels();
+      const { turret, mechs } = await loadOplotModels();
       const base = turret.scene.getObjectByName('Base');
       const head = turret.scene.getObjectByName('Head');
       const barrel = turret.scene.getObjectByName('Barrel');
       if (!base || !head || !barrel) throw new Error('Missing PolygonDan turret parts');
-      for (const { scene } of [turret, ...ruins, ...mechs]) scene.traverse(o => {
-        if (!(o instanceof THREE.Mesh)) return;
-        this.allGeometries.add(o.geometry);
-        for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
-          this.allMaterials.add(m);
-          for (const value of Object.values(m)) if (value instanceof THREE.Texture) this.allTextures.add(value);
-        }
-      });
-      if (this.disposed) {
-        this.allGeometries.forEach(g => g.dispose()); this.allMaterials.forEach(m => m.dispose()); this.allTextures.forEach(t => t.dispose());
-        return;
-      }
+      for (const { scene } of [turret, ...mechs]) this.registerAsset(scene);
+      if (this.disposed) return;
       for (const old of this.turretHead.children) if (old !== this.flash) old.visible = false;
       for (const old of this.turretBase.children) old.visible = false;
       this.turretBase.add(base);
       const recoil = new THREE.Group(); recoil.add(barrel);
       this.turretHead.add(head, recoil); this.barrel = recoil;
       this.flash.position.set(0, 1.68, 2.43);
-      this.outerScenery.visible = false;
-      // Keep all tall props behind the arena camera so they never cover incoming enemies.
-      const placements = [[-12, -17.5], [-16, -11], [-5, -21], [-20, -1], [4, -22]] as const;
-      placements.forEach(([x, z], index) => {
-        const model = ruins[index % ruins.length].scene.clone();
-        model.position.set(x, WASTELAND_LIMITS.groundHeight, z);
-        model.rotation.y = index * 1.4;
-        this.scene.add(model);
-      });
       this.importedMechs = new ImportedMechs(mechs, this.scene);
       this.renderer.domElement.dataset.art = 'oplot';
     } catch (error) {

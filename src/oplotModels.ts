@@ -23,11 +23,11 @@ export function walkClipTime(kind: EnemyModelKind, radius: number, height: numbe
 export async function loadOplotModels() {
   const loader = new GLTFLoader();
   const get = (file: string) => loader.loadAsync(assetRoot + file + '.glb');
-  const [turret, ruins, mechs] = await Promise.all([
-    get('turret'), Promise.all([1, 3, 5].map(n => get('ruin-' + n))),
+  const [turret, mechs] = await Promise.all([
+    get('turret'),
     Promise.all(sources.map(get)),
   ]);
-  return { turret, ruins, mechs };
+  return { turret, mechs };
 }
 
 type Actor = { root: THREE.Group; mixer: THREE.AnimationMixer; actions: Map<string, THREE.AnimationAction>; current?: THREE.AnimationAction };
