@@ -32,6 +32,7 @@ type UnitPartBatch = { definition: EnemyModelPart; mesh: THREE.InstancedMesh; wo
 type UnitBatch = { model: EnemyModel; parts: UnitPartBatch[]; byName: Partial<Record<EnemyPartName, UnitPartBatch>>; count: number };
 const C = { cream: 0xe8dbc0, creamLight: 0xf8ecd4, teal: 0x21666a, tealLight: 0x398c8c, cyan: 0x40eeff, charcoal: 0x343d40, dark: 0x1c292e, black: 0x151e21, steel: 0x637075, red: 0xd04d3c, redLight: 0xf47754, amber: 0xffbb43, hazard: 0xdcae43 };
 const MAX_UNITS = 24;
+const MAX_RENDER_DPR = 2;
 const MAX_ENEMY_PROJECTILES = 32;
 const MAX_BULLETS = 80;
 const MAX_PARTICLES = 100;
@@ -137,7 +138,6 @@ export class SceneView {
     const context = canvas.getContext('webgl2', { alpha: true, antialias: true, powerPreference: 'high-performance' });
     if (!context) throw new Error('Your browser does not support WebGL 2. Enable hardware acceleration to launch the arena.');
     this.renderer = new THREE.WebGLRenderer({ canvas, context, alpha: true, antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     this.renderer.setClearColor(0x142a31, 0);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -151,7 +151,6 @@ export class SceneView {
     this.scene.add(new THREE.HemisphereLight(0xeaf8f7, 0x77715c, 2.8));
     const sun = new THREE.DirectionalLight(0xffe7ba, 3.3); sun.position.set(-8, 18, 8); this.scene.add(sun);
     const rim = new THREE.DirectionalLight(0x73e6f8, 1.45); rim.position.set(8, 7, -13); this.scene.add(rim);
-    this.camera.position.set(14, 22, 17); this.camera.lookAt(0, .4, 0);
     this.buildArena();
     this.barrel = this.buildTurret();
     this.flash = new THREE.Mesh(new THREE.OctahedronGeometry(.24, 0), new THREE.MeshBasicMaterial({ color: 0xfff1ad, toneMapped: false, transparent: true, opacity: 1 }));
@@ -364,7 +363,7 @@ export class SceneView {
     const bounds=this.container.getBoundingClientRect();
     const width = Math.max(1, bounds.width), height = Math.max(1, bounds.height);
     this.renderer.setSize(width, height, false);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, MAX_RENDER_DPR));
     this.fieldViewport = arenaViewport(width, height);
     configureArenaCamera(this.camera, this.fieldViewport.width, this.fieldViewport.height);
     // Camera depth changes must not change the visual fog over the central arena.

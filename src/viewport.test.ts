@@ -41,6 +41,13 @@ describe('full-width phone scene with fixed world width',()=>{
    expect(Math.abs(p.x)).toBeLessThan(1);expect(Math.abs(p.y)).toBeLessThan(1);expect(Math.abs(p.z)).toBeLessThan(1);
   }
  });
+ it('frames the turret more closely at a lower angle without changing its aim point',()=>{
+  const camera=new THREE.OrthographicCamera();
+  configureArenaCamera(camera,390,650);
+  const direction=camera.getWorldDirection(new THREE.Vector3());
+  expect(THREE.MathUtils.radToDeg(Math.asin(-direction.y))).toBeCloseTo(30.55,1);
+  expect(camera.right-camera.left).toBe(21.3);
+ });
  it('guards invalid/zero dimensions without producing an invalid camera',()=>{
   const v=arenaViewport(NaN,0),camera=new THREE.OrthographicCamera();configureArenaCamera(camera,v.width,v.height);
   expect(v).toEqual({x:0,y:0,width:1,height:1});expect(camera.projectionMatrix.elements.every(Number.isFinite)).toBe(true);
@@ -56,7 +63,7 @@ describe('scene resize integration without WebGL',()=>{
   const target={disposed:false,container:{getBoundingClientRect:()=>({width,height})},renderer:{setSize:vi.fn(),setPixelRatio:vi.fn()},camera,scene,fieldViewport:arenaViewport(1,1)};
   (SceneView.prototype.resize as unknown as (this:typeof target)=>void).call(target);
   expect(target.renderer.setSize).toHaveBeenCalledWith(width,height,false);
-  expect(target.renderer.setPixelRatio).toHaveBeenCalledWith(Math.min(dpr,1.5));
+  expect(target.renderer.setPixelRatio).toHaveBeenCalledWith(Math.min(dpr,2));
   expect(target.fieldViewport).toEqual(arenaViewport(width,height));
   expect(camera.right-camera.left).toBe(FIELD_HALF_WIDTH*2);
   expect((camera.right-camera.left)/(camera.top-camera.bottom)).toBeCloseTo(target.fieldViewport.width/height,12);
