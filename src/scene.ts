@@ -9,8 +9,9 @@ import { TitleMech } from './title-mech';
 import { createPortalMesh, PORTAL_CLOSE, PORTAL_CAPACITY, spawnRise } from './spawnPortal';
 import { TURRET_RANGE } from './game';
 import { CITY_YAW, sandHeight } from './sandTerrain';
+import { PORTAL_RISE_SECONDS } from './portalTiming';
 
-export interface SceneEnemy { id: number | string; kind: EnemyModelKind; x: number; y: number; hp: number; maxHp: number; attackPhase?: AttackPhase; attackTime?: number; attackDuration?: number }
+export interface SceneEnemy { id: number | string; kind: EnemyModelKind; x: number; y: number; hp: number; maxHp: number; attackPhase?: AttackPhase; attackTime?: number; attackDuration?: number; emergingUntil?: number }
 type PortalPoint = { id: string; x: number; y: number; kind: string };
 export type SceneSpawn = PortalPoint & { time: number };
 export interface SceneFrame {
@@ -470,7 +471,7 @@ export class SceneView {
     let hpIndex = 0, impactIndex = 0;
     const t = frame.elapsed ?? this.clock;
     if (!playing) this.arrivals.clear();
-    for (const [id, spawn] of this.arrivals) if (t - spawn.time >= PORTAL_CLOSE || t < spawn.time) this.arrivals.delete(id);
+    for (const [id, spawn] of this.arrivals) if (t - spawn.time >= PORTAL_CLOSE || t + 1e-8 < spawn.time) this.arrivals.delete(id);
     if (playing) for (const spawn of frame.spawns ?? []) {
       this.arrivals.set(spawn.id, spawn);
       this.sparks(spawn.x, spawn.y, false, true);
@@ -481,11 +482,17 @@ export class SceneView {
       const b = this.batches[enemy.kind] || this.batches.normal;
       const index = b.count++;
       const angle = Math.atan2(-enemy.x, -enemy.y);
-      const pose = computeEnemyPose(menu ? { ...enemy, attackPhase: 'recovery', attackTime: 1, attackDuration: 1 } : enemy, t);
+      const emergeEnd = playing ? enemy.emergingUntil : undefined;
+      const emerging = emergeEnd !== undefined;
+      if (emerging && typeof enemy.id === 'string' && !this.arrivals.has(enemy.id)) {
+        this.arrivals.set(enemy.id, { id: enemy.id, kind: enemy.kind, x: enemy.x, y: enemy.y, time: emergeEnd - PORTAL_RISE_SECONDS });
+      }
       const arrival = typeof enemy.id === 'string' ? this.arrivals.get(enemy.id) : undefined;
       const rise = arrival ? spawnRise(t - arrival.time) : 1;
+      const idle = menu || emerging;
+      const pose = computeEnemyPose(idle ? { ...enemy, attackPhase: 'recovery', attackTime: 1, attackDuration: 1 } : enemy, t);
       const elevation = .09 - b.model.height * 1.08 * (1 - rise);
-      if (this.importedMechs) this.importedMechs.place(enemy, angle, this.clock, b.model.height, menu, elevation);
+      if (this.importedMechs) this.importedMechs.place(enemy, angle, this.clock, b.model.height, idle, elevation);
       else {
         mRoot.copy(matrix(enemy.x, elevation, enemy.y, angle));
         mRoot.multiply(this.poseMatrix([0, 0, 0], pose.root));
