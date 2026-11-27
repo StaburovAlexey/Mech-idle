@@ -6,6 +6,7 @@ import { computeEnemyPose, type AttackPhase, type PartPose } from './enemyAnimat
 import { COMBAT_COLORS, applyCombatPalette } from './combatPalette';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { ImportedMechs, loadOplotModels } from './oplotModels';
+import { TitleMech } from './title-mech';
 import { createPortalMesh, PORTAL_CLOSE, PORTAL_CAPACITY, spawnRise } from './spawnPortal';
 import { TURRET_RANGE } from './game';
 import { CITY_YAW, sandHeight } from './sandTerrain';
@@ -117,6 +118,8 @@ export class SceneView {
   private turretBase = new THREE.Group();
   private city!: THREE.Group;
   private importedMechs?: ImportedMechs;
+  private readonly titleMech = new TitleMech();
+  private showingTitle = false;
   private turretGlow = new THREE.Group();
   private barrel: THREE.Group;
   private flash: THREE.Mesh;
@@ -380,6 +383,7 @@ export class SceneView {
       const barrel = turret.scene.getObjectByName('Barrel');
       if (!base || !head || !barrel) throw new Error('Missing PolygonDan turret parts');
       if (!this.disposed) {
+        this.titleMech.setModel(mechs[3]); // George, the green two-antenna mech in the title reference.
         applyCombatPalette(turret.scene, COMBAT_COLORS[4], true);
         mechs.forEach(({ scene }, i) => applyCombatPalette(scene, COMBAT_COLORS[i]));
       }
@@ -424,6 +428,7 @@ export class SceneView {
     const bounds=this.container.getBoundingClientRect();
     const width = Math.max(1, bounds.width), height = Math.max(1, bounds.height);
     this.renderer.setSize(width, height, false);
+    this.titleMech?.resize(width, height);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, MAX_RENDER_DPR));
     this.fieldViewport = arenaViewport(width, height);
     configureArenaCamera(this.camera, this.fieldViewport.width, this.fieldViewport.height);
@@ -442,6 +447,16 @@ export class SceneView {
 
   render(frame: SceneFrame, dt: number) {
     if (this.disposed) return;
+    if (frame.phase === 'title') {
+      if (!this.showingTitle) this.titleMech.enter();
+      this.showingTitle = true;
+      this.titleMech.render(this.renderer, dt);
+      return;
+    }
+    if (this.showingTitle) {
+      this.showingTitle = false;
+      this.previous.clear();
+    }
     dt = frame.paused ? 0 : Math.max(0, Math.min(dt || 0, .05)); this.clock += dt;
     const range = Number.isFinite(frame.range) && frame.range! > 0 ? frame.range! : TURRET_RANGE;
     this.rangeRing.scale.set(range, 1, range);
@@ -566,6 +581,7 @@ export class SceneView {
 
   dispose() {
     if (this.disposed) return; this.disposed = true; this.observer.disconnect();
+    this.titleMech?.dispose();
     this.importedMechs?.dispose();
     this.sun.shadow.dispose();
     this.scene.traverse(object => { if (object instanceof THREE.Mesh) { this.allGeometries.add(object.geometry); const ms = Array.isArray(object.material) ? object.material : [object.material]; ms.forEach(m => this.allMaterials.add(m)); if (object instanceof THREE.InstancedMesh) object.dispose(); } });
