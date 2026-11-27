@@ -1,6 +1,7 @@
 import { STAT_KEYS } from './game';
 import { STAT_LABELS } from './battle-ui';
-import { titleBank, titleBolts, titleButton, titleSeam } from './title-ui';
+import { titleBank, titleButton } from './title-ui';
+import { armoredFrame } from './armored-frame';
 
 const icons = {
   damage: '<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/>',
@@ -15,8 +16,7 @@ export const workshopMarkup = `
     ${titleBank}
   </header>
   <div class="workshop-hero" aria-hidden="true"></div>
-  <section class="workshop-rack title-plate" aria-label="Постоянные улучшения">
-    ${titleBolts}${titleSeam}
+  ${armoredFrame('section', 'workshop-rack', `
     ${STAT_KEYS.map(stat => `
       <article class="workshop-row" id="workshop-${stat}">
         <span class="workshop-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${icons[stat]}</svg></span>
@@ -29,5 +29,5 @@ export const workshopMarkup = `
           <span class="workshop-level"></span>
         </div>
       </article>`).join('')}
-  </section>
+  `, 'Постоянные улучшения')}
   ${titleButton('workshop-back', 'Главное меню')}`;

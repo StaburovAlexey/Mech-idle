@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="88" height="88" viewBox="0 0 88 88">
+  <!-- 24-unit corners, 40-unit repeating edges. Keep the diagonal pattern periodic in both axes. -->
+  <defs>
+    <pattern id="stripes" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path fill="#27242a" d="M0 0h40v40H0z"/>
+      <path fill="#b38b31" d="m0 0h20L0 20zm40 0v20L20 40H0z"/>
+    </pattern>
+    <pattern id="grain" width="4" height="4" patternUnits="userSpaceOnUse">
+      <path stroke="#1e1718" stroke-opacity=".18" d="M0 .5h4"/>
+    </pattern>
+    <linearGradient id="bolt" x2=".7" y2="1" gradientUnits="objectBoundingBox">
+      <stop stop-color="#c0a991"/>
+      <stop offset=".57" stop-color="#796861"/>
+      <stop offset="1" stop-color="#473d40"/>
+    </linearGradient>
+    <path id="rim" fill-rule="evenodd" d="M13 1h62a12 12 0 0 1 12 12v62a12 12 0 0 1-12 12H13A12 12 0 0 1 1 75V13A12 12 0 0 1 13 1Zm10 17a5 5 0 0 0-5 5v42a5 5 0 0 0 5 5h42a5 5 0 0 0 5-5V23a5 5 0 0 0-5-5Z"/>
+    <g id="screw">
+      <circle r="5.7" fill="#201b20" stroke="#c5a778" stroke-opacity=".45"/>
+      <circle r="4.4" fill="url(#bolt)" stroke="#3b2e31" stroke-width=".75"/>
+      <path stroke="#241c21" stroke-width="1.5" stroke-linecap="round" d="m-2.1 2.4 4.2-4.8"/>
+    </g>
+  </defs>
+  <use href="#rim" fill="url(#stripes)"/>
+  <use href="#rim" fill="url(#grain)"/>
+  <rect x="1" y="1" width="86" height="86" rx="12" fill="none" stroke="#171419" stroke-width="2"/>
+  <path d="M3 14A11 11 0 0 1 14 3h60a11 11 0 0 1 11 11" fill="none" stroke="#d9bc82" opacity=".55"/>
+  <path d="M3 75a10.5 10.5 0 0 0 10.5 10.5h61A10.5 10.5 0 0 0 85 75" fill="none" stroke="#100e14" stroke-width="2" opacity=".75"/>
+  <rect x="18" y="18" width="52" height="52" rx="5" fill="none" stroke="#211b21" stroke-width="2"/>
+  <use href="#screw" x="11.5" y="11.5"/>
+  <use href="#screw" x="76.5" y="11.5"/>
+  <use href="#screw" x="11.5" y="76.5"/>
+  <use href="#screw" x="76.5" y="76.5"/>
+</svg>

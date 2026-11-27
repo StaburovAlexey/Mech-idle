@@ -46,7 +46,7 @@
 .workshop-rack {
   grid-row: 3; grid-column: 1;
   display: grid; gap: 7px;
-  padding: calc(var(--rim-y) + 4px) calc(var(--rim) + 5px);
+  padding: calc(var(--rim) + 4px) calc(var(--rim) + 5px);
 }
 .workshop-row {
   display: grid; grid-template-columns: auto minmax(0,1fr) auto;

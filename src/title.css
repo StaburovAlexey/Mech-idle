@@ -64,44 +64,26 @@
 }
 .title-bank span { color: #a9e875; }
 
-.title-plate {
-  --rim: clamp(16px,3.1vw,22px);
-  --rim-y: var(--rim);
-  --bolt: clamp(9px,2vw,11px);
-  --bolt-inset: clamp(5px,.8vw,7px);
+.armored-frame {
+  --rim: 18px;
   position: relative; isolation: isolate;
-  border: 2px solid #141216; border-radius: 13px;
+  border-radius: 13px;
   box-shadow: 0 3px 0 #191418, 0 6px 0 #0f0e11, 2px 11px 18px #1810159e;
 }
-.title-plate::before {
-  content: ''; position: absolute; z-index: -2; inset: 0; border-radius: 11px;
-  background:
-    repeating-linear-gradient(0deg,#17151313 0 1px,transparent 1px 4px),
-    linear-gradient(165deg,#fff0b32e,#17141010 46%,#17141073),
-    repeating-linear-gradient(135deg,#b38b31 0 13px,#262428 13px 26px);
-  box-shadow: inset 0 1px #d8c099a6, inset 1px 0 #9a8155, inset -2px -3px #17151bcc;
+.armored-frame::before, .armored-frame::after {
+  content: ''; position: absolute; pointer-events: none;
 }
-.title-plate::after {
-  content: ''; position: absolute; z-index: -1; inset: var(--rim-y) var(--rim); border: 1px solid #110f13; border-radius: 6px;
+.armored-frame::before {
+  /* Match the source image's 24-unit slices at 1:1. Only the edges tile. */
+  z-index: -1; inset: 0; border: 24px solid transparent;
+  border-image: url('/assets/ui/shared/armored-frame.svg') 24 round;
+}
+.armored-frame::after {
+  z-index: -2; inset: calc(var(--rim) - 2px); border-radius: 7px;
   background: repeating-linear-gradient(0deg,#ffffff05 0 1px,transparent 1px 4px),
     linear-gradient(120deg,#302a31,#17171e 31%,#222129 76%,#131319);
-  box-shadow: 0 1px #9c8d82, 0 -1px #262225, 1px 0 #80736c, inset 0 3px 7px #0b0b10d9;
+  box-shadow: inset 0 3px 7px #0b0b10d9;
 }
-.title-bolts {
-  position: absolute; z-index: 1;
-  inset: var(--bolt-inset);
-  pointer-events: none;
-}
-.title-bolts i {
-  position: absolute; width: var(--bolt); aspect-ratio: 1; border: 1px solid #30282b; border-radius: 50%;
-  background: linear-gradient(127deg,transparent 43%,#211a1e 44% 56%,transparent 57%),
-    linear-gradient(145deg,#b5a396,#796862 55%,#483f42);
-  box-shadow: 0 0 0 1px #30292ce0, 0 1px 1px 1px #b3a19363, inset 0 1px 1px #3a2b2b66;
-}
-.title-bolts i:nth-child(1) { top: 0; left: 0; }
-.title-bolts i:nth-child(2) { top: 0; right: 0; }
-.title-bolts i:nth-child(3) { bottom: 0; left: 0; }
-.title-bolts i:nth-child(4) { bottom: 0; right: 0; }
 
 .title-console {
   grid-column: 1 / -1; width: min(63%,433px); align-self: center; margin-bottom: min(7svh,54px);
@@ -109,7 +91,7 @@
   display: grid; gap: clamp(7px,1.25svh,13px);
 }
 .title-seam {
-  position: absolute; left: 50%; transform: translateX(-50%); width: min(52%,132px); top: calc((var(--rim-y) - 12px) / 2);
+  position: absolute; left: 50%; transform: translateX(-50%); width: min(52%,132px); top: calc((var(--rim) - 12px) / 2);
   height: 12px; display: flex; align-items: center; justify-content: center; gap: 5px;
   background: linear-gradient(#756562,#3b3339 52%,#241f25); border: 1px solid #1f181c; border-radius: 4px;
   box-shadow: inset 0 1px #9d8a80, 0 2px #100e12; pointer-events: none;
@@ -121,7 +103,7 @@
   border-color: #151118;
 }
 .title-vents {
-  position: absolute; bottom: calc((var(--rim-y) - 11px) / 2); left: 50%; transform: translateX(-50%);
+  position: absolute; bottom: calc((var(--rim) - 11px) / 2); left: 50%; transform: translateX(-50%);
   display: flex; gap: 5px; align-items: center; height: 11px;
   padding: 0 8px; border: 1px solid #1d181c; border-radius: 3px;
   background: linear-gradient(#4d4549,#29252b); box-shadow: inset 0 1px #71635e; pointer-events: none;
@@ -162,7 +144,7 @@
 
 .title-tip {
   display: flex; grid-column: 1 / -1; align-items: center; gap: clamp(10px,2.5vw,24px);
-  align-self: end; color: #f8eddb; padding: calc(var(--rim-y) + 3px) calc(var(--rim) + 5px);
+  align-self: end; color: #f8eddb; padding: calc(var(--rim) + 3px) calc(var(--rim) + 5px);
   max-width: 760px;
 }
 .title-tip::after { background: linear-gradient(135deg,#263940,#17262c 55%,#121c25); }
@@ -185,10 +167,9 @@
 }
 @media (max-height: 530px) and (orientation: landscape) {
   .at-front-menu .workspace { min-height: max(350px,100svh); }
-  .title-panel { --title-space: 10px; gap: 6px; }
-  .title-plate { --rim-y: 16px; --bolt: 9px; --bolt-inset: 5px; }
+  .title-panel { --title-space: 10px; gap: 5px; }
   .title-logo { font-size: clamp(38px,7vw,46px); }
-  .title-console { width: min(51%,350px); margin-bottom: 0; padding-block: 19px 15px; gap: 4px; }
+  .title-console { width: min(51%,350px); margin-bottom: 0; padding-block: 20px 18px; gap: 4px; }
   .title-button { min-height: 44px; font-size: 18px; }
   .title-tip { padding-block: 17px; }
   .title-bulb { width: 30px; }
