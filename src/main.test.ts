@@ -134,10 +134,12 @@ describe('main menu', () => {
     const profile = createState(); profile.profile.crystals = 5;
     await boot(profile);
     expect(element('.shell').classList.contains('at-front-menu')).toBe(true);
+    expect(element('nav.armored-frame')).toBe(element('.title-console'));
     key('1');
     click('#open-workshop');
     expect(element('.shell').classList.contains('at-workshop')).toBe(true);
     expect(document.activeElement).toBe(element('#workshop-heading'));
+    expect(element('section.armored-frame')).toBe(element('.workshop-rack'));
     expect(element('#menu-crystals').textContent).toBe('5');
     expect(element('#workshop-damage .workshop-next').textContent).toBe('→ 11 урона');
     advanceFrames();
