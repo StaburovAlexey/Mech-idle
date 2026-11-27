@@ -3,6 +3,7 @@ import { arenaViewport, configureArenaCamera } from './viewport';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { createEnemyModel, type EnemyModel, type EnemyModelPart, type EnemyModelKind, type EnemyPartName } from './enemyModels';
 import { computeEnemyPose, type AttackPhase, type PartPose } from './enemyAnimation';
+import { COMBAT_COLORS, applyCombatPalette } from './combatPalette';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { ImportedMechs, loadOplotModels } from './oplotModels';
 import { createPortalMesh, PORTAL_CLOSE, PORTAL_CAPACITY, spawnRise } from './spawnPortal';
@@ -197,7 +198,7 @@ export class SceneView {
     city.rotation.y = CITY_YAW;
     this.scene.add(city);
     const concrete = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .96 });
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshStandardMaterial({ color: 0xb3996e, roughness: 1 }));
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshStandardMaterial({ color: 0xb4a58a, roughness: 1 }));
     ground.name = 'city-continuous-ground';
     ground.rotation.x = -Math.PI / 2; ground.position.y = CITY_FLOOR;
     city.add(ground);
@@ -220,13 +221,13 @@ export class SceneView {
     };
     const sand = new THREE.PlaneGeometry(43, 55, 70, 84).rotateX(-Math.PI / 2);
     const positions = sand.getAttribute('position'), shades = new Float32Array(positions.count * 3);
-    const dark = new THREE.Color(0xa58860), sunlit = new THREE.Color(0xc9aa7c), color = new THREE.Color();
+    const dark = new THREE.Color(0xa99778), sunlit = new THREE.Color(0xc3b49a), color = new THREE.Color();
     for (let i = 0; i < positions.count; i++) {
       const x = positions.getX(i), z = positions.getZ(i);
       positions.setY(i, sandHeight(x, z));
       const bands = Math.sin(x * .54 + z * 1.18 + Math.sin(x * .42) * .72);
       const ripple = Math.sin(x * 2.85 - z * 1.35 + Math.sin(z * .45));
-      const tint = .57 + .17 * bands + .07 * ripple + .11 * Math.sin(z * .35 - x * .25);
+      const tint = .57 + .13 * bands + .05 * ripple + .09 * Math.sin(z * .35 - x * .25);
       color.copy(dark).lerp(sunlit, tint);
       color.toArray(shades, i * 3);
     }
@@ -335,6 +336,15 @@ export class SceneView {
       const source = result.value.scene;
       this.registerAsset(source);
       if (this.disposed) return;
+      source.traverse(object => {
+        if (!(object instanceof THREE.Mesh)) return;
+        for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
+          if (!(material instanceof THREE.MeshStandardMaterial)) continue;
+          material.roughness = .95;
+          material.metalness = 0;
+          material.color.set(0xd6cec1);
+        }
+      });
       const bounds = new THREE.Box3().setFromObject(source);
       const center = bounds.getCenter(new THREE.Vector3());
       const span = bounds.getSize(new THREE.Vector3());
@@ -371,6 +381,10 @@ export class SceneView {
       const head = turret.scene.getObjectByName('Head');
       const barrel = turret.scene.getObjectByName('Barrel');
       if (!base || !head || !barrel) throw new Error('Missing PolygonDan turret parts');
+      if (!this.disposed) {
+        applyCombatPalette(turret.scene, COMBAT_COLORS[4], true);
+        mechs.forEach(({ scene }, i) => applyCombatPalette(scene, COMBAT_COLORS[i]));
+      }
       for (const { scene } of [turret, ...mechs]) this.registerAsset(scene);
       if (this.disposed) return;
       for (const old of this.turretHead.children) if (old !== this.flash) old.visible = false;

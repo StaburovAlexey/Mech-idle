@@ -12,6 +12,7 @@
 - **Quaternius**, [Animated Mech Pack](https://quaternius.com/packs/animatedmech), GLB из [конвертации trebeljahr/quaternius-showcase](https://github.com/trebeljahr/quaternius-showcase/tree/main/public/glb/mech_pack). Mike — Штурм, Leela — Рывок, Stan — Стрелок, George — Колосс. Оставлены только используемые клипы, текстуры уменьшены. Анимации подстроены под исходные фазы боя.
 - **tevy**, [Ruined Apartment Shell v2](https://tevy.dev/models/ruined-apartment-shell), [Rusted City Bus Wreck v1](https://tevy.dev/models/wrecked-bus), [Medium Rubble Heap v1](https://tevy.dev/models/rubble-heap-medium), CC0. Использованы варианты LOD2. GLB перепакованы без Meshopt и Basis; текстуры уменьшены до 384 px по длинной стороне. Стёкла автобуса без отдельного прохода преломления.
 - Песок, дюны, мелкий мусор и часть разрушенных кварталов сгенерированы геометрией Three.js; растровый фон не используется.
+- Для читаемости в бою исходные текстуры турели и мехов перекрашиваются при рендеринге. Турель бирюзовая, типы мехов различаются акцентными цветами; геометрия и анимации сохраняются.
 
 Суммарный размер GLB не равен объёму видеопамяти. Оригинальные исходники и лицензии доступны на страницах авторов. [Текст CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
 
