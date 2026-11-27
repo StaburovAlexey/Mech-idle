@@ -39,7 +39,7 @@ describe('fixed world-space circle spawning', () => {
           const live = s.run?.enemies.find(e => e.id === event.id);
           if (live) {
             expect(live.speed).toBe(enemyStats(event.kind, wave).speed);
-            expect(Math.hypot(live.x, live.y)).toBeCloseTo(radius - live.speed * DT, 12);
+            expect(Math.hypot(live.x, live.y)).toBeCloseTo(radius, 12);
           }
         }
       }

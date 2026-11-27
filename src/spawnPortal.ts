@@ -1,11 +1,12 @@
 import * as THREE from 'three';
 import { sandHeightGLSL } from './sandTerrain';
+import { PORTAL_RISE_SECONDS } from './portalTiming';
 
 export const PORTAL_CAPACITY = 48;
 export const PORTAL_CLOSE = .82;
 
 export function spawnRise(age: number) {
-  return THREE.MathUtils.smoothstep(age, 0, .57);
+  return THREE.MathUtils.smoothstep(age, 0, PORTAL_RISE_SECONDS);
 }
 
 export function createPortalMesh() {

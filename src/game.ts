@@ -1,3 +1,4 @@
+import { PORTAL_RISE_SECONDS } from './portalTiming';
 import { clampToSpawnCircle, onSpawnCircle, SPAWN_RADIUS, spawnPoint, validSpawnGeometry, WORLD_LIMIT, type SpawnGeometry } from './spawnGeometry';
 /** Deterministic, fixed-step game simulation. No wall clock, browser, or renderer dependencies. */
 export const TICK_RATE = 30;
@@ -10,7 +11,7 @@ export type EnemyKind = 'ordinary' | 'fast' | 'ranged' | 'boss';
 export type AttackPhase = 'approach' | 'windup' | 'strike' | 'recovery';
 export interface Profile { crystals: number; meta: Levels; runCounter: number }
 export interface Stats { damage: number; maxHp: number; attackSpeed: number; regen: number; range: number }
-export interface Enemy { id: string; kind: EnemyKind; x: number; y: number; hp: number; maxHp: number; damage: number; speed: number; attackInterval: number; attackCooldown: number; attackPhase: AttackPhase; attackTime: number; attackDuration: number }
+export interface Enemy { id: string; kind: EnemyKind; x: number; y: number; hp: number; maxHp: number; damage: number; speed: number; attackInterval: number; attackCooldown: number; attackPhase: AttackPhase; attackTime: number; attackDuration: number; emergingUntil?: number }
 export interface Bullet { id: string; targetId: string; x: number; y: number; damage: number; speed: number }
 /** Fixed target at the turret origin. A fired bolt survives its source's death. */
 export interface EnemyProjectile { id: string; sourceId: string; x: number; y: number; damage: number; speed: number }
@@ -227,6 +228,10 @@ function strike(state: GameState, enemy: Enemy, hitIndex: number): void {
   }
 }
 function advanceEnemy(state: GameState, enemy: Enemy): void {
+  if (enemy.emergingUntil !== undefined) {
+    if (state.run!.time + 1e-9 < enemy.emergingUntil) return;
+    delete enemy.emergingUntil;
+  }
   const config = attackConfig(enemy.kind), d = Math.hypot(enemy.x, enemy.y);
   if (enemy.attackPhase === 'approach') {
     enemy.attackCooldown = Math.max(0, enemy.attackCooldown - DT);
@@ -300,7 +305,7 @@ function advanceTick(state: GameState): void {
   r.warnings = r.warnings.filter(w => w.remaining > 1e-9);
   for (const w of ready) {
     const s = enemyStats(w.kind, r.wave);
-    r.enemies.push({ id: w.id, kind: w.kind, x: w.x, y: w.y, hp: s.maxHp, maxHp: s.maxHp, damage: s.damage, speed: s.speed, attackInterval: s.attackInterval, attackCooldown: 0, attackPhase: 'approach', attackTime: 0, attackDuration: 0 });
+    r.enemies.push({ id: w.id, kind: w.kind, x: w.x, y: w.y, hp: s.maxHp, maxHp: s.maxHp, damage: s.damage, speed: s.speed, attackInterval: s.attackInterval, attackCooldown: 0, attackPhase: 'approach', attackTime: 0, attackDuration: 0, emergingUntil: r.time + PORTAL_RISE_SECONDS });
     state.events.push({ type: 'spawn', id: w.id, kind: w.kind, x: w.x, y: w.y });
   }
   r.spawnCooldown -= DT;
@@ -309,15 +314,18 @@ function advanceTick(state: GameState): void {
   // New bolts begin traveling next tick. Simultaneous boss/turret death remains defeat.
   advanceEnemyProjectiles(state);
   for (const enemy of r.enemies) advanceEnemy(state, enemy);
-  const nearest = r.enemies.filter(e => e.hp > 0 && Math.hypot(e.x, e.y) <= stats.range + 1e-7)
-    .sort((a, b) => Math.hypot(a.x, a.y) - Math.hypot(b.x, b.y) || Number(a.id.split(':').pop()) - Number(b.id.split(':').pop()))[0];
-  r.targetId = nearest?.id ?? null;
+  const canAim = (e: Enemy) => e.hp > 0 && e.emergingUntil === undefined;
+  const inRange = (e: Enemy) => Math.hypot(e.x, e.y) <= stats.range + 1e-7;
+  const target = r.enemies.find(e => e.id === r.targetId && canAim(e)) ??
+    r.enemies.filter(e => canAim(e) && inRange(e))
+      .sort((a, b) => Math.hypot(a.x, a.y) - Math.hypot(b.x, b.y) || Number(a.id.split(':').pop()) - Number(b.id.split(':').pop()))[0];
+  r.targetId = target?.id ?? null;
   r.shotCooldown -= DT;
-  if (!nearest) r.shotCooldown = Math.max(0, r.shotCooldown);
-  if (nearest && r.shotCooldown <= 1e-9) {
-    const bullet: Bullet = { id: newId(r), targetId: nearest.id, x: 0, y: 0, damage: stats.damage, speed: 16 };
+  if (!target || !inRange(target)) r.shotCooldown = Math.max(0, r.shotCooldown);
+  else if (r.shotCooldown <= 1e-9) {
+    const bullet: Bullet = { id: newId(r), targetId: target.id, x: 0, y: 0, damage: stats.damage, speed: 16 };
     r.bullets.push(bullet); r.shotCooldown += 1 / stats.attackSpeed;
-    state.events.push({ type: 'shot', id: bullet.id, targetId: nearest.id, x: 0, y: 0, targetX: nearest.x, targetY: nearest.y });
+    state.events.push({ type: 'shot', id: bullet.id, targetId: target.id, x: 0, y: 0, targetX: target.x, targetY: target.y });
   }
   const surviving: Bullet[] = [];
   for (const bullet of r.bullets) {
@@ -466,7 +474,9 @@ export function validateState(value: unknown, allowLegacy = false): value is Gam
   if (!r.paidKillIds.every(validId)) return false;
   const ids = new Set<string>(r.paidKillIds);
   for (const e of r.enemies) {
-    if (!object(e) || !keys(e,['id','kind','x','y','hp','maxHp','damage','speed','attackInterval','attackCooldown', ...(telegraphed ? ['attackPhase','attackTime','attackDuration'] : [])]) || !validId(e.id) || ids.has(e.id) || !validKind(e.kind) || !position(e)) return false;
+    if (!object(e) || !keys(e,['id','kind','x','y','hp','maxHp','damage','speed','attackInterval','attackCooldown', ...(telegraphed ? ['attackPhase','attackTime','attackDuration'] : []), ...(Object.hasOwn(e,'emergingUntil') ? ['emergingUntil'] : [])]) || !validId(e.id) || ids.has(e.id) || !validKind(e.kind) || !position(e)) return false;
+    if (Object.hasOwn(e,'emergingUntil') && (!telegraphed || !circle || e.attackPhase !== 'approach' ||
+      !num(e.emergingUntil, r.time, r.time + PORTAL_RISE_SECONDS + 1e-8))) return false;
     ids.add(e.id);
     const base = enemyStats(e.kind,r.wave);
     const legacyMaxHp = e.kind === 'boss' ? base.maxHp : Math.ceil(BASE_ENEMIES[e.kind as EnemyKind].hp * (100 + 10 * (r.wave - 1)) / 100);

@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { PORTAL_RISE_SECONDS } from './portalTiming';
 import { SPAWN_RADIUS, WORLD_LIMIT, type SpawnGeometry } from './spawnGeometry';
 import {
   DT, STAT_KEYS, createState, startRun, step, setPaused, buyRunUpgrade, buyMetaUpgrade,
@@ -188,12 +189,20 @@ describe('deterministic combat and timing', () => {
     expect(waveConfig(30).count).toBe(1);
     expect(enemyStats('boss', 30)).toEqual({ maxHp: 624, damage: 42, speed: 1.4, attackInterval: 2, reward: 50 });
   });
-  it('shows a warning on the radius12 circle for half a second before the mech walks', () => {
+  it('opens the portal, keeps the mech planted while it rises, then starts walking after a save round trip', () => {
     let s = step(startRun(createState(), 77));
     expect(s.run?.warnings).toHaveLength(1); expect(s.run?.enemies).toHaveLength(0);
     const w = s.run!.warnings[0]; expect(Math.hypot(w.x, w.y)).toBeCloseTo(SPAWN_RADIUS, 12); expect(w.remaining).toBe(.5);
     s = step(s, 14); expect(s.run?.enemies).toHaveLength(0);
     s = step(s); expect(s.run?.warnings).toHaveLength(0); expect(s.events.some(e => e.type === 'spawn' && e.id === w.id)).toBe(true);
+    const ticksToRise = Math.round(PORTAL_RISE_SECONDS / DT);
+    s = step(s, ticksToRise - 1);
+    expect(s.run!.enemies[0]).toMatchObject({ x: w.x, y: w.y, attackPhase: 'approach' });
+    const restored = parseState(serializeState(s))!;
+    expect(restored.run!.enemies[0].emergingUntil).toBeCloseTo(restored.run!.time + DT, 10);
+    const moving = step(restored).run!.enemies[0];
+    expect(moving.emergingUntil).toBeUndefined();
+    expect(Math.hypot(moving.x,moving.y)).toBeCloseTo(SPAWN_RADIUS - moving.speed * DT, 12);
   });
   it('keeps opening-wave spacing and never spawns more than twice in a row from one sector', () => {
     let s = startRun(createState(), 999), batches: { tick: number; size: number }[] = [];
@@ -222,6 +231,24 @@ describe('deterministic combat and timing', () => {
     expect(n.events.find(e => e.type === 'shot')).toMatchObject({ targetId: b.id });
     expect(n.run!.bullets[0].x).toBeCloseTo(16 / 30);
     expect(n.run!.enemies[1].hp).toBe(10);
+  });
+  it('locks an equal-distance target until it dies, even when another mech is now closer', () => {
+    let s = startRun(createState(), 15), r = s.run!;
+    r.spawnCooldown = 99;
+    const first = enemy(s, 'ordinary', 5), other = enemy(s, 'ordinary', -5);
+    r.enemies = [other, first];
+    s = step(s);
+    expect(s.run!.targetId).toBe(first.id);
+    s.run!.enemies[0].x = -3;
+    s = step(s);
+    expect(s.run!.targetId).toBe(first.id);
+    expect(s.run!.bullets[0].targetId).toBe(first.id);
+    for (let i = 0; i < 15 && s.run!.enemies.some(e => e.id === first.id); i++) {
+      expect(s.run!.targetId).toBe(first.id);
+      s = step(s);
+    }
+    expect(s.run!.enemies.map(e => e.id)).toEqual([other.id]);
+    expect(step(s).run!.targetId).toBe(other.id);
   });
   it('does not attack just beyond its range', () => {
     const s = startRun(createState(), 1); s.run!.spawnCooldown = 99;

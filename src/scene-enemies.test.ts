@@ -82,6 +82,18 @@ describe('real enemy instance rendering', () => {
     view.dispose();
   });
 
+  it('reconstructs the portal and idle emergence pose after loading the middle of a rise', () => {
+    const view = cpuScene(), current = frame();
+    const enemy = { ...current.enemies[0], id: 'restored-spawn', x: 12, y: 0, attackPhase: 'approach' as const, emergingUntil: 20.6 };
+    const place = vi.fn();
+    view.importedMechs = { begin() {}, place, end() {}, dispose() {} };
+    view.render({ ...current, enemies: [enemy], paused: true, elapsed: 20.3 }, .016);
+    expect(view.portals.mesh.count).toBe(1);
+    expect(view.portals.timing.getX(0)).toBeCloseTo(.3);
+    expect(place).toHaveBeenCalledWith(enemy, expect.any(Number), expect.any(Number), expect.any(Number), true, expect.any(Number));
+    view.dispose();
+  });
+
   it('opens a red portal before a spawn, raises that mech, and closes it on simulation time', () => {
     const view = cpuScene(), current = frame();
     const enemy = { ...current.enemies[0], id: 'arrival', x: 12, y: 0, attackPhase: 'approach' as const };
