@@ -88,3 +88,7 @@ Web Locks разрешает запись только одной вкладке
 Подробный протокол текущих проверок: [VERIFICATION.md](VERIFICATION.md).
 
 Проверка точной геометрии и поз без WebGL: `node scripts/render-enemy-review.mjs artifacts/enemies-3d-review.svg`. Этот CPU-рендер не подтверждает качество GPU-освещения или FPS. Для PNG можно открыть SVG в Inkscape и экспортировать его; приложение игры от Inkscape не зависит.
+
+### DRIFTWORKS UI
+
+В игровом интерфейсе используются отдельные панели, кнопки, индикаторы и пиктограммы из [DRIFTWORKS Free](https://victorgabrielf.itch.io/driftworks-free-industrial-sci-fi-ui-kit-with-matching-sounds) (VinniBr). Оригинальная лицензия: `public/assets/ui/driftworks/LICENSE.txt`.

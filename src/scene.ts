@@ -167,7 +167,7 @@ export class SceneView {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.autoClear = false;
-    this.renderer.domElement.setAttribute('aria-label', '3D reactor defense arena');
+    this.renderer.domElement.setAttribute('aria-label', 'Трёхмерная арена в песчаном городе');
     this.renderer.domElement.style.cssText = 'display:block;width:100%;height:100%;outline:none;touch-action:manipulation';
     container.appendChild(this.renderer.domElement);
     this.scene.fog = new THREE.FogExp2(0x26353a, .010);

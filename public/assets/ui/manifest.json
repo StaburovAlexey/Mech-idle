@@ -82,5 +82,117 @@
     "original": "PNG/Red/Default/icon_cross.png",
     "license": "CC0-1.0",
     "sha256": "a82d428cfe4e89c11317533e6b4fd6566d236f0bc0e816f8659a822e37241202"
+  },
+  {
+    "file": "driftworks/attack.svg",
+    "source": "https://victorgabrielf.itch.io/driftworks-free-industrial-sci-fi-ui-kit-with-matching-sounds",
+    "original": "icons/svg/attack.svg",
+    "license": "DRIFTWORKS Standard Royalty-Free",
+    "sha256": "c0f309aeebb55e3d6a793734efcaad7b36169cae7002ca018a4ca5fcd132da36"
+  },
+  {
+    "file": "driftworks/btn_standard_disabled.png",
+    "source": "https://victorgabrielf.itch.io/driftworks-free-industrial-sci-fi-ui-kit-with-matching-sounds",
+    "original": "ui/png/btn_standard_disabled.png",
+    "license": "DRIFTWORKS Standard Royalty-Free",
+    "sha256": "3b618da82639fef6c30e84fa11f6a6015bec6e2f75a19f2a3b257d1c50e47478"
+  },
+  {
+    "file": "driftworks/btn_standard_hover.png",
+    "source": "https://victorgabrielf.itch.io/driftworks-free-industrial-sci-fi-ui-kit-with-matching-sounds",
+    "original": "ui/png/btn_standard_hover.png",
+    "license": "DRIFTWORKS Standard Royalty-Free",
+    "sha256": "0db19ca1dce1c39d9c0b0c4b80c7c3a741d1804867e2204fe3b19799c0d5c946"
+  },
+  {
+    "file": "driftworks/btn_standard_normal.png",
+    "source": "https://victorgabrielf.itch.io/driftworks-free-industrial-sci-fi-ui-kit-with-matching-sounds",
+    "original": "ui/png/btn_standard_normal.png",
+    "license": "DRIFTWORKS Standard Royalty-Free",
+    "sha256": "b27713539c455cb0e7425f5ea44877831fdd2c1a8f821b7925020aff6d3342bd"
+  },
+  {
+    "file": "driftworks/btn_standard_pressed.png",
+    "source": "https://victorgabrielf.itch.io/driftworks-free-industrial-sci-fi-ui-kit-with-matching-sounds",
+    "original": "ui/png/btn_standard_pressed.png",
+    "license": "DRIFTWORKS Standard Royalty-Free",
+    "sha256": "c9b6c21ed3e137da053a07a815b085d845b04e899b8c5facecd08727bd478fdb"
+  },
+  {
+    "file": "driftworks/close.svg",
+    "source": "https://victorgabrielf.itch.io/driftworks-free-industrial-sci-fi-ui-kit-with-matching-sounds",
+    "original": "icons/svg/close.svg",
+    "license": "DRIFTWORKS Standard Royalty-Free",
+    "sha256": "b115d73ca12260cb8cb1b146356d66a249026ddd7bde5ef8e9d045ffa7573354"
+  },
+  {
+    "file": "driftworks/gauge_fill_hull.png",
+    "source": "https://victorgabrielf.itch.io/driftworks-free-industrial-sci-fi-ui-kit-with-matching-sounds",
+    "original": "ui/png/gauge_fill_hull.png",
+    "license": "DRIFTWORKS Standard Royalty-Free",
+    "sha256": "dfbf5f30d0aa8e38d2200b47c68c2fb2562b15159944efcbc476911a3ad61013"
+  },
+  {
+    "file": "driftworks/gauge_frame.png",
+    "source": "https://victorgabrielf.itch.io/driftworks-free-industrial-sci-fi-ui-kit-with-matching-sounds",
+    "original": "ui/png/gauge_frame.png",
+    "license": "DRIFTWORKS Standard Royalty-Free",
+    "sha256": "e89f372e8c348ddf23197b657f337704c916e601222bcf763ac5c35941dce980"
+  },
+  {
+    "file": "driftworks/hazard_strip.png",
+    "source": "https://victorgabrielf.itch.io/driftworks-free-industrial-sci-fi-ui-kit-with-matching-sounds",
+    "original": "ui/png/hazard_strip.png",
+    "license": "DRIFTWORKS Standard Royalty-Free",
+    "sha256": "25dfe23619b1fe46d5281e1f98a0e0ec1cec6223164eded5a17b2926c2c65547"
+  },
+  {
+    "file": "driftworks/hull_plate.svg",
+    "source": "https://victorgabrielf.itch.io/driftworks-free-industrial-sci-fi-ui-kit-with-matching-sounds",
+    "original": "icons/svg/hull_plate.svg",
+    "license": "DRIFTWORKS Standard Royalty-Free",
+    "sha256": "86b23ca4c29239c1a1d10ef0bd6a3effef715c33e638ac95c4632935c75fecb9"
+  },
+  {
+    "file": "driftworks/info.svg",
+    "source": "https://victorgabrielf.itch.io/driftworks-free-industrial-sci-fi-ui-kit-with-matching-sounds",
+    "original": "icons/svg/info.svg",
+    "license": "DRIFTWORKS Standard Royalty-Free",
+    "sha256": "155117eae9bd64f3323c3cfba2eb34f12990e6753c79905ed84bde985f9e4a9b"
+  },
+  {
+    "file": "driftworks/medkit.svg",
+    "source": "https://victorgabrielf.itch.io/driftworks-free-industrial-sci-fi-ui-kit-with-matching-sounds",
+    "original": "icons/svg/medkit.svg",
+    "license": "DRIFTWORKS Standard Royalty-Free",
+    "sha256": "30cead08341d4a8f1a4e46e32d7d91c23df8f8715d4894c12c056ad5885afea3"
+  },
+  {
+    "file": "driftworks/plate_large.png",
+    "source": "https://victorgabrielf.itch.io/driftworks-free-industrial-sci-fi-ui-kit-with-matching-sounds",
+    "original": "ui/png/plate_large.png",
+    "license": "DRIFTWORKS Standard Royalty-Free",
+    "sha256": "1fdef20dbf84deaefa5e1ada54ab7c905bb747975e62c627839c75a1cba22234"
+  },
+  {
+    "file": "driftworks/play.svg",
+    "source": "https://victorgabrielf.itch.io/driftworks-free-industrial-sci-fi-ui-kit-with-matching-sounds",
+    "original": "icons/svg/play.svg",
+    "license": "DRIFTWORKS Standard Royalty-Free",
+    "sha256": "a634b654ded191a8b618c5c497e85eb6f0da4ac93858ca928f08a2ca8584d529"
+  },
+  {
+    "file": "driftworks/settings.svg",
+    "source": "https://victorgabrielf.itch.io/driftworks-free-industrial-sci-fi-ui-kit-with-matching-sounds",
+    "original": "icons/svg/settings.svg",
+    "license": "DRIFTWORKS Standard Royalty-Free",
+    "sha256": "2eac71df0bb48e0ed755f1d0bba051fe91c7289f349c93c4434574ef28aeb6de"
+  },
+  {
+    "file": "driftworks/thruster.svg",
+    "source": "https://victorgabrielf.itch.io/driftworks-free-industrial-sci-fi-ui-kit-with-matching-sounds",
+    "original": "icons/svg/thruster.svg",
+    "license": "DRIFTWORKS Standard Royalty-Free",
+    "sha256": "7df29973b25777163928cf28e172488044932e17ddfc1994c0abddb3a4a38f1e"
   }
 ]
