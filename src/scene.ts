@@ -7,6 +7,7 @@ import { COMBAT_COLORS, applyCombatPalette } from './combatPalette';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { ImportedMechs, loadOplotModels } from './oplotModels';
 import { createPortalMesh, PORTAL_CLOSE, PORTAL_CAPACITY, spawnRise } from './spawnPortal';
+import { CITY_YAW, sandHeight } from './sandTerrain';
 
 export interface SceneEnemy { id: number | string; kind: EnemyModelKind; x: number; y: number; hp: number; maxHp: number; attackPhase?: AttackPhase; attackTime?: number; attackDuration?: number }
 type PortalPoint = { id: string; x: number; y: number; kind: string };
@@ -32,7 +33,6 @@ type UnitPartBatch = { definition: EnemyModelPart; mesh: THREE.InstancedMesh; wo
 type UnitBatch = { model: EnemyModel; parts: UnitPartBatch[]; byName: Partial<Record<EnemyPartName, UnitPartBatch>>; count: number };
 const C = { cream: 0xe8dbc0, creamLight: 0xf8ecd4, teal: 0x21666a, tealLight: 0x398c8c, cyan: 0x40eeff, charcoal: 0x343d40, dark: 0x1c292e, black: 0x151e21, steel: 0x637075, red: 0xd04d3c, redLight: 0xf47754, amber: 0xffbb43, hazard: 0xdcae43 };
 const CITY_FLOOR = .048;
-const CITY_YAW = Math.atan2(14, 17) - .20;
 const MAX_UNITS = 24;
 const MAX_RENDER_DPR = 2;
 const MAX_ENEMY_PROJECTILES = 32;
@@ -45,6 +45,24 @@ const m4 = new THREE.Matrix4();
 const mLocal = new THREE.Matrix4();
 const mRoot = new THREE.Matrix4();
 const eul = new THREE.Euler();
+
+export function makeArenaSun() {
+  const sun = new THREE.DirectionalLight(0xffe7ba, 3.3);
+  sun.position.set(-10, 17, 8);
+  sun.castShadow = true;
+  // One bounded depth map, not a second lighting or full-screen effects pass.
+  const shadow = sun.shadow;
+  shadow.mapSize.set(1024, 1024);
+  Object.assign(shadow.camera, { left: -25, right: 25, top: 24, bottom: -24, near: .5, far: 65 });
+  shadow.camera.updateProjectionMatrix();
+  shadow.intensity = .65;
+  shadow.radius = 2.8;
+  shadow.bias = -.00022;
+  shadow.normalBias = .025;
+  shadow.autoUpdate = false;
+  shadow.needsUpdate = true;
+  return sun;
+}
 
 function bevelBox(w: number, h: number, d: number, b = .04) {
   b = Math.min(b, w / 5, h / 5, d / 5);
@@ -105,7 +123,8 @@ export class SceneView {
   private bulletMesh: THREE.InstancedMesh;
   private enemyProjectileMesh: THREE.InstancedMesh;
   private impactMesh: THREE.InstancedMesh;
-  private shadowMesh: THREE.InstancedMesh;
+  private readonly sun = makeArenaSun();
+  private shadowTick = -1;
   private particleMesh: THREE.InstancedMesh;
   private portals = createPortalMesh();
   private arrivals = new Map<string, SceneSpawn>();
@@ -144,14 +163,15 @@ export class SceneView {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.3;
-    this.renderer.shadowMap.enabled = false;
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.autoClear = false;
     this.renderer.domElement.setAttribute('aria-label', '3D reactor defense arena');
     this.renderer.domElement.style.cssText = 'display:block;width:100%;height:100%;outline:none;touch-action:manipulation';
     container.appendChild(this.renderer.domElement);
     this.scene.fog = new THREE.FogExp2(0x26353a, .010);
     this.scene.add(new THREE.HemisphereLight(0xeaf8f7, 0x77715c, 2.8));
-    const sun = new THREE.DirectionalLight(0xffe7ba, 3.3); sun.position.set(-8, 18, 8); this.scene.add(sun);
+    this.scene.add(this.sun);
     const rim = new THREE.DirectionalLight(0x73e6f8, 1.45); rim.position.set(8, 7, -13); this.scene.add(rim);
     this.buildArena();
     void this.loadCityModels();
@@ -162,16 +182,8 @@ export class SceneView {
     this.bulletMesh = this.instances(new THREE.SphereGeometry(.065, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffe69b, toneMapped: false }), MAX_BULLETS);
     this.enemyProjectileMesh = this.instances(new THREE.SphereGeometry(.105, 6, 4), new THREE.MeshBasicMaterial({ color: 0xff5e31, toneMapped: false }), MAX_ENEMY_PROJECTILES);
     this.impactMesh = this.instances(ring(.65, .77, 24), new THREE.MeshBasicMaterial({ color: 0xffac39, transparent: true, opacity: .76, depthWrite: false, toneMapped: false }), MAX_UNITS);
-    const shadowCanvas = document.createElement('canvas'); shadowCanvas.width = shadowCanvas.height = 32;
-    const shadowContext = shadowCanvas.getContext('2d')!;
-    const gradient = shadowContext.createRadialGradient(16, 16, 2, 16, 16, 16);
-    gradient.addColorStop(0, 'rgba(0,0,0,.75)'); gradient.addColorStop(.45, 'rgba(0,0,0,.45)'); gradient.addColorStop(1, 'rgba(0,0,0,0)');
-    shadowContext.fillStyle = gradient; shadowContext.fillRect(0, 0, 32, 32);
-    const shadowTexture = new THREE.CanvasTexture(shadowCanvas); this.allTextures.add(shadowTexture);
-    this.shadowMesh = this.instances(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: shadowTexture, transparent: true, opacity: .57, depthWrite: false }), MAX_UNITS);
-    this.shadowMesh.geometry.rotateX(-Math.PI / 2);
     this.particleMesh = this.instances(new THREE.OctahedronGeometry(.10, 0), new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }), MAX_PARTICLES);
-    this.scene.add(this.portals.mesh);
+    this.scene.add(this.portals.mesh, this.portals.occluded);
     this.hpBack = this.instances(new THREE.PlaneGeometry(1, .07), new THREE.MeshBasicMaterial({ color: 0x10262b, transparent: true, opacity: .8, depthWrite: false }), MAX_UNITS);
     this.hpFront = this.instances(new THREE.PlaneGeometry(1, .045), new THREE.MeshBasicMaterial({ color: 0xff7955, toneMapped: false, depthWrite: false }), MAX_UNITS);
     this.targetRing = new THREE.Mesh(ring(.72, .755, 48), new THREE.MeshBasicMaterial({ color: 0xff7252, transparent: true, opacity: .6, toneMapped: false, depthWrite: false }));
@@ -200,25 +212,10 @@ export class SceneView {
     const concrete = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .96 });
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshStandardMaterial({ color: 0xb4a58a, roughness: 1 }));
     ground.name = 'city-continuous-ground';
-    ground.rotation.x = -Math.PI / 2; ground.position.y = CITY_FLOOR;
+    ground.rotation.x = -Math.PI / 2; ground.position.y = CITY_FLOOR; ground.receiveShadow = true;
     city.add(ground);
 
-    // Dunes lap against the buses and facades. The inner playfield stays below the portal and shadow planes.
-    const drifts = [
-      [-6.15, 12.6, 3.0, 1.65, .49], [6.9, 12.3, 2.9, 1.65, .52],
-      [-5.5, -15.65, 5.3, 2.75, .73], [5.7, -20.6, 4.9, 3.1, .84],
-      [-12.7, -14.2, 3.8, 3.0, .52], [11.85, -14.25, 4.4, 3.05, .65],
-      [-14.2, 1.5, 2.35, 6.0, .34], [14.65, -.7, 2.95, 5.6, .37],
-    ] as const;
-    const sandHeight = (x: number, z: number) => {
-      let rise = 0;
-      for (const [cx, cz, wx, wz, h] of drifts) {
-        const u = (x - cx) / wx, v = (z - cz + (x - cx) * .2) / wz;
-        rise += h * Math.exp(-u * u - v * v);
-      }
-      const open = THREE.MathUtils.smoothstep(Math.hypot(x, z), 12.20, 13.60);
-      return .053 + open * rise;
-    };
+    // Dunes lap against the wrecks while the central playfield stays flat.
     const sand = new THREE.PlaneGeometry(43, 55, 70, 84).rotateX(-Math.PI / 2);
     const positions = sand.getAttribute('position'), shades = new Float32Array(positions.count * 3);
     const dark = new THREE.Color(0xa99778), sunlit = new THREE.Color(0xc3b49a), color = new THREE.Color();
@@ -233,7 +230,8 @@ export class SceneView {
     }
     sand.setAttribute('color', new THREE.BufferAttribute(shades, 3));
     sand.computeVertexNormals();
-    this.addGeometry(sand, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }), city).name = 'city-sand-and-drifts';
+    const sandMesh = this.addGeometry(sand, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }), city);
+    sandMesh.name = 'city-sand-and-drifts'; sandMesh.receiveShadow = true;
 
     const debris: Piece[] = [], shells: Piece[] = [];
     const block = (list: Piece[], w: number, h: number, d: number, color: number, x: number, y: number, z: number, tilt = 0) =>
@@ -267,14 +265,11 @@ export class SceneView {
     ruinedShell(10.8, -17.5, 5.1, 3);
     ruinedShell(17.0, -19.8, 5.4, 4);
     ruinedShell(-7.5, -23.5, 5.1, 3);
-    this.addGeometry(merge(debris), concrete, city).name = 'city-sand-rubble';
-    this.addGeometry(merge(shells), concrete, city).name = 'city-ruined-blocks';
+    const rubble = this.addGeometry(merge(debris), concrete, city);
+    rubble.name = 'city-sand-rubble'; rubble.receiveShadow = true;
+    const ruins = this.addGeometry(merge(shells), concrete, city);
+    ruins.name = 'city-ruined-blocks'; ruins.castShadow = true;
 
-    // Cheap baked turret contact shadow, no shadow maps or full-screen postprocessing.
-    const shadowCanvas = document.createElement('canvas'); shadowCanvas.width = shadowCanvas.height = 64;
-    const ctx = shadowCanvas.getContext('2d')!; const gradient = ctx.createRadialGradient(32, 32, 1, 32, 32, 31); gradient.addColorStop(0, 'rgba(0,0,0,.6)'); gradient.addColorStop(.55, 'rgba(0,0,0,.24)'); gradient.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = gradient; ctx.fillRect(0, 0, 64, 64);
-    const texture = new THREE.CanvasTexture(shadowCanvas); this.allTextures.add(texture);
-    const shadow = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 4.4), new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false, opacity: .9 })); shadow.rotation.x = -Math.PI / 2; shadow.position.set(.25, .071, .25); this.scene.add(shadow);
   }
 
   private buildTurret() {
@@ -290,7 +285,7 @@ export class SceneView {
       base.push(part(box(.15, .12, .018), C.dark, Math.sin(ang) * 1.10, .34, Math.cos(ang) * 1.10, 0, ang));
       const g = part(box(.19, .085, .035), C.cyan, Math.sin(ang) * .70, .85, Math.cos(ang) * .70, 0, ang); glow.push(g);
     }
-    this.addGeometry(merge(base), this.material, this.turretBase);
+    this.addGeometry(merge(base), this.material, this.turretBase).castShadow = true;
     this.addGeometry(merge(glow), this.glowMaterial, this.turretBase);
     this.scene.add(this.turretBase);
     head.push(part(bevelBox(1.68, .81, 1.32, .14), C.cream, 0, 1.39, -.04));
@@ -307,7 +302,7 @@ export class SceneView {
       for (let j = 0; j < 3; j++) head.push(part(box(.018, .025, .22), C.dark, s * .861, 1.38 + j * .095, -.48));
       head.push(part(box(.025, .20, .115), C.hazard, s * .88, 1.29, -.1, -.35));
     }
-    this.addGeometry(merge(head), this.material, this.turretHead);
+    this.addGeometry(merge(head), this.material, this.turretHead).castShadow = true;
     this.turretHead.add(this.turretGlow); this.scene.add(this.turretHead);
     const barrel = new THREE.Group();
     const gun = [
@@ -317,7 +312,7 @@ export class SceneView {
       part(box(.32, .026, .28), C.hazard, 0, 1.85, 1.65, 0, -.25),
       part(bevelBox(.13, .095, .16), C.charcoal, 0, 1.9, 1.90),
     ];
-    this.addGeometry(merge(gun), this.material, barrel);
+    this.addGeometry(merge(gun), this.material, barrel).castShadow = true;
     this.addGeometry(merge([part(box(.18, .21, .035), C.cyan, 0, 1.59, 2.205)]), this.glowMaterial, barrel);
     this.turretHead.add(barrel); return barrel;
   }
@@ -355,8 +350,10 @@ export class SceneView {
         anchor.rotation.y = yaw;
         anchor.scale.setScalar(width / Math.max(span.x, span.z));
         anchor.add(model); this.city.add(anchor);
+        model.traverse(object => { if (object instanceof THREE.Mesh) object.castShadow = i !== 2; });
       }
     });
+    if (!this.disposed) this.sun.shadow.needsUpdate = true;
     if (!this.disposed && results.every(result => result.status === 'fulfilled')) this.renderer.domElement.dataset.city = 'tevy';
   }
 
@@ -393,6 +390,10 @@ export class SceneView {
       const recoil = new THREE.Group(); recoil.add(barrel);
       this.turretHead.add(head, recoil); this.barrel = recoil;
       this.flash.position.set(0, 1.68, 2.43);
+      for (const part of [base, head, barrel, ...mechs.map(mech => mech.scene)]) part.traverse(object => {
+        if (object instanceof THREE.Mesh) object.castShadow = true;
+      });
+      this.sun.shadow.needsUpdate = true;
       this.importedMechs = new ImportedMechs(mechs, this.scene);
       this.renderer.domElement.dataset.art = 'oplot';
     } catch (error) {
@@ -403,6 +404,7 @@ export class SceneView {
   private buildMech(kind: Kind): UnitBatch {
     const model = createEnemyModel(kind);
     const parts = model.parts.map(definition => ({ definition, mesh: this.instances(definition.geometry, definition.glow ? this.glowMaterial : this.material, MAX_UNITS), world: new THREE.Matrix4() }));
+    for (const { mesh, definition } of parts) mesh.castShadow = !definition.glow;
     const byName: UnitBatch['byName'] = {};
     for (const part of parts) byName[part.definition.name] = part;
     return { model, parts, byName, count: 0 };
@@ -448,7 +450,7 @@ export class SceneView {
     for (const b of Object.values(this.batches)) b.count = 0;
     this.importedMechs?.begin();
     const next = new Map<number | string, SceneEnemy>();
-    let shadowIndex = 0, hpIndex = 0, impactIndex = 0;
+    let hpIndex = 0, impactIndex = 0;
     const t = frame.elapsed ?? this.clock;
     if (!playing) this.arrivals.clear();
     for (const [id, spawn] of this.arrivals) if (t - spawn.time >= PORTAL_CLOSE || t < spawn.time) this.arrivals.delete(id);
@@ -476,8 +478,6 @@ export class SceneView {
           part.mesh.setMatrixAt(index, part.world);
         }
       }
-      const [shadowWidth, shadowDepth] = b.model.footprint;
-      if (rise > .65) this.shadowMesh.setMatrixAt(shadowIndex++, matrix(enemy.x + .11, .067, enemy.y + .11, angle, shadowWidth * 1.25, 1, shadowDepth * 1.45));
       if (pose.impact > 0 && !menu) {
         const reach = enemy.kind === 'boss' ? .90 : .72, size = (enemy.kind === 'boss' ? 1.15 : .48) * (.5 + pose.impact * .5);
         this.impactMesh.setMatrixAt(impactIndex++, matrix(enemy.x + Math.sin(angle) * reach, .08, enemy.y + Math.cos(angle) * reach, 0, size, 1, size));
@@ -498,7 +498,6 @@ export class SceneView {
     this.previous = menu ? new Map() : next;
     for (const b of Object.values(this.batches)) for (const { mesh } of b.parts) { mesh.count = this.importedMechs ? 0 : b.count; mesh.instanceMatrix.needsUpdate = true; }
     this.impactMesh.count = impactIndex; this.impactMesh.instanceMatrix.needsUpdate = true;
-    this.shadowMesh.count = shadowIndex; this.shadowMesh.instanceMatrix.needsUpdate = true;
     this.hpBack.count = this.hpFront.count = hpIndex; this.hpBack.instanceMatrix.needsUpdate = this.hpFront.instanceMatrix.needsUpdate = true;
     let desired = this.angle;
     if (frame.target) desired = Math.atan2(frame.target.x, frame.target.y);
@@ -525,17 +524,17 @@ export class SceneView {
     (this.turretRing.material as THREE.MeshBasicMaterial).opacity = .44 + Math.sin(this.clock * 2) * .1;
     if (frame.target && playing) { this.targetRing.visible = true; this.targetRing.position.set(frame.target.x, .085, frame.target.y); }
     else this.targetRing.visible = false;
-    const { mesh: portalMesh, timing } = this.portals;
+    const { mesh: portalMesh, timing, occluded } = this.portals;
     let portalIndex = 0;
     const addPortal = (point: PortalPoint, age: number) => {
       if (portalIndex >= PORTAL_CAPACITY) return;
       const size = point.kind === 'boss' ? 2.6 : 1.63;
-      portalMesh.setMatrixAt(portalIndex, matrix(point.x, .081, point.y, 0, size, 1, size));
+      portalMesh.setMatrixAt(portalIndex, matrix(point.x, .048, point.y, 0, size, 1, size));
       timing.setXY(portalIndex++, age, point.x * .73 + point.y * .41);
     };
     if (playing) for (const warning of frame.warnings ?? []) addPortal(warning, -warning.remaining);
     for (const spawn of this.arrivals.values()) addPortal(spawn, t - spawn.time);
-    portalMesh.count = portalIndex; portalMesh.instanceMatrix.needsUpdate = timing.needsUpdate = true;
+    portalMesh.count = occluded.count = portalIndex; portalMesh.instanceMatrix.needsUpdate = timing.needsUpdate = true;
     let pIndex = 0;
     this.particles = this.particles.filter(p => {
       p.life -= dt; if (p.life <= 0) return false;
@@ -553,6 +552,11 @@ export class SceneView {
     this.renderer.setViewport(field.x, field.y, field.width, field.height);
     this.renderer.setScissor(field.x, field.y, field.width, field.height);
     this.renderer.setScissorTest(true);
+    const shadowTick = Math.floor(this.clock * 30);
+    if (shadowTick !== this.shadowTick) {
+      this.shadowTick = shadowTick;
+      this.sun.shadow.needsUpdate = true;
+    }
     this.renderer.render(this.scene, this.camera);
     this.renderer.setScissorTest(false);
   }
@@ -562,6 +566,7 @@ export class SceneView {
   dispose() {
     if (this.disposed) return; this.disposed = true; this.observer.disconnect();
     this.importedMechs?.dispose();
+    this.sun.shadow.dispose();
     this.scene.traverse(object => { if (object instanceof THREE.Mesh) { this.allGeometries.add(object.geometry); const ms = Array.isArray(object.material) ? object.material : [object.material]; ms.forEach(m => this.allMaterials.add(m)); if (object instanceof THREE.InstancedMesh) object.dispose(); } });
     this.allGeometries.forEach(g => g.dispose()); this.allMaterials.forEach(m => m.dispose()); this.allTextures.forEach(t => t.dispose());
     this.previous.clear(); this.lastBulletIds.clear(); this.particles.length = 0; this.renderer.dispose(); this.renderer.domElement.remove();

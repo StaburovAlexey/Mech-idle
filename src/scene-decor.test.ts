@@ -33,6 +33,8 @@ describe('complete ruined-city environment', () => {
       if (o instanceof THREE.Mesh) triangles += (o.geometry.index?.count ?? o.geometry.getAttribute('position').count) / 3;
     });
     expect(triangles).toBeLessThan(17500);
+    expect((scene.getObjectByName('city-sand-and-drifts') as THREE.Mesh).receiveShadow).toBe(true);
+    expect((scene.getObjectByName('city-ruined-blocks') as THREE.Mesh).castShadow).toBe(true);
   });
 
   it('keeps all arena surfaces below the existing portals and firing circle', () => {
