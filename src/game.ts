@@ -52,6 +52,9 @@ const BASE_ENEMIES = {
 } as const;
 // Accommodates every live unit in an old wave while bounding new spawn queues.
 export const MAX_ENEMIES = 24;
+export const MAX_SPAWN_GROUP = 7;
+export const TURRET_RANGE = 7.5;
+export const ESCORT_SPAWN_RADIUS = 10.45;
 export const MAX_ENEMY_PROJECTILES = 32;
 export const ENEMY_PROJECTILE_SPEED = 6;
 export const RANGED_MUZZLE_OFFSET = 1.6;
@@ -60,7 +63,7 @@ const ATTACKS: Record<EnemyKind, AttackConfig> = {
   ordinary: { range: 1.2, windup: .45, strike: .2, recovery: 1.35, hitOffsets: [0] },
   fast: { range: 1.2, windup: .3, strike: .2, recovery: 1.5, hitOffsets: [0] },
   boss: { range: 1.2, windup: .75, strike: .55, recovery: .7, hitOffsets: [0, .3] },
-  ranged: { range: 7.5, windup: .8, strike: .2, recovery: 2.2, hitOffsets: [0] },
+  ranged: { range: TURRET_RANGE, windup: .8, strike: .2, recovery: 2.2, hitOffsets: [0] },
 };
 /** Simulation and rig animation share the exact strike times. */
 export function attackConfig(kind: EnemyKind): Readonly<AttackConfig> { return ATTACKS[kind]; }
@@ -75,7 +78,7 @@ export function calculateStats(meta: Levels, levels: Levels = emptyLevels()): St
     damage: 10 * (1 + .1 * meta.damage) * (1 + .2 * levels.damage),
     maxHp: 100 * (1 + .1 * meta.maxHp) * (1 + .2 * levels.maxHp),
     attackSpeed: (1 + .1 * meta.attackSpeed) * (1 + .1 * levels.attackSpeed),
-    regen: .2 * meta.regen + .5 * levels.regen, range: 10,
+    regen: .2 * meta.regen + .5 * levels.regen, range: TURRET_RANGE,
   };
 }
 export function getStats(state: GameState, includePending = false): Stats {
@@ -84,8 +87,9 @@ export function getStats(state: GameState, includePending = false): Stats {
 const classicWaveCount = (wave: number) => 6 + Math.floor((wave - 1) * .55);
 export function waveConfig(wave: number): WaveConfig {
   if (wave === 30) return { count: 1, interval: 1.5, jitter: .2, fastEvery: 0, rangedEvery: 0, burstSize: 1, boss: true };
-  const interval = wave === 1 ? 1.65 : wave < 5 ? 1.28 : wave < 10 ? 1.13 : wave < 20 ? .98 : .84;
-  const burstSize = wave % 5 === 0 ? Math.min(5, 3 + Math.floor(wave / 10)) : wave < 7 ? 2 : wave < 16 ? 3 : 4;
+  const interval = wave === 1 ? 1.25 : wave < 5 ? 2.15 : wave < 10 ? 1.95 : wave < 20 ? 1.70 : 1.45;
+  const normalGroup = wave < 5 ? 3 : wave < 10 ? 4 : wave < 16 ? 5 : 6;
+  const burstSize = Math.min(MAX_SPAWN_GROUP, normalGroup + (wave % 5 === 0 ? 1 : 0));
   return { count: 3 * classicWaveCount(wave), interval, jitter: .2, fastEvery: wave >= 4 ? 4 : 0, rangedEvery: wave >= 6 ? 5 : 0, burstSize, boss: false };
 }
 const MAX_RUN_KILLS = Array.from({ length: WAVE_COUNT }, (_, i) => waveConfig(i + 1).count).reduce((a, b) => a + b, 0);
@@ -153,28 +157,49 @@ function queueSpawn(state: GameState): void {
   const r = state.run!, config = waveConfig(r.wave);
   const remaining = config.count - r.spawned;
   // Give a fresh turret time to afford upgrades before the first pairs.
-  const warmup = r.wave === 1 && r.spawned < 9;
+  const warmup = r.wave === 1 && r.spawned < 5;
   const group = warmup ? 1 : config.burstSize;
   // Fold the tail into full groups instead of leaving one foe when avoidable.
   const minGroup = Math.min(3, group);
-  const size = group === 1 ? 1 : remaining <= Math.min(5, group + minGroup - 1) ? remaining : Math.min(group, remaining - minGroup);
+  const size = group === 1 ? 1 : remaining <= Math.min(MAX_SPAWN_GROUP, group + minGroup - 1) ? remaining : Math.min(group, remaining - minGroup);
   if (r.enemies.length + r.warnings.length + size > MAX_ENEMIES) return;
   let sector = Math.floor(random(r) * 12);
   if (sector === r.lastSector && r.sectorStreak >= 2) sector = (sector + 1 + Math.floor(random(r) * 11)) % 12;
   const offset = random(r);
+  const kinds: EnemyKind[] = Array.from({ length: size }, (_, i) => {
+    const ordinal = r.spawned + i + 1;
+    return config.boss ? 'boss' : config.fastEvery > 0 && ordinal % config.fastEvery === 0 ? 'fast'
+      : config.rangedEvery > 0 && ordinal % config.rangedEvery === 0 ? 'ranged' : 'ordinary';
+  });
+  const sectors = kinds.map((_, i) => (sector + Math.floor(i * 12 / size)) % 12);
+  const escorts = new Map<number, number>();
+  const available = kinds.map((kind, i) => kind === 'ordinary' ? i : -1).filter(i => i >= 0);
+  available.push(...kinds.map((kind, i) => kind === 'fast' ? i : -1).filter(i => i >= 0));
   for (let i = 0; i < size; i++) {
-    const spawnSector = (sector + Math.floor(i * 12 / size)) % 12;
+    if (kinds[i] !== 'ranged') continue;
+    // Escort slots come from this very batch. Do not grow the wave budget or make a lone ranged tail.
+    if (!available.length) { kinds[i] = 'ordinary'; continue; }
+    for (const angle of [-.115, .115]) {
+      const index = available.shift();
+      if (index === undefined) break;
+      kinds[index] = 'ordinary';
+      escorts.set(index, (sectors[i] + offset) * Math.PI / 6 + angle);
+    }
+  }
+  for (let i = 0; i < size; i++) {
+    const spawnSector = sectors[i];
     r.sectorStreak = spawnSector === r.lastSector ? r.sectorStreak + 1 : 1;
     r.lastSector = spawnSector;
-    const ordinal = r.spawned + 1;
-    const kind: EnemyKind = config.boss ? 'boss' : config.fastEvery > 0 && ordinal % config.fastEvery === 0 ? 'fast' : config.rangedEvery > 0 && ordinal % config.rangedEvery === 0 ? 'ranged' : 'ordinary';
-    const point = spawnPoint((spawnSector + offset) * Math.PI / 6);
-    const warning: Warning = { id: newId(r), kind, ...point, remaining: .5, sector: spawnSector };
+    const escort = escorts.get(i);
+    const angle = escort ?? (spawnSector + offset) * Math.PI / 6;
+    const point = spawnPoint(angle, escort === undefined ? SPAWN_RADIUS : ESCORT_SPAWN_RADIUS);
+    const kind = kinds[i];
+    const warning: Warning = { id: newId(r), kind, ...point, remaining: .5, sector: Math.floor(((angle + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 6)) };
     r.warnings.push(warning); r.spawned++;
     state.events.push({ type: 'warning', id: warning.id, kind, x: warning.x, y: warning.y });
   }
-  // Interval is an average per foe; a batch advances the same spawn budget as its individual members.
-  r.spawnCooldown = (r.wave === 1 && !warmup ? 1.15 : config.interval) * size + (random(r) * 2 - 1) * config.jitter;
+  // Pace the actual batches, so larger squads don't introduce longer empty gaps.
+  r.spawnCooldown = (r.wave === 1 && !warmup ? 2.05 : config.interval) + (random(r) * 2 - 1) * config.jitter;
 }
 
 function enterAttackPhase(state: GameState, enemy: Enemy, phase: AttackPhase, duration: number): void {
@@ -282,7 +307,7 @@ function advanceTick(state: GameState): void {
   // New bolts begin traveling next tick. Simultaneous boss/turret death remains defeat.
   advanceEnemyProjectiles(state);
   for (const enemy of r.enemies) advanceEnemy(state, enemy);
-  const nearest = r.enemies.filter(e => e.hp > 0 && Math.hypot(e.x, e.y) <= stats.range)
+  const nearest = r.enemies.filter(e => e.hp > 0 && Math.hypot(e.x, e.y) <= stats.range + 1e-7)
     .sort((a, b) => Math.hypot(a.x, a.y) - Math.hypot(b.x, b.y) || Number(a.id.split(':').pop()) - Number(b.id.split(':').pop()))[0];
   r.targetId = nearest?.id ?? null;
   r.shotCooldown -= DT;
@@ -401,7 +426,7 @@ const int = (v: unknown, min = 0, max = 1e9): v is number => num(v, min, max) &&
 const str = (v: unknown): v is string => typeof v === 'string' && v.length > 0 && v.length < 100;
 const keys = (v: Record<string, any>, names: string[]) => Object.keys(v).length === names.length && names.every(n => Object.hasOwn(v, n));
 function validLevels(v: unknown, cap: number): v is Levels { return object(v) && keys(v, [...STAT_KEYS]) && STAT_KEYS.every(k => int(v[k], 0, cap)); }
-function validStats(v: unknown): v is Stats { return object(v) && keys(v, ['damage','maxHp','attackSpeed','regen','range']) && num(v.damage, 10, 80) && num(v.maxHp, 100, 800) && num(v.attackSpeed, 1, 5) && num(v.regen, 0, 9.5) && v.range === 10; }
+function validStats(v: unknown): v is Stats { return object(v) && keys(v, ['damage','maxHp','attackSpeed','regen','range']) && num(v.damage, 10, 80) && num(v.maxHp, 100, 800) && num(v.attackSpeed, 1, 5) && num(v.regen, 0, 9.5) && (v.range === TURRET_RANGE || v.range === 10); }
 export function validateState(value: unknown, allowClassicPace = false): value is GameState {
   if (!object(value) || !keys(value, ['version','profile','run','result','events']) || value.version !== 1 || !Array.isArray(value.events) || value.events.length !== 0) return false;
   const p = value.profile;
@@ -423,7 +448,7 @@ export function validateState(value: unknown, allowClassicPace = false): value i
   if (!str(r.id) || r.id !== `run-${p.runCounter}-${r.seed}` || !int(r.seed,1,0xffffffff) || !int(r.rngState,1,0xffffffff) || !int(r.wave,1,30) || !['combat','interwave'].includes(r.phase) || typeof r.paused !== 'boolean' || !num(r.time,0,1e7) || !int(r.tick,0,3e8) || Math.abs(r.time-r.tick*DT)>1e-6 || !num(r.phaseTime,0,1e7) || !validLevels(r.levels,RUN_CAP) || !validLevels(r.activeLevels,RUN_CAP) || STAT_KEYS.some(k=>r.activeLevels[k]>r.levels[k])) return false;
   const stats = calculateStats(p.meta,r.activeLevels);
   if (!num(r.hp,Number.MIN_VALUE,stats.maxHp + 1e-6) || !int(r.gold,0,MAX_RUN_GOLD) || !int(r.spawned,0,waveConfig(r.wave).count) || !num(r.spawnCooldown,-1e7,telegraphed ? 7.71 : 1.71) || !num(r.shotCooldown,0,1.01) || !int(r.nextEntityId,1,100000) || !int(r.lastSector,-1,11) || !int(r.sectorStreak,0,2) || !int(r.lastPaidWave,0,29) || !int(r.kills,0,MAX_RUN_KILLS) || !int(r.earnedGold,0,MAX_RUN_GOLD) || !int(r.earnedCrystals,0,29) || r.lastPaidWave!==r.earnedCrystals || r.gold>r.earnedGold || r.lastPaidWave !== (r.phase === 'combat' ? r.wave-1 : r.wave) || (r.phase === 'interwave' && (r.wave===30 || r.phaseTime>=2.000001))) return false;
-  if (!Array.isArray(r.enemies) || r.enemies.length>30 || !Array.isArray(r.warnings) || r.warnings.length>(circle ? telegraphed ? 5 : 1 : 30) || r.warnings.length>r.spawned || !Array.isArray(r.bullets) || r.bullets.length>100 || !Array.isArray(r.paidKillIds) || r.paidKillIds.length!==r.kills || new Set(r.paidKillIds).size!==r.paidKillIds.length) return false;
+  if (!Array.isArray(r.enemies) || r.enemies.length>30 || !Array.isArray(r.warnings) || r.warnings.length>(circle ? telegraphed ? MAX_SPAWN_GROUP : 1 : 30) || r.warnings.length>r.spawned || !Array.isArray(r.bullets) || r.bullets.length>100 || !Array.isArray(r.paidKillIds) || r.paidKillIds.length!==r.kills || new Set(r.paidKillIds).size!==r.paidKillIds.length) return false;
   if (telegraphed && circle && r.enemies.length + r.warnings.length > MAX_ENEMIES) return false;
   const validId = (id: unknown): id is string => str(id) && id.startsWith(`${r.id}:`) && /^[1-9]\d*$/.test(id.slice(r.id.length+1)) && int(Number(id.slice(r.id.length+1)),1,r.nextEntityId-1);
   const positionLimit = circle ? SPAWN_RADIUS + 1e-6 : r.spawnGeometry ? WORLD_LIMIT : 10.000001;
@@ -451,7 +476,7 @@ export function validateState(value: unknown, allowClassicPace = false): value i
     }
   }
   for (const w of r.warnings) {
-    if (!object(w) || !keys(w,['id','kind','x','y','remaining','sector']) || !validId(w.id) || ids.has(w.id) || !validKind(w.kind) || !position(w) || Math.hypot(w.x,w.y)<7.999999 || (circle && Math.abs(Math.hypot(w.x,w.y) - SPAWN_RADIUS)>1e-6) || !num(w.remaining,Number.MIN_VALUE,r.spawnGeometry ? 1e6 : .5) || !int(w.sector,0,11)) return false;
+    if (!object(w) || !keys(w,['id','kind','x','y','remaining','sector']) || !validId(w.id) || ids.has(w.id) || !validKind(w.kind) || !position(w) || Math.hypot(w.x,w.y)<7.999999 || (circle && Math.abs(Math.hypot(w.x,w.y) - SPAWN_RADIUS)>1e-6 && !(w.kind === 'ordinary' && telegraphed && r.wave >= 6 && Math.abs(Math.hypot(w.x,w.y) - ESCORT_SPAWN_RADIUS) <= 1e-6)) || !num(w.remaining,Number.MIN_VALUE,r.spawnGeometry ? 1e6 : .5) || !int(w.sector,0,11)) return false;
     ids.add(w.id);
   }
   for (const b of r.bullets) {

@@ -3,7 +3,7 @@ import { SPAWN_RADIUS, WORLD_LIMIT, type SpawnGeometry } from './spawnGeometry';
 import {
   DT, STAT_KEYS, createState, startRun, step, setPaused, buyRunUpgrade, buyMetaUpgrade,
   runPrice, metaPrice, getStats, enemyStats, waveConfig, serializeState, parseState,
-  attackConfig, ENEMY_PROJECTILE_SPEED, RANGED_MUZZLE_OFFSET, MAX_ENEMIES, MAX_ENEMY_PROJECTILES, type GameState, type GameEvent, type Enemy, type StatKey,
+  attackConfig, ENEMY_PROJECTILE_SPEED, RANGED_MUZZLE_OFFSET, MAX_ENEMIES, MAX_ENEMY_PROJECTILES, MAX_SPAWN_GROUP, TURRET_RANGE, ESCORT_SPAWN_RADIUS, type GameState, type GameEvent, type Enemy, type StatKey,
 } from './game';
 
 function legacyGeometry(): SpawnGeometry {
@@ -35,7 +35,7 @@ describe('stat and economy rules', () => {
   it('starts full HP with zero temporary economy and exact base stats', () => {
     const s = startRun(createState(), 17);
     expect(s.run?.hp).toBe(100); expect(s.run?.gold).toBe(0);
-    expect(getStats(s)).toEqual({ damage: 10, maxHp: 100, attackSpeed: 1, regen: 0, range: 10 });
+    expect(getStats(s)).toEqual({ damage: 10, maxHp: 100, attackSpeed: 1, regen: 0, range: TURRET_RANGE });
     expect(STAT_KEYS.every(k => s.run?.levels[k] === 0)).toBe(true);
   });
   it('uses exact exponential ceil prices and never overdrafts', () => {
@@ -60,7 +60,7 @@ describe('stat and economy rules', () => {
       expect(s.run!.levels[k]).toBe(1); expect(s.run!.activeLevels[k]).toBe(1);
       expect(getStats(s)).toEqual(getStats(s, true));
     }
-    expect(getStats(s)).toEqual({ damage: 12, maxHp: 120, attackSpeed: 1.1, regen: .5, range: 10 });
+    expect(getStats(s)).toEqual({ damage: 12, maxHp: 120, attackSpeed: 1.1, regen: .5, range: TURRET_RANGE });
     expect(s.run!.gold).toBe(53); expect(s.run!.earnedGold).toBe(100);
     expect(s.run!.hp).toBe(47.125); expect(s.run!.paused).toBe(paused);
     expect(s.run!.tick).toBe(0); expect(s.run!.rngState).toBe(original.run!.rngState);
@@ -72,7 +72,7 @@ describe('stat and economy rules', () => {
     let s = clearAtNextTick(funded());
     s.run!.hp = 61;
     for (const k of STAT_KEYS) s = buyRunUpgrade(s, k);
-    const upgraded = { damage: 12, maxHp: 120, attackSpeed: 1.1, regen: .5, range: 10 };
+    const upgraded = { damage: 12, maxHp: 120, attackSpeed: 1.1, regen: .5, range: TURRET_RANGE };
     expect(getStats(s)).toEqual(upgraded); expect(s.run!.hp).toBe(61);
     expect(s.run!.phaseTime).toBe(0); expect(s.run!.activeLevels).toEqual(s.run!.levels);
     s = step(s, 59); expect(s.run?.phase).toBe('interwave');
@@ -85,7 +85,7 @@ describe('stat and economy rules', () => {
     expect(s.profile.crystals).toBe(88);
     s = startRun(s, 1);
     expect(s.run?.hp).toBeCloseTo(110);
-    expect(getStats(s)).toEqual({ damage: 11, maxHp: 110.00000000000001, attackSpeed: 1.1, regen: .2, range: 10 });
+    expect(getStats(s)).toEqual({ damage: 11, maxHp: 110.00000000000001, attackSpeed: 1.1, regen: .2, range: TURRET_RANGE });
     expect(buyMetaUpgrade(s, 'damage')).toBe(s);
     s.run!.gold = 100; s = buyRunUpgrade(s, 'damage');
     expect(getStats(s).damage).toBeCloseTo(13.2);
@@ -120,7 +120,7 @@ describe('immediate upgrade timing', () => {
   });
   it.each([0, 3])('rescales only the remaining shot cycle with meta speed level %s', metaSpeed => {
     let s = funded(); s.profile.meta.attackSpeed = metaSpeed;
-    s.run!.enemies = [enemy(s, 'ordinary', 8)]; s.run!.spawned = waveConfig(1).count;
+    s.run!.enemies = [enemy(s, 'ordinary', 7)]; s.run!.spawned = waveConfig(1).count;
     const oldSpeed = getStats(s).attackSpeed;
     s.run!.shotCooldown = .6 / oldSpeed;
     const before = s.run!.shotCooldown;
@@ -138,7 +138,7 @@ describe('immediate upgrade timing', () => {
   });
   it('preserves firing-cycle progress through repeated paused purchases without a free burst', () => {
     let s = funded(); s.run!.shotCooldown = .8;
-    s.run!.enemies = [enemy(s, 'ordinary', 8)]; s.run!.spawned = waveConfig(1).count;
+    s.run!.enemies = [enemy(s, 'ordinary', 7)]; s.run!.spawned = waveConfig(1).count;
     s = setPaused(s, true);
     for (let i = 0; i < 4; i++) s = buyRunUpgrade(s, 'attackSpeed');
     expect(s.run!.shotCooldown).toBeCloseTo(.8 / 1.4, 12);
@@ -151,13 +151,13 @@ describe('immediate upgrade timing', () => {
     s = step(s); expect(s.events.filter(e => e.type === 'shot')).toHaveLength(1);
   });
   it('keeps an already-ready shot ready, without firing as a side effect of purchase', () => {
-    const s = funded(); s.run!.enemies = [enemy(s, 'ordinary', 8)];
+    const s = funded(); s.run!.enemies = [enemy(s, 'ordinary', 7)];
     const upgraded = buyRunUpgrade(s, 'attackSpeed');
     expect(upgraded.run!.shotCooldown).toBe(0); expect(upgraded.run!.bullets).toHaveLength(0);
     expect(step(upgraded).events.filter(e => e.type === 'shot')).toHaveLength(1);
   });
   it('uses new damage for the next shot while in-flight projectiles retain their captured damage', () => {
-    let s = funded(); s.run!.enemies = [enemy(s, 'ordinary', 8)]; s.run!.spawned = waveConfig(1).count;
+    let s = funded(); s.run!.enemies = [enemy(s, 'ordinary', 7)]; s.run!.spawned = waveConfig(1).count;
     s = step(s);
     const bullet = structuredClone(s.run!.bullets[0]), remaining = s.run!.shotCooldown;
     expect(bullet.damage).toBe(10);
@@ -177,7 +177,7 @@ describe('immediate upgrade timing', () => {
 
 describe('deterministic combat and timing', () => {
   it('uses exact enemy growth, first fast wave4, and only one exact boss on wave30', () => {
-    expect(waveConfig(1)).toEqual({ count: 18, interval: 1.65, jitter: .2, fastEvery: 0, rangedEvery: 0, burstSize: 2, boss: false });
+    expect(waveConfig(1)).toEqual({ count: 18, interval: 1.25, jitter: .2, fastEvery: 0, rangedEvery: 0, burstSize: 3, boss: false });
     for (let wave = 1; wave < 30; wave++) expect(waveConfig(wave).count).toBe(3 * (6 + Math.floor((wave - 1) * .55)));
     expect(enemyStats('ranged', 6).speed).toBe(2);
     expect(waveConfig(3).fastEvery).toBe(0); expect(waveConfig(4).fastEvery).toBe(4);
@@ -205,10 +205,10 @@ describe('deterministic combat and timing', () => {
       if (size) batches.push({ tick: s.run!.tick, size });
       expect(s.run?.sectorStreak ?? 0).toBeLessThanOrEqual(2);
     }
-    expect(batches.map(batch => batch.size)).toEqual([...Array(9).fill(1), 2, 2, 2, 3]);
+    expect(batches.map(batch => batch.size)).toEqual([...Array(5).fill(1), 3, 3, 3, 4]);
     for (let i = 1; i < batches.length; i++) {
       const gap = (batches[i].tick - batches[i - 1].tick) * DT;
-      const expected = i <= 9 ? config.interval : batches[i - 1].size * 1.15;
+      const expected = i <= 5 ? config.interval : 2.05;
       expect(gap).toBeGreaterThanOrEqual(expected - config.jitter - 1e-9);
       expect(gap).toBeLessThanOrEqual(expected + config.jitter + DT);
     }
@@ -216,16 +216,16 @@ describe('deterministic combat and timing', () => {
   it('selects nearest automatically, ties by stable numeric ID, and bullets travel at16', () => {
     const s = startRun(createState(), 1), r = s.run!;
     r.spawnCooldown = 99;
-    const a = enemy(s, 'ordinary', 8), b = enemy(s, 'ordinary', 4), c = enemy(s, 'ordinary', -4);
+    const a = enemy(s, 'ordinary', 7), b = enemy(s, 'ordinary', 4), c = enemy(s, 'ordinary', -4);
     r.enemies = [a, c, b];
     const n = step(s);
     expect(n.events.find(e => e.type === 'shot')).toMatchObject({ targetId: b.id });
     expect(n.run!.bullets[0].x).toBeCloseTo(16 / 30);
     expect(n.run!.enemies[1].hp).toBe(20);
   });
-  it('does not attack beyond range10', () => {
+  it('does not attack just beyond its range', () => {
     const s = startRun(createState(), 1); s.run!.spawnCooldown = 99;
-    s.run!.enemies = [enemy(s, 'ordinary', 11)];
+    s.run!.enemies = [enemy(s, 'ordinary', TURRET_RANGE + .1)];
     expect(step(s).events.some(e => e.type === 'shot')).toBe(false);
   });
   it('single-hit bullets award each enemy exactly once', () => {
@@ -299,7 +299,7 @@ describe('boundaries, outcomes, and persistence', () => {
     for (const k of STAT_KEYS) legacy = buyRunUpgrade(legacy, k);
     if (phase === 'interwave') legacy = clearAtNextTick(legacy);
     else {
-      legacy.run!.enemies = [enemy(legacy, 'ordinary', 8)];
+      legacy.run!.enemies = [enemy(legacy, 'ordinary', 7)];
       legacy.run!.spawned = waveConfig(1).count;
       legacy = step(legacy);
       expect(legacy.run!.bullets[0].damage).toBe(12);
@@ -311,7 +311,7 @@ describe('boundaries, outcomes, and persistence', () => {
     for (const k of STAT_KEYS) { r.gold -= runPrice(k, r.levels[k]); r.levels[k]++; }
     const json = serializeState(legacy), loaded = parseState(json)!;
     expect(loaded).not.toBeNull(); expect(loaded.version).toBe(1);
-    expect(getStats(loaded)).toEqual({ damage: 14, maxHp: 140, attackSpeed: 1.2, regen: 1, range: 10 });
+    expect(getStats(loaded)).toEqual({ damage: 14, maxHp: 140, attackSpeed: 1.2, regen: 1, range: TURRET_RANGE });
     const expected = structuredClone(legacy); expected.events = [];
     expected.run!.activeLevels = { ...r.levels }; expected.run!.shotCooldown *= 1.1 / 1.2;
     expect(loaded).toEqual(expected);
@@ -325,7 +325,7 @@ describe('boundaries, outcomes, and persistence', () => {
     expect(step(setPaused(loaded, false)).run!.hp).toBeCloseTo(47.125 + DT, 12);
   });
   it('validates legacy saves before activating upgrades, so migration cannot legitimize invalid HP or projectiles', () => {
-    const legacy = funded(); legacy.run!.enemies = [enemy(legacy, 'ordinary', 8)];
+    const legacy = funded(); legacy.run!.enemies = [enemy(legacy, 'ordinary', 7)];
     const withBullet = step(legacy);
     withBullet.run!.levels.maxHp = 1; withBullet.run!.levels.damage = 1;
     const json = serializeState(withBullet), invalidHp = JSON.parse(json), invalidBullet = JSON.parse(json);
@@ -461,7 +461,7 @@ describe('boundaries, outcomes, and persistence', () => {
   });
   it('rejects malformed, extra-field, non-finite, out-of-bounds and duplicate saves', () => {
     expect(parseState('{bad')).toBeNull(); expect(parseState('null')).toBeNull();
-    const fixture = startRun(createState(), 66); fixture.run!.enemies = [enemy(fixture, 'ordinary', 8)];
+    const fixture = startRun(createState(), 66); fixture.run!.enemies = [enemy(fixture, 'ordinary', 7)];
     const valid = JSON.parse(serializeState(step(fixture)));
     const reject = (mutate: (s: any) => void) => { const s = structuredClone(valid); mutate(s); expect(parseState(JSON.stringify(s))).toBeNull(); };
     reject(s => s.profile.crystals = -1); reject(s => s.profile.meta.damage = 11);
@@ -473,7 +473,7 @@ describe('boundaries, outcomes, and persistence', () => {
   it('continues a dense seeded wave identically after save and restore', () => {
     const state = step(atWave(22, 42), 10);
     const restored = parseState(serializeState(state))!;
-    expect(restored.run!.warnings).toHaveLength(4);
+    expect(restored.run!.warnings).toHaveLength(waveConfig(22).burstSize);
     expect(serializeState(step(restored, 300))).toBe(serializeState(step(state, 300)));
   });
 });
@@ -526,15 +526,36 @@ describe('telegraphed attack states and hostile projectiles', () => {
     if (kind === 'ranged') expect(striking.run!.hp).toBe(100), expect(striking.run!.enemyProjectiles).toHaveLength(1);
     else expect(striking.run!.hp).toBe(100 - enemyStats(kind, wave).damage / config.hitOffsets.length);
   });
-  it('stops the ranged robot at7.5 inside turret range without drifting while it attacks', () => {
+  it('stops the ranged robot at the edge of turret range without drifting while it attacks', () => {
     let s = isolated('ranged', 6, 7.5 + 2 * DT); s.run!.shotCooldown = 99;
     s = step(s, 2);
     expect(s.run!.enemies[0].x).toBeCloseTo(7.5, 12);
     expect(s.run!.enemies[0].attackPhase).toBe('windup');
     s = step(s, 90);
     expect(s.run!.enemies[0].x).toBeCloseTo(7.5, 12);
-    expect(attackConfig('ranged').range).toBeLessThan(getStats(s).range);
+    expect(attackConfig('ranged').range).toBe(getStats(s).range);
     expect(s.events.filter(e => e.type === 'enemyShot')).toHaveLength(1);
+  });
+  it('can aim at the ranged mech exactly at the edge, but aims at its nearer escorts first', () => {
+    const s = isolated('ranged', 6, 7.5);
+    const leader = s.run!.enemies[0];
+    leader.x = 7.5 * Math.cos(.67); leader.y = 7.5 * Math.sin(.67);
+    s.run!.shotCooldown = 0;
+    expect(step(s).events.find(e => e.type === 'shot')).toMatchObject({ targetId: leader.id });
+    const escort = enemy(s, 'ordinary', 6.2); s.run!.enemies.push(escort);
+    expect(step(s).events.find(e => e.type === 'shot')).toMatchObject({ targetId: escort.id });
+  });
+  it('queues both escorts with the ranged mech and materializes all three on the same tick', () => {
+    const s = atWave(6, 42); s.run!.spawned = 4;
+    const warned = step(s);
+    const wave = warned.run!.warnings;
+    const trio = wave.filter(e => e.kind === 'ranged' || Math.hypot(e.x, e.y) < 11);
+    expect(trio.map(e => e.kind).sort()).toEqual(['ordinary', 'ordinary', 'ranged']);
+    const saved = parseState(serializeState(warned))!;
+    expect(saved.run!.warnings).toEqual(wave);
+    expect(step(saved, 14).events.filter(e => e.type === 'spawn')).toHaveLength(0);
+    const emerged = step(saved, 15).events.filter(e => e.type === 'spawn');
+    expect(emerged).toEqual(expect.arrayContaining(trio.map(e => expect.objectContaining({id: e.id}))));
   });
   it('launches from the cannon muzzle and deals damage only when its traveling bolt arrives once', () => {
     const launched = rangedLaunch(), r = launched.run!, projectile = r.enemyProjectiles[0];
@@ -646,15 +667,15 @@ describe('telegraphed attack states and hostile projectiles', () => {
 
 describe('circle crowds and combat-save migration', () => {
   it('waits for room for the complete next crowd without consuming RNG or entity IDs', () => {
-    const s = atWave(5), r = s.run!;
-    r.enemies = Array.from({ length: MAX_ENEMIES - 2 }, () => enemy(s, 'ordinary', 12));
+    const s = atWave(5), r = s.run!, size = waveConfig(5).burstSize;
+    r.enemies = Array.from({ length: MAX_ENEMIES - size + 1 }, () => enemy(s, 'ordinary', 12));
     const rng = r.rngState, id = r.nextEntityId;
     const blocked = step(s);
     expect(blocked.run!.warnings).toHaveLength(0); expect(blocked.run!.spawned).toBe(0);
     expect(blocked.run!.rngState).toBe(rng); expect(blocked.run!.nextEntityId).toBe(id);
     blocked.run!.enemies.pop();
     const allowed = step(blocked);
-    expect(allowed.run!.warnings).toHaveLength(3);
+    expect(allowed.run!.warnings).toHaveLength(size);
     expect(allowed.run!.enemies.length + allowed.run!.warnings.length).toBe(MAX_ENEMIES);
     expect(step(blocked)).toEqual(allowed);
   });
@@ -668,12 +689,25 @@ describe('circle crowds and combat-save migration', () => {
       const warnings = s.events.filter((e): e is Extract<GameEvent, { type: 'warning' | 'spawn' }> => e.type === 'warning');
       if (warnings.length) {
         crowds++;
-        expect(warnings.length).toBeGreaterThanOrEqual(Math.min(3, waveConfig(wave).burstSize)); expect(warnings.length).toBeLessThanOrEqual(5);
-        const angles = warnings.map(e => Math.atan2(e.y, e.x));
-        for (const w of warnings) expect(Math.hypot(w.x, w.y)).toBeCloseTo(12, 12);
+        expect(warnings.length).toBeGreaterThanOrEqual(3);
+        expect(warnings.length).toBeLessThanOrEqual(MAX_SPAWN_GROUP);
+        const atPerimeter = warnings.filter(e => Math.hypot(e.x, e.y) > 11);
+        const angles = atPerimeter.map(e => Math.atan2(e.y, e.x));
+        for (const warning of warnings) {
+          const radius = Math.hypot(warning.x, warning.y);
+          expect(radius).toBeCloseTo(radius > 11 ? SPAWN_RADIUS : ESCORT_SPAWN_RADIUS, 12);
+        }
         for (let i = 0; i < angles.length; i++) for (let j = i + 1; j < angles.length; j++) {
-          const difference = Math.abs(Math.atan2(Math.sin(angles[i] - angles[j]), Math.cos(angles[i] - angles[j])));
-          expect(difference).toBeGreaterThanOrEqual(Math.PI / 3 - 1e-9);
+          const gap = Math.abs(Math.atan2(Math.sin(angles[i] - angles[j]), Math.cos(angles[i] - angles[j])));
+          expect(gap).toBeGreaterThanOrEqual((Math.PI / 6) * Math.floor(12 / warnings.length) - 1e-9);
+        }
+        for (const leader of warnings.filter(e => e.kind === 'ranged')) {
+          const angle = Math.atan2(leader.y, leader.x);
+          const escorts = warnings.filter(e => {
+            const d = Math.atan2(e.y, e.x) - angle;
+            return e.kind === 'ordinary' && Math.hypot(e.x, e.y) < 11 && Math.abs(Math.atan2(Math.sin(d), Math.cos(d))) < .12;
+          });
+          expect(escorts).toHaveLength(2);
         }
       }
       spawns += s.events.filter(e => e.type === 'spawn').length;

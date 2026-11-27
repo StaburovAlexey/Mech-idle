@@ -7,6 +7,7 @@ import { COMBAT_COLORS, applyCombatPalette } from './combatPalette';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { ImportedMechs, loadOplotModels } from './oplotModels';
 import { createPortalMesh, PORTAL_CLOSE, PORTAL_CAPACITY, spawnRise } from './spawnPortal';
+import { TURRET_RANGE } from './game';
 import { CITY_YAW, sandHeight } from './sandTerrain';
 
 export interface SceneEnemy { id: number | string; kind: EnemyModelKind; x: number; y: number; hp: number; maxHp: number; attackPhase?: AttackPhase; attackTime?: number; attackDuration?: number }
@@ -192,7 +193,7 @@ export class SceneView {
     this.turretRing.position.y = .095; this.scene.add(this.turretRing);
     // Centerline is exactly the simulation's firing radius, with subtle ground paint.
     this.rangeRing = new THREE.Mesh(ring(.994, 1.006, 256), new THREE.MeshBasicMaterial({ color: 0xe6faff, transparent: true, opacity: .56, toneMapped: false, depthWrite: false, side: THREE.DoubleSide }));
-    this.rangeRing.position.y = .076; this.rangeRing.scale.set(10, 1, 10); this.scene.add(this.rangeRing);
+    this.rangeRing.position.y = .076; this.rangeRing.scale.set(TURRET_RANGE, 1, TURRET_RANGE); this.scene.add(this.rangeRing);
     this.observer = new ResizeObserver(() => this.resize()); this.observer.observe(container);
     this.resize();
     void this.loadModels();
@@ -442,7 +443,7 @@ export class SceneView {
   render(frame: SceneFrame, dt: number) {
     if (this.disposed) return;
     dt = frame.paused ? 0 : Math.max(0, Math.min(dt || 0, .05)); this.clock += dt;
-    const range = Number.isFinite(frame.range) && frame.range! > 0 ? frame.range! : 10;
+    const range = Number.isFinite(frame.range) && frame.range! > 0 ? frame.range! : TURRET_RANGE;
     this.rangeRing.scale.set(range, 1, range);
     const playing = frame.phase === 'playing' || frame.phase === 'active' || frame.phase === 'combat' || frame.phase === 'wave';
     const menu = frame.phase === 'menu' || frame.phase === 'ready' || frame.phase === 'title';

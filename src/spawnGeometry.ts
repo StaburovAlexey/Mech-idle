@@ -4,8 +4,8 @@ export const SPAWN_RADIUS = 12;
 /** Old viewport-based saves allowed distant units; validated only for migration. */
 export const WORLD_LIMIT = 100000;
 
-export function spawnPoint(angle: number): SpawnPoint {
-  return { x: Math.cos(angle) * SPAWN_RADIUS, y: Math.sin(angle) * SPAWN_RADIUS };
+export function spawnPoint(angle: number, radius = SPAWN_RADIUS): SpawnPoint {
+  return { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius };
 }
 /** Preserve an old approach direction while bringing its warning onto the circle. */
 export function onSpawnCircle(point: SpawnPoint): SpawnPoint {

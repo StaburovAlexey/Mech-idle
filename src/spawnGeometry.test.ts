@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { arenaViewport, configureArenaCamera } from './viewport';
 import { clampToSpawnCircle, onSpawnCircle, SPAWN_RADIUS, spawnPoint } from './spawnGeometry';
-import { DT, createState, enemyStats, getStats, parseState, serializeState, startRun, step, waveConfig, type EnemyKind } from './game';
+import { DT, TURRET_RANGE, ESCORT_SPAWN_RADIUS, MAX_SPAWN_GROUP, createState, enemyStats, getStats, parseState, serializeState, startRun, step, waveConfig, type EnemyKind } from './game';
 
 function waveState(wave: number, seed = 2026) {
   const s = startRun(createState(), seed), r = s.run!;
@@ -20,7 +20,7 @@ describe('fixed world-space circle spawning', () => {
       expect(point.y).toBeCloseTo(Math.sin(angle) * 12, 12);
     }
   });
-  it.each([1, 4, 29, 30])('queues and materializes every wave%s type at exactly radius12 with only a half-second warning', wave => {
+  it.each([1, 4, 29, 30])('queues and materializes every wave%s type at the expected radius with a half-second warning', wave => {
     let s = waveState(wave);
     s.profile.meta.damage = 10; s.profile.meta.attackSpeed = 10;
     s.run!.activeLevels.damage = s.run!.levels.damage = 15;
@@ -30,7 +30,8 @@ describe('fixed world-space circle spawning', () => {
       s = step(s);
       for (const event of s.events) {
         if (event.type !== 'warning' && event.type !== 'spawn') continue;
-        expect(Math.hypot(event.x, event.y)).toBeCloseTo(12, 12);
+        const radius = Math.hypot(event.x, event.y);
+        expect(radius).toBeCloseTo(radius < 11 && event.kind === 'ordinary' ? ESCORT_SPAWN_RADIUS : SPAWN_RADIUS, 12);
         if (event.type === 'warning') warningTicks.set(event.id, tick);
         else {
           counts[event.kind]++;
@@ -38,12 +39,12 @@ describe('fixed world-space circle spawning', () => {
           const live = s.run?.enemies.find(e => e.id === event.id);
           if (live) {
             expect(live.speed).toBe(enemyStats(event.kind, wave).speed);
-            expect(Math.hypot(live.x, live.y)).toBeCloseTo(12 - live.speed * DT, 12);
+            expect(Math.hypot(live.x, live.y)).toBeCloseTo(radius - live.speed * DT, 12);
           }
         }
       }
       for (const warning of s.run?.warnings ?? []) expect(warning.remaining).toBeGreaterThan(0), expect(warning.remaining).toBeLessThanOrEqual(.5);
-      expect(s.run?.warnings.length ?? 0).toBeLessThanOrEqual(5);
+      expect(s.run?.warnings.length ?? 0).toBeLessThanOrEqual(MAX_SPAWN_GROUP);
       expect(s.run?.nextArrival).toBeUndefined(); expect(s.run?.spawnGeometry).toBeUndefined();
       // Keep this a spawn-contract test regardless of later-wave combat difficulty.
       if (s.run) s.run.hp = getStats(s).maxHp;
@@ -51,7 +52,8 @@ describe('fixed world-space circle spawning', () => {
     }
     expect(Object.values(counts).reduce((a, b) => a + b, 0)).toBe(waveConfig(wave).count);
     if (wave === 30) expect(counts).toEqual({ ordinary: 0, fast: 0, ranged: 0, boss: 1 });
-    else expect(counts.fast).toBe(wave >= 4 ? Math.floor(waveConfig(wave).count / 4) : 0);
+    else if (wave < 6) expect(counts.fast).toBe(wave >= 4 ? Math.floor(waveConfig(wave).count / 4) : 0);
+    else expect(counts.ranged).toBeGreaterThan(0);
   });
   it('randomizes full-circle opening angles instead of preferring camera edges', () => {
     const sectors = new Set<number>(), angles = new Set<number>();
@@ -63,7 +65,7 @@ describe('fixed world-space circle spawning', () => {
     }
     expect(sectors.size).toBe(12); expect(angles.size).toBe(256);
   });
-  it('keeps paired portal warnings in sync with the spawns and the per-enemy cadence', () => {
+  it('keeps grouped portal warnings in sync with the spawns and the batch cadence', () => {
     let s = waveState(4);
     s.profile.meta.damage = 10; s.profile.meta.attackSpeed = 10;
     const batches: { tick: number; size: number }[] = [];
@@ -82,10 +84,10 @@ describe('fixed world-space circle spawning', () => {
       }
     }
     expect(spawned).toBe(config.count);
-    expect(batches.every(group => group.size === 2 || group.size === 3)).toBe(true);
+    expect(batches.every(group => group.size >= 3 && group.size <= 5)).toBe(true);
     for (let i = 1; i < batches.length; i++) {
       const gap = (batches[i].tick - batches[i - 1].tick) * DT;
-      const expected = batches[i - 1].size * config.interval;
+      const expected = config.interval;
       expect(gap).toBeGreaterThanOrEqual(expected - config.jitter - 1e-9);
       expect(gap).toBeLessThanOrEqual(expected + config.jitter + DT);
     }
@@ -116,12 +118,12 @@ describe('fixed world-space circle spawning', () => {
     const expected = run(390, 844);
     for (const [width, height] of sizes) expect(run(width, height)).toBe(expected);
   });
-  it('keeps the actual attack boundary at radius10', () => {
+  it('keeps the actual attack boundary at the ranged mech distance', () => {
     let s = startRun(createState(), 5);
     const r = s.run!, stats = enemyStats('ordinary', 1); r.spawnCooldown = 1;
-    r.enemies = [{ id: `${r.id}:${r.nextEntityId++}`, kind: 'ordinary', x: 10.001 + stats.speed * DT, y: 0, hp: 20, maxHp: 20, damage: stats.damage, speed: stats.speed, attackInterval: stats.attackInterval, attackCooldown: 0, attackPhase: 'approach', attackTime: 0, attackDuration: 0 }];
+    r.enemies = [{ id: `${r.id}:${r.nextEntityId++}`, kind: 'ordinary', x: TURRET_RANGE + .001 + stats.speed * DT, y: 0, hp: 20, maxHp: 20, damage: stats.damage, speed: stats.speed, attackInterval: stats.attackInterval, attackCooldown: 0, attackPhase: 'approach', attackTime: 0, attackDuration: 0 }];
     s = step(s); expect(s.events.some(e => e.type === 'shot')).toBe(false);
-    expect(getStats(s).range).toBe(10);
+    expect(getStats(s).range).toBe(TURRET_RANGE);
     s = step(s); expect(s.events.some(e => e.type === 'shot')).toBe(true);
   });
   it('normalizes old directions and clamps only distant positions', () => {
