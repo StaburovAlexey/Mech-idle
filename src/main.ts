@@ -186,8 +186,8 @@ function animate(now:number){
  }else accumulator=0;
  if(scene){
   const frame=frameForScene(spawns);
-  const animateTitle=frame.phase==='title'&&!document.hidden&&!pause.reasons.has('focus')&&!pause.reasons.has('dialog');
-  scene.render(frame,animateTitle||!pause.paused?delta:0);
+  const animatePresentation=(frame.phase==='title'||frame.phase==='workshop')&&!document.hidden&&!pause.reasons.has('focus')&&!pause.reasons.has('dialog');
+  scene.render(frame,animatePresentation||!pause.paused?delta:0);
  }
  uiTimer+=delta;saveTimer+=delta;toastTimer-=delta;
  if(toastTimer<=0)$('#toast').classList.remove('show');
