@@ -144,7 +144,7 @@ describe('main menu', () => {
     expect(element('#workshop-damage .workshop-next').textContent).toBe('→ 11 урона');
     advanceFrames();
     expect(fakes.render.mock.calls.at(-1)?.[0].phase).toBe('workshop');
-    expect(fakes.render.mock.calls.at(-1)?.[1]).toBe(0);
+    expect(fakes.render.mock.calls.at(-1)?.[1]).toBeGreaterThan(0);
     click('[data-workshop-stat="damage"]');
     expect(element('#menu-crystals').textContent).toBe('2');
     expect(saved().profile.meta.damage).toBe(1);

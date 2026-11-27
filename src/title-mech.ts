@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
+import { workshopAim } from './workshop-aim';
 
 /** A single presentation actor, independent of arena enemies and simulation time. */
 export class TitleMech {
@@ -8,6 +9,8 @@ export class TitleMech {
   private readonly camera = new THREE.OrthographicCamera();
   private model?: THREE.Object3D;
   private mixer?: THREE.AnimationMixer;
+  private aimPivot?: THREE.Group;
+  private aimTime = 0;
   private width = 1;
   private height = 1;
   private readonly motion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -41,6 +44,16 @@ export class TitleMech {
       }
     });
     this.model = model;
+    if (this.turret) {
+      const head = model.getObjectByName('Head');
+      const barrel = model.getObjectByName('Barrel');
+      if (head && barrel) {
+        this.aimPivot = new THREE.Group();
+        model.add(this.aimPivot);
+        this.aimPivot.add(head, barrel);
+        this.aimPivot.rotation.y = workshopAim(0);
+      }
+    }
     const idle = !this.turret && source.animations.find(clip => clip.name === 'Idle');
     if (idle) {
       this.mixer = new THREE.AnimationMixer(model);
@@ -57,8 +70,13 @@ export class TitleMech {
   }
 
   render(renderer: THREE.WebGLRenderer, delta: number) {
-    if (!this.dirty && (delta <= 0 || this.motion.matches || !this.mixer)) return;
-    if (!this.motion.matches) this.mixer?.update(Math.max(0, Math.min(.05, delta)));
+    const animate = delta > 0 && !this.motion.matches && (this.mixer || this.aimPivot);
+    if (!this.dirty && !animate) return;
+    if (animate) {
+      const dt = Math.min(.05, delta);
+      this.mixer?.update(dt);
+      if (this.aimPivot) this.aimPivot.rotation.y = workshopAim(this.aimTime += dt);
+    }
     const aspect = this.width / this.height;
     const y = this.turret ? Math.max(.71, 1.24 / aspect) : Math.max(.55, .30 / aspect);
     this.camera.left = -y * aspect;

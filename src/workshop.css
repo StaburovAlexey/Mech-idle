@@ -1,6 +1,7 @@
 .shell.at-workshop {
   max-width: none; width: 100%; padding: 0; gap: 0;
-  background: radial-gradient(ellipse at 50% 22%,#514039,#211a20 65%,#17141a);
+  background: linear-gradient(180deg,#241b241b,transparent 35%,#211a2133 63%,#17131e4a),
+    #3c2928 url('/assets/ui/workshop/sand-workshop.webp') center top / cover no-repeat;
 }
 .at-workshop > :is(.topbar,.foot,.section-head,.upgrades) { display: none; }
 .shell.at-workshop .workspace {
@@ -24,20 +25,14 @@
   background: linear-gradient(#373135,#1c181e); border-color: #76645e;
   box-shadow: inset 0 1px #a5836a44, 0 3px #141015;
 }
-.workshop-hero {
-  grid-row: 2; grid-column: 1;
-  aspect-ratio: 2.28; border: 2px solid #18141a; border-radius: 12px;
-  background: linear-gradient(180deg,#18141c22,transparent 33%,transparent 80%,#21191c57),
-    #3c2c30 url('/assets/ui/workshop/bench.webp') center / cover no-repeat;
-  box-shadow: inset 0 1px #a08b7460, 0 4px 8px #110e13c9;
-}
+.workshop-hero { grid-row: 2; grid-column: 1; aspect-ratio: 2.05; }
 .shell.at-workshop .arena-wrap {
   display: block; grid-row: 2; grid-column: 1; z-index: 1;
   min-height: 0; width: 100%; height: auto; margin: 0; overflow: visible;
   background: transparent; border: 0; border-radius: 0; pointer-events: none;
 }
 .at-workshop .arena-wrap::before {
-  content: ''; position: absolute; inset: 79% 25% auto; height: 12%;
+  content: ''; position: absolute; inset: 74% 30% auto; height: 9%;
   background: radial-gradient(ellipse,#1a1415ba,transparent 68%);
 }
 .at-workshop .arena { background: transparent; inset: 0 0 11%; }
@@ -81,6 +76,7 @@
   font-size: clamp(18px,5.5vw,30px);
 }
 @media (min-width: 800px) {
+  .shell.at-workshop { background-position: center 34%; }
   .shell.at-workshop .workspace {
     max-width: 1140px; grid-template-columns: minmax(0,1fr) minmax(390px,.95fr);
     grid-template-rows: auto auto auto; gap: 18px 20px; padding-inline: 28px;
