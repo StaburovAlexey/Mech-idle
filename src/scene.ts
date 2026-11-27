@@ -7,6 +7,7 @@ import { COMBAT_COLORS, applyCombatPalette } from './combatPalette';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { ImportedMechs, loadOplotModels } from './oplotModels';
 import { createPortalMesh, PORTAL_CLOSE, PORTAL_CAPACITY, spawnRise } from './spawnPortal';
+import { CITY_YAW, sandHeight } from './sandTerrain';
 
 export interface SceneEnemy { id: number | string; kind: EnemyModelKind; x: number; y: number; hp: number; maxHp: number; attackPhase?: AttackPhase; attackTime?: number; attackDuration?: number }
 type PortalPoint = { id: string; x: number; y: number; kind: string };
@@ -32,7 +33,6 @@ type UnitPartBatch = { definition: EnemyModelPart; mesh: THREE.InstancedMesh; wo
 type UnitBatch = { model: EnemyModel; parts: UnitPartBatch[]; byName: Partial<Record<EnemyPartName, UnitPartBatch>>; count: number };
 const C = { cream: 0xe8dbc0, creamLight: 0xf8ecd4, teal: 0x21666a, tealLight: 0x398c8c, cyan: 0x40eeff, charcoal: 0x343d40, dark: 0x1c292e, black: 0x151e21, steel: 0x637075, red: 0xd04d3c, redLight: 0xf47754, amber: 0xffbb43, hazard: 0xdcae43 };
 const CITY_FLOOR = .048;
-const CITY_YAW = Math.atan2(14, 17) - .20;
 const MAX_UNITS = 24;
 const MAX_RENDER_DPR = 2;
 const MAX_ENEMY_PROJECTILES = 32;
@@ -183,7 +183,7 @@ export class SceneView {
     this.enemyProjectileMesh = this.instances(new THREE.SphereGeometry(.105, 6, 4), new THREE.MeshBasicMaterial({ color: 0xff5e31, toneMapped: false }), MAX_ENEMY_PROJECTILES);
     this.impactMesh = this.instances(ring(.65, .77, 24), new THREE.MeshBasicMaterial({ color: 0xffac39, transparent: true, opacity: .76, depthWrite: false, toneMapped: false }), MAX_UNITS);
     this.particleMesh = this.instances(new THREE.OctahedronGeometry(.10, 0), new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }), MAX_PARTICLES);
-    this.scene.add(this.portals.mesh);
+    this.scene.add(this.portals.mesh, this.portals.occluded);
     this.hpBack = this.instances(new THREE.PlaneGeometry(1, .07), new THREE.MeshBasicMaterial({ color: 0x10262b, transparent: true, opacity: .8, depthWrite: false }), MAX_UNITS);
     this.hpFront = this.instances(new THREE.PlaneGeometry(1, .045), new THREE.MeshBasicMaterial({ color: 0xff7955, toneMapped: false, depthWrite: false }), MAX_UNITS);
     this.targetRing = new THREE.Mesh(ring(.72, .755, 48), new THREE.MeshBasicMaterial({ color: 0xff7252, transparent: true, opacity: .6, toneMapped: false, depthWrite: false }));
@@ -215,22 +215,7 @@ export class SceneView {
     ground.rotation.x = -Math.PI / 2; ground.position.y = CITY_FLOOR; ground.receiveShadow = true;
     city.add(ground);
 
-    // Dunes lap against the buses and facades. The inner playfield stays below the portal and shadow planes.
-    const drifts = [
-      [-6.15, 12.6, 3.0, 1.65, .49], [6.9, 12.3, 2.9, 1.65, .52],
-      [-5.5, -15.65, 5.3, 2.75, .73], [5.7, -20.6, 4.9, 3.1, .84],
-      [-12.7, -14.2, 3.8, 3.0, .52], [11.85, -14.25, 4.4, 3.05, .65],
-      [-14.2, 1.5, 2.35, 6.0, .34], [14.65, -.7, 2.95, 5.6, .37],
-    ] as const;
-    const sandHeight = (x: number, z: number) => {
-      let rise = 0;
-      for (const [cx, cz, wx, wz, h] of drifts) {
-        const u = (x - cx) / wx, v = (z - cz + (x - cx) * .2) / wz;
-        rise += h * Math.exp(-u * u - v * v);
-      }
-      const open = THREE.MathUtils.smoothstep(Math.hypot(x, z), 12.20, 13.60);
-      return .053 + open * rise;
-    };
+    // Dunes lap against the wrecks while the central playfield stays flat.
     const sand = new THREE.PlaneGeometry(43, 55, 70, 84).rotateX(-Math.PI / 2);
     const positions = sand.getAttribute('position'), shades = new Float32Array(positions.count * 3);
     const dark = new THREE.Color(0xa99778), sunlit = new THREE.Color(0xc3b49a), color = new THREE.Color();
@@ -539,17 +524,17 @@ export class SceneView {
     (this.turretRing.material as THREE.MeshBasicMaterial).opacity = .44 + Math.sin(this.clock * 2) * .1;
     if (frame.target && playing) { this.targetRing.visible = true; this.targetRing.position.set(frame.target.x, .085, frame.target.y); }
     else this.targetRing.visible = false;
-    const { mesh: portalMesh, timing } = this.portals;
+    const { mesh: portalMesh, timing, occluded } = this.portals;
     let portalIndex = 0;
     const addPortal = (point: PortalPoint, age: number) => {
       if (portalIndex >= PORTAL_CAPACITY) return;
       const size = point.kind === 'boss' ? 2.6 : 1.63;
-      portalMesh.setMatrixAt(portalIndex, matrix(point.x, .081, point.y, 0, size, 1, size));
+      portalMesh.setMatrixAt(portalIndex, matrix(point.x, .048, point.y, 0, size, 1, size));
       timing.setXY(portalIndex++, age, point.x * .73 + point.y * .41);
     };
     if (playing) for (const warning of frame.warnings ?? []) addPortal(warning, -warning.remaining);
     for (const spawn of this.arrivals.values()) addPortal(spawn, t - spawn.time);
-    portalMesh.count = portalIndex; portalMesh.instanceMatrix.needsUpdate = timing.needsUpdate = true;
+    portalMesh.count = occluded.count = portalIndex; portalMesh.instanceMatrix.needsUpdate = timing.needsUpdate = true;
     let pIndex = 0;
     this.particles = this.particles.filter(p => {
       p.life -= dt; if (p.life <= 0) return false;

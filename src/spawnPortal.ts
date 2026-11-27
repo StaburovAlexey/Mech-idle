@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { sandHeightGLSL } from './sandTerrain';
 
 export const PORTAL_CAPACITY = 48;
 export const PORTAL_CLOSE = .82;
@@ -8,23 +9,28 @@ export function spawnRise(age: number) {
 }
 
 export function createPortalMesh() {
-  const geometry = new THREE.PlaneGeometry(2, 2).rotateX(-Math.PI / 2);
+  const geometry = new THREE.PlaneGeometry(2, 2, 8, 8).rotateX(-Math.PI / 2);
   const timing = new THREE.InstancedBufferAttribute(new Float32Array(PORTAL_CAPACITY * 2), 2).setUsage(THREE.DynamicDrawUsage);
   geometry.setAttribute('timing', timing);
   // One transparent draw for every warning, vortex and expanding shock ring.
   const material = new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, toneMapped: false,
+    uniforms: { occludedOnly: { value: 0 } },
     vertexShader: `
       attribute vec2 timing;
       varying vec2 p;
       varying vec2 effect;
+      ${sandHeightGLSL}
       void main() {
         p = uv * 2.0 - 1.0;
         effect = timing;
-        gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0);
+        vec4 world = modelMatrix * instanceMatrix * vec4(position, 1.0);
+        world.y += groundHeight(world.xz);
+        gl_Position = projectionMatrix * viewMatrix * world;
       }
     `,
     fragmentShader: `
+      uniform float occludedOnly;
       varying vec2 p;
       varying vec2 effect;
       void main() {
@@ -46,12 +52,24 @@ export function createPortalMesh() {
         vec3 color = mix(vec3(.24, .003, .014), vec3(1.0, .029, .037), min(1.0, heat + glow * .33));
         color = mix(color, vec3(1.0, .27, .12), thread * thread * .42);
         float alpha = max(wave * .7, closing * (.67 * core + .28 * glow + .42 * thread));
-        gl_FragColor = vec4(color, min(alpha, 1.0) * mix(.35, 1.0, opening));
+        // If opaque scenery hides part of the portal, keep only a thin warning rim through it.
+        // The vortex and sparks still obey normal occlusion, so the building does not glow red.
+        float hiddenOutline = thread * closing * .64;
+        gl_FragColor = vec4(color, mix(min(alpha, 1.0), hiddenOutline, occludedOnly) * mix(.35, 1.0, opening));
         #include <colorspace_fragment>
       }
     `,
   });
   const mesh = new THREE.InstancedMesh(geometry, material, PORTAL_CAPACITY);
   mesh.count = 0; mesh.frustumCulled = false; mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  return { mesh, timing };
+  mesh.name = 'spawn-portals-ground';
+  const hiddenMaterial = material.clone();
+  hiddenMaterial.uniforms.occludedOnly.value = 1;
+  hiddenMaterial.depthFunc = THREE.GreaterDepth;
+  const occluded = new THREE.InstancedMesh(geometry, hiddenMaterial, PORTAL_CAPACITY);
+  occluded.name = 'spawn-portals-occluded-rim';
+  occluded.instanceMatrix = mesh.instanceMatrix;
+  occluded.count = 0; occluded.frustumCulled = false;
+  occluded.renderOrder = 6;
+  return { mesh, timing, occluded };
 }

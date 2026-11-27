@@ -28,7 +28,7 @@ function cpuScene() {
     view.batches[kind] = { model, parts, byName, count: 0 };
   }
   for (const name of ['impactMesh', 'hpBack', 'hpFront']) view[name] = mesh(24);
-  view.bulletMesh = mesh(80); view.enemyProjectileMesh = mesh(32); view.particleMesh = mesh(100); view.portals = createPortalMesh(); view.arrivals = new Map(); view.scene.add(view.portals.mesh);
+  view.bulletMesh = mesh(80); view.enemyProjectileMesh = mesh(32); view.particleMesh = mesh(100); view.portals = createPortalMesh(); view.arrivals = new Map(); view.scene.add(view.portals.mesh, view.portals.occluded);
   for (const name of ['rangeRing', 'turretRing', 'targetRing']) { view[name] = new THREE.Mesh(new THREE.RingGeometry(.9, 1, 8), new THREE.MeshBasicMaterial()); view.scene.add(view[name]); }
   return view;
 }
@@ -88,6 +88,9 @@ describe('real enemy instance rendering', () => {
     const point = { id: enemy.id, kind: enemy.kind, x: enemy.x, y: enemy.y };
     view.render({ ...current, warnings: [{ ...point, remaining: .25 }], enemies: [] }, .016);
     expect(view.portals.mesh.count).toBe(1);
+    expect(view.portals.occluded.count).toBe(1);
+    expect(view.portals.occluded.material.depthFunc).toBe(THREE.GreaterDepth);
+    expect(view.portals.occluded.instanceMatrix).toBe(view.portals.mesh.instanceMatrix);
     expect(view.portals.timing.getX(0)).toBeCloseTo(-.25);
     const arrival = { ...current, enemies: [enemy] };
     view.render({ ...arrival, spawns: [{ ...point, time: 20 }] }, .016);
@@ -105,6 +108,7 @@ describe('real enemy instance rendering', () => {
     expect(position.elements[13]).toBeGreaterThan(buried + 1.5);
     view.render({ ...arrival, elapsed: 20.84 }, .016);
     expect(view.portals.mesh.count).toBe(0);
+    expect(view.portals.occluded.count).toBe(0);
     view.dispose();
   });
 
