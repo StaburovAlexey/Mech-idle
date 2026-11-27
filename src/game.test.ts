@@ -157,7 +157,8 @@ describe('immediate upgrade timing', () => {
     expect(step(upgraded).events.filter(e => e.type === 'shot')).toHaveLength(1);
   });
   it('uses new damage for the next shot while in-flight projectiles retain their captured damage', () => {
-    let s = funded(); s.run!.enemies = [enemy(s, 'ordinary', 7)]; s.run!.spawned = waveConfig(1).count;
+    let s = funded(); s.run!.wave = 2; s.run!.lastPaidWave = s.run!.earnedCrystals = 1;
+    s.run!.enemies = [enemy(s, 'ordinary', 7)]; s.run!.spawned = waveConfig(2).count;
     s = step(s);
     const bullet = structuredClone(s.run!.bullets[0]), remaining = s.run!.shotCooldown;
     expect(bullet.damage).toBe(10);
@@ -168,7 +169,7 @@ describe('immediate upgrade timing', () => {
     expect(s.run!.bullets[0]).toEqual(bullet);
     s = step(s, 20);
     expect(s.events.find(e => e.type === 'hit')).toMatchObject({ amount: 10 });
-    expect(s.run!.enemies[0].hp).toBe(10);
+    expect(s.run!.enemies[0].hp).toBe(1);
     s = step(s, 10);
     expect(s.events.filter(e => e.type === 'shot')).toHaveLength(1);
     expect(s.run!.bullets[0].damage).toBe(12);
@@ -179,12 +180,11 @@ describe('deterministic combat and timing', () => {
   it('uses exact enemy growth, first fast wave4, and only one exact boss on wave30', () => {
     expect(waveConfig(1)).toEqual({ count: 18, interval: 1.25, jitter: .2, fastEvery: 0, rangedEvery: 0, burstSize: 3, boss: false });
     for (let wave = 1; wave < 30; wave++) expect(waveConfig(wave).count).toBe(3 * (6 + Math.floor((wave - 1) * .55)));
-    expect(enemyStats('ranged', 6).speed).toBe(2);
+    expect(enemyStats('ranged', 6)).toMatchObject({ maxHp: 10, speed: 2 });
     expect(waveConfig(3).fastEvery).toBe(0); expect(waveConfig(4).fastEvery).toBe(4);
-    expect(enemyStats('ordinary', 1)).toEqual({ maxHp: 20, damage: 10, speed: 2, attackInterval: 2, reward: 3 });
-    expect(enemyStats('fast', 4)).toEqual({ maxHp: 16, damage: 9, speed: 3.6, attackInterval: 2, reward: 4 });
-    expect(enemyStats('ordinary', 29).maxHp).toBe(76);
-    expect(enemyStats('ordinary', 19).maxHp).toBe(56); // no floating-point ceil-to57 drift
+    expect(enemyStats('ordinary', 1)).toEqual({ maxHp: 10, damage: 10, speed: 2, attackInterval: 2, reward: 3 });
+    expect(enemyStats('fast', 4)).toEqual({ maxHp: 10, damage: 9, speed: 3.6, attackInterval: 2, reward: 4 });
+    expect((['ordinary', 'fast', 'ranged'] as const).map(kind => enemyStats(kind, 29).maxHp)).toEqual([38, 35, 33]);
     expect(waveConfig(30).count).toBe(1);
     expect(enemyStats('boss', 30)).toEqual({ maxHp: 624, damage: 42, speed: 1.4, attackInterval: 2, reward: 50 });
   });
@@ -221,7 +221,7 @@ describe('deterministic combat and timing', () => {
     const n = step(s);
     expect(n.events.find(e => e.type === 'shot')).toMatchObject({ targetId: b.id });
     expect(n.run!.bullets[0].x).toBeCloseTo(16 / 30);
-    expect(n.run!.enemies[1].hp).toBe(20);
+    expect(n.run!.enemies[1].hp).toBe(10);
   });
   it('does not attack just beyond its range', () => {
     const s = startRun(createState(), 1); s.run!.spawnCooldown = 99;
@@ -284,6 +284,14 @@ describe('boundaries, outcomes, and persistence', () => {
     const n = step(s); expect(n.run).toBeNull(); expect(n.profile.crystals).toBe(7); expect(n.profile.meta.damage).toBe(2);
     const restart = startRun(n, 2); expect(restart.run?.gold).toBe(0); expect(restart.run?.levels.damage).toBe(0);
     expect(restart.run?.hp).toBeCloseTo(110); expect(restart.run?.enemies).toHaveLength(0); expect(restart.result).toBeNull();
+  });
+  it('migrates old enemy health, preserving its remaining fraction and the active run', () => {
+    const old = startRun(createState(), 123), run = old.run!;
+    run.enemies = [{ ...enemy(old, 'ordinary', 7), hp: 15, maxHp: 20 }];
+    const loaded = parseState(JSON.stringify({ ...old, events: [] }))!;
+    expect(loaded.run!.enemies[0]).toEqual({ ...run.enemies[0], hp: 7.5, maxHp: 10 });
+    const saved = serializeState(loaded);
+    expect(serializeState(parseState(saved)!)).toBe(saved);
   });
   it('round-trips full RNG, projectiles, purchases and paused state without offline advancement', () => {
     let s = step(startRun(createState(), 8181), 47); s = setPaused(s, true);
