@@ -154,6 +154,32 @@ describe('main menu', () => {
     click('#menu-help');
     expect(element('#modal-title').textContent).toBe('Как защитить оплот');
   });
+  it('switches only after both metal gates close and restores focus when they reopen', async () => {
+    await boot();
+    const gates = element('.workshop-gates');
+    const completion: Array<() => void> = [];
+    for (const leaf of gates.children) {
+      Object.defineProperty(leaf, 'animate', { value: vi.fn(() => ({
+        finished: new Promise<void>(resolve => completion.push(resolve)), cancel: vi.fn(),
+      })) });
+    }
+    click('#open-workshop');
+    click('#open-workshop');
+    expect(gates.hidden).toBe(false);
+    expect(element('.shell').inert).toBe(true);
+    expect(completion).toHaveLength(2);
+    completion[0]();
+    await Promise.resolve();
+    expect(element('.shell').classList.contains('at-front-menu')).toBe(true);
+    completion[1]();
+    await vi.waitFor(() => expect(completion).toHaveLength(4));
+    expect(element('.shell').classList.contains('at-workshop')).toBe(true);
+    expect(gates.hidden).toBe(false);
+    completion[2](); completion[3]();
+    await vi.waitFor(() => expect(gates.hidden).toBe(true));
+    expect(element('.shell').inert).toBe(false);
+    expect(document.activeElement).toBe(element('#workshop-heading'));
+  });
   it('shows unchanged live workshop prices and disables unaffordable or capped upgrades', async () => {
     const profile = createState(); profile.profile.crystals = 0; profile.profile.meta.damage = 10;
     await boot(profile);

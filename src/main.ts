@@ -1,6 +1,7 @@
 import './style.css';
 import './title.css';
 import './workshop.css';
+import './workshop-gates.css';
 import { workshopMarkup } from './workshop-ui';
 import { titleMarkup } from './title-ui';
 import {createState,startRun,step,buyRunUpgrade,buyMetaUpgrade,setPaused,getStats,calculateStats,runPrice,metaPrice,STAT_KEYS,RUN_CAP,META_CAP,DT,type GameState,type StatKey} from './game';
@@ -12,6 +13,11 @@ import {BattleMenuController,battleHudMarkup,battleMenuMarkup,bossBarMarkup,upgr
 const $=<T extends HTMLElement=HTMLElement>(s:string)=>document.querySelector<T>(s)!;
 const root=$('#app');
 root.innerHTML=`<div class="shell"><header class="topbar"><div class="brand"><div class="brand-mark"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M5 27v-6l6-5V6h12v7h6v7h-6v7H5Z" stroke="currentColor" stroke-width="2"/><path d="M14 10h5v5h-5z" fill="currentColor"/></svg></div><div><div class="brand-name">ОПЛОТ</div><div class="brand-sub">Турель и мехи</div></div></div><div class="top-actions"><span class="pill"><span class="live-dot"></span>СЕКТОР 07</span><button class="icon-button" id="sound" aria-label="Включить звук" title="Звук">♪</button><button class="icon-button" id="help" aria-label="Как играть" title="Как играть">?</button></div></header><div id="notice" class="status-warning hidden" role="status"></div><p id="title-render-warning" class="status-warning hidden" role="status">Для запуска боя нужен WebGL2. Откройте игру в браузере с аппаратным ускорением.</p><main class="workspace"><section class="panel" id="panel" aria-label="Панель управления"></section><section class="arena-wrap" aria-label="3D поле боя"><div class="arena" id="arena"></div><div class="arena-top"><div class="arena-label">ПЕРИМЕТР <span>АВТОНОМНАЯ ОБОРОНА</span></div><div class="arena-label" id="arena-status">СИСТЕМЫ ГОТОВЫ</div></div><div class="floating-message" id="toast" role="status" aria-live="polite"></div><div class="arena-bottom"><span class="coordinate">X: 00.0 / Y: 00.0</span><span class="arena-note" id="arena-note">Один оплот. Тридцать волн.</span></div><div class="paused-overlay hidden" id="paused"><h2>Пауза</h2><p>Бой и ремонт остановлены. Ничего не происходит в ваше отсутствие.</p><button class="main-button" id="unpause">Продолжить бой</button></div></section></main><div class="section-head"><strong id="shop-title">Мастерская</strong><span id="shop-note">Улучшения для всех будущих забегов</span></div><section class="upgrades" id="upgrades" aria-label="Улучшения"></section><footer class="foot"><span id="save-status">Локальное сохранение · без офлайн-дохода</span><span>3D / 30 ВОЛН / ФИНАЛЬНЫЙ БОСС</span></footer></div><div id="modal-root"></div>`;
+const gates=document.createElement('div');gates.className='workshop-gates';gates.hidden=true;
+gates.setAttribute('aria-hidden','true');
+gates.innerHTML='<div class="workshop-gate"></div><div class="workshop-gate"></div>';
+root.append(gates);
+let gatesMoving=false;
 const hud=document.createElement('div');hud.id='battle-hud';hud.className='battle-hud hidden';hud.innerHTML=battleHudMarkup+bossBarMarkup;$('.shell').append(hud);
 const drawerElement=document.createElement('div');drawerElement.id='battle-menu-overlay';drawerElement.className='battle-menu-overlay hidden';drawerElement.innerHTML=battleMenuMarkup;$('.shell').append(drawerElement);
 const labels=STAT_LABELS;
@@ -40,11 +46,39 @@ function modal(title:string,text:string,actions:{label:string,action:()=>void,se
 function downloadCorrupt(){if(!repository)return;const blob=new Blob([repository.raw()],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='oplot-save-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
 function showSaveRecovery(){modal('Сохранение повреждено','Старые данные оставлены на устройстве. Сначала можно скачать копию. Новый профиль удалит текущее локальное сохранение и его резервную копию.',[{label:'Скачать копию',secondary:true,action:()=>{downloadCorrupt();showSaveRecovery();}},{label:'Новый профиль',action:()=>modal('Начать с нуля?','Кристаллы, постоянные улучшения и незаконченный забег будут удалены на этом устройстве.',[{label:'Отмена',secondary:true,action:showSaveRecovery},{label:'Удалить и начать',action:()=>{repository?.reset();state=createState();saveBlocked=false;$('#notice').classList.add('hidden');save();renderUI(true);}}],false)}],false);}
 function openMenu(){battleMenu.close();screen='menu';workshopOpen=false;pause.add('menu');accumulator=0;save();renderUI(true);$(state.run?'#resume':'#start').focus();}
-function showWorkshop(open:boolean){
- if(screen!=='menu'||(open&&state.run))return;
+function setWorkshop(open:boolean){
  workshopOpen=open;renderUI(true);
  window.scrollTo(0,0);
- $(open?'#workshop-heading':'#open-workshop').focus({preventScroll:true});
+}
+async function showWorkshop(open:boolean,animated=true){
+ if(screen!=='menu'||open===workshopOpen||gatesMoving||(open&&state.run))return;
+ const focus=()=>$(open?'#workshop-heading':'#open-workshop').focus({preventScroll:true});
+ if(!animated||!gates.firstElementChild?.animate||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches){
+  setWorkshop(open);focus();return;
+ }
+ const shell=$('.shell');
+ const leaves=[...gates.children] as HTMLElement[];
+ const slide=(closing:boolean)=>leaves.map((leaf,i)=>{
+  const outside=`translateY(${i===0?-101:101}%)`, shut='translateY(0)';
+  return leaf.animate(closing?[{transform:outside},{transform:shut}]:[{transform:shut},{transform:outside}],{
+   duration:closing?320:390,easing:closing?'cubic-bezier(.61,.04,.88,.52)':'cubic-bezier(.15,.68,.24,1)',fill:'forwards',
+  });
+ });
+ gatesMoving=true;shell.inert=true;gates.hidden=false;
+ let closing:Animation[]=[];let opening:Animation[]=[];
+ try {
+  closing=slide(true);
+  await Promise.allSettled(closing.map(a=>a.finished));
+  setWorkshop(open);
+  // Keep the doors shut for a short beat so the screen redraw happens offstage.
+  await new Promise<void>(resolve=>window.setTimeout(resolve,250));
+  opening=slide(false);
+  await Promise.allSettled(opening.map(a=>a.finished));
+ } finally {
+  gates.hidden=true;
+  for(const animation of [...opening,...closing])animation.cancel();
+  shell.inert=false;gatesMoving=false;focus();
+ }
 }
 function resume(){if(!state.run||fatal||saveBlocked||!writable)return;screen='combat';pause.remove('menu');battleMenu.close();state=setPaused(state,false);accumulator=0;last=performance.now();renderUI(true);$(pause.reasons.has('user')?'#unpause':'#battle-menu-toggle').focus();}
 function launch(){if(state.run||fatal||saveBlocked||!writable)return;const seed=crypto.getRandomValues(new Uint32Array(1))[0];state=startRun(state,seed);screen='combat';pause.remove('menu');pause.remove('user');battleMenu.close();accumulator=0;last=performance.now();save();renderUI(true);$('#battle-menu-toggle').focus();toast('Волна 1 · оборона запущена');}
@@ -99,7 +133,7 @@ function drawPanel(){
   }
   else{$('#start').onclick=launch;$('#resume').onclick=resume;$('#open-workshop').onclick=()=>showWorkshop(true);$('#menu-help').onclick=showHelp;}
  }
- if(screen==='result')$('#to-workshop').onclick=()=>{openMenu();showWorkshop(true);};
+ if(screen==='result')$('#to-workshop').onclick=()=>{openMenu();void showWorkshop(true,false);};
  renderedScreen=screen;
 }
 function renderUI(force=false){
@@ -201,7 +235,7 @@ window.addEventListener('pagehide',()=>save());
 window.addEventListener('blur',()=>{pause.add('focus');accumulator=0;save();sound.suspend();});
 window.addEventListener('focus',()=>{pause.remove('focus');accumulator=0;last=performance.now();});
 window.addEventListener('keydown',e=>{
- if(e.repeat||$('#modal-root').children.length||e.ctrlKey||e.metaKey||e.altKey)return;
+ if(gatesMoving||e.repeat||$('#modal-root').children.length||e.ctrlKey||e.metaKey||e.altKey)return;
  if(e.key==='Escape'&&screen==='menu'&&workshopOpen){e.preventDefault();showWorkshop(false);return;}
  if(e.key==='Escape'&&screen==='combat'){e.preventDefault();battleMenu.open?closeBattleMenu():openBattleMenu();return;}
  if(battleMenu.open||isInteractiveTarget(e.target))return;

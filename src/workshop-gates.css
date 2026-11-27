@@ -1,0 +1,45 @@
+.workshop-gates {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  overflow: hidden;
+  pointer-events: auto;
+  touch-action: none;
+}
+.workshop-gate {
+  position: absolute;
+  inset: 0 0 auto;
+  height: calc(50% + 1px);
+  --open: -101%;
+  transform: translateY(var(--open));
+  background:
+    repeating-linear-gradient(0deg,#d9d0cc09 0 1px,#17141812 2px 4px,transparent 5px 8px),
+    linear-gradient(98deg,#211d22,#565053 20%,#343038 42%,#5b5355 67%,#28232a);
+  box-shadow: inset 0 -5px #151218, inset 0 -9px #88807c, 0 4px 22px #09080bd9;
+}
+.workshop-gate:last-child {
+  inset: auto 0 0;
+  --open: 101%;
+  box-shadow: inset 0 5px #151218, inset 0 9px #88807c, 0 -4px 22px #09080bd9;
+}
+.workshop-gate::before {
+  content: '';
+  position: absolute;
+  inset: 14% 7% 20%;
+  border: 2px solid #211e24;
+  border-radius: 8px;
+  background: repeating-linear-gradient(90deg,#a099954d 0 1px,#18161b8c 1px 4px,transparent 5px 21%);
+  box-shadow: inset 0 5px 9px #1210189c, 0 1px #a29a914f;
+}
+.workshop-gate:last-child::before { inset-block: 20% 14%; }
+.workshop-gate::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 4px;
+  height: clamp(17px,4svh,32px);
+  border-block: 2px solid #121015;
+  background: linear-gradient(#fff3b52b,#1b161b63),
+    repeating-linear-gradient(135deg,#b89132 0 15px,#242127 15px 30px);
+  box-shadow: inset 0 1px #e4cd904f, inset 0 -2px #17151a62;
+}
+.workshop-gate:last-child::after { inset: 4px 0 auto; }
