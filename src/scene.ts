@@ -387,7 +387,6 @@ export class SceneView {
         this.titleMech.setModel(mechs[3]); // George, the green two-antenna mech in the title reference.
         applyCombatPalette(turret.scene, COMBAT_COLORS[4], true);
         this.workshopTurret.setModel(turret);
-        mechs.forEach(({ scene }, i) => applyCombatPalette(scene, COMBAT_COLORS[i]));
       }
       for (const { scene } of [turret, ...mechs]) this.registerAsset(scene);
       if (this.disposed) return;
