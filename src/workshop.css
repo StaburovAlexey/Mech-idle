@@ -6,7 +6,7 @@
 .at-workshop > :is(.topbar,.foot,.section-head,.upgrades) { display: none; }
 .shell.at-workshop .workspace {
   display: grid; position: relative; isolation: isolate; flex: none;
-  max-width: 680px; width: 100%; margin: 0 auto; min-height: 100svh;
+  max-width: 620px; width: 100%; margin: 0 auto; min-height: 100svh;
   grid-template-columns: minmax(0,1fr); grid-template-rows: auto auto auto auto;
   align-content: center; gap: clamp(9px,1.7svh,17px);
   padding: max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right))
@@ -31,15 +31,12 @@
   min-height: 0; width: 100%; height: auto; margin: 0; overflow: visible;
   background: transparent; border: 0; border-radius: 0; pointer-events: none;
 }
-.at-workshop .arena-wrap::before {
-  content: ''; position: absolute; inset: 74% 30% auto; height: 9%;
-  background: radial-gradient(ellipse,#1a1415ba,transparent 68%);
-}
-.at-workshop .arena { background: transparent; inset: 0 0 11%; }
+/* Let the real model continue behind the opaque upgrade rack instead of cropping its base in WebGL. */
+.at-workshop .arena { background: transparent; inset: 12% 0 -46%; }
 .at-workshop .arena-wrap > :not(.arena,#toast),.at-workshop .arena .fatal { display: none; }
 .at-workshop #toast { top: auto; bottom: 4px; white-space: normal; width: max-content; max-width: 96%; }
 .workshop-rack {
-  grid-row: 3; grid-column: 1;
+  grid-row: 3; grid-column: 1; z-index: 2;
   display: grid; gap: 7px;
   padding: calc(var(--rim) + 4px) calc(var(--rim) + 5px);
 }
@@ -77,17 +74,6 @@
 }
 @media (min-width: 800px) {
   .shell.at-workshop { background-position: center 34%; }
-  .shell.at-workshop .workspace {
-    max-width: 1140px; grid-template-columns: minmax(0,1fr) minmax(390px,.95fr);
-    grid-template-rows: auto auto auto; gap: 18px 20px; padding-inline: 28px;
-  }
-  .workshop-head { grid-column: 1 / -1; }
-  .workshop-hero { aspect-ratio: auto; }
-  .workshop-rack { grid-column: 2; grid-row: 2; }
-  #workshop-back { grid-column: 2; grid-row: 3; }
-}
-@media (min-width: 800px) and (max-height: 480px) {
-  .workshop-head .title-logo { font-size: 33px; }
-  .workshop-row { min-height: 60px; padding-block: 4px; }
-  .workshop-rack { gap: 5px; }
+  .workshop-hero { aspect-ratio: auto; height: clamp(168px,29svh,260px); }
+  .workshop-head .title-logo { font-size: 42px; }
 }
