@@ -3,6 +3,7 @@ import { arenaViewport, configureArenaCamera } from './viewport';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { createEnemyModel, type EnemyModel, type EnemyModelPart, type EnemyModelKind, type EnemyPartName } from './enemyModels';
 import { computeEnemyPose, type AttackPhase, type PartPose } from './enemyAnimation';
+import { COMBAT_COLORS, applyCombatPalette } from './combatPalette';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { ImportedMechs, loadOplotModels } from './oplotModels';
 import { createPortalMesh, PORTAL_CLOSE, PORTAL_CAPACITY, spawnRise } from './spawnPortal';
@@ -30,8 +31,8 @@ type Particle = { x: number; y: number; z: number; vx: number; vy: number; vz: n
 type UnitPartBatch = { definition: EnemyModelPart; mesh: THREE.InstancedMesh; world: THREE.Matrix4 };
 type UnitBatch = { model: EnemyModel; parts: UnitPartBatch[]; byName: Partial<Record<EnemyPartName, UnitPartBatch>>; count: number };
 const C = { cream: 0xe8dbc0, creamLight: 0xf8ecd4, teal: 0x21666a, tealLight: 0x398c8c, cyan: 0x40eeff, charcoal: 0x343d40, dark: 0x1c292e, black: 0x151e21, steel: 0x637075, red: 0xd04d3c, redLight: 0xf47754, amber: 0xffbb43, hazard: 0xdcae43 };
-const ARENA_FLOOR = .048;
-const STATION_YAW = Math.atan2(14, 17);
+const CITY_FLOOR = .048;
+const CITY_YAW = Math.atan2(14, 17) - .20;
 const MAX_UNITS = 24;
 const MAX_RENDER_DPR = 2;
 const MAX_ENEMY_PROJECTILES = 32;
@@ -95,8 +96,7 @@ export class SceneView {
   private glowMaterial = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false });
   private turretHead = new THREE.Group();
   private turretBase = new THREE.Group();
-  private station!: THREE.Group;
-  private localGate?: THREE.Mesh;
+  private city!: THREE.Group;
   private importedMechs?: ImportedMechs;
   private turretGlow = new THREE.Group();
   private barrel: THREE.Group;
@@ -154,7 +154,7 @@ export class SceneView {
     const sun = new THREE.DirectionalLight(0xffe7ba, 3.3); sun.position.set(-8, 18, 8); this.scene.add(sun);
     const rim = new THREE.DirectionalLight(0x73e6f8, 1.45); rim.position.set(8, 7, -13); this.scene.add(rim);
     this.buildArena();
-    void this.loadStationModules();
+    void this.loadCityModels();
     this.barrel = this.buildTurret();
     this.flash = new THREE.Mesh(new THREE.OctahedronGeometry(.24, 0), new THREE.MeshBasicMaterial({ color: 0xfff1ad, toneMapped: false, transparent: true, opacity: 1 }));
     this.flash.position.set(0, 1.66, 2.36); this.flash.scale.set(1, 1, 2.8); this.flash.visible = false; this.turretHead.add(this.flash);
@@ -193,66 +193,82 @@ export class SceneView {
     const mesh = new THREE.InstancedMesh(g, material, n); mesh.count = 0; mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); mesh.frustumCulled = false; this.scene.add(mesh); return mesh;
   }
   private buildArena() {
-    const station = this.station = new THREE.Group();
-    station.name = 'quaternius-reactor-arena';
-    station.rotation.y = STATION_YAW;
-    this.scene.add(station);
-    const steel = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .86 });
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshStandardMaterial({ color: 0x202733, roughness: .93 }));
-    ground.name = 'station-deck-base';
-    ground.rotation.x = -Math.PI / 2; ground.position.y = ARENA_FLOOR;
-    station.add(ground);
-    const deck: Piece[] = [], shell: Piece[] = [], light: Piece[] = [];
-    const palette = [0x333d4f, 0x384456, 0x303a4c, 0x364257];
-    const flat = (w: number, d: number, color: number, x: number, z: number, y = .051, angle = 0) =>
-      deck.push(part(new THREE.PlaneGeometry(w, d), color, x, y, z, -Math.PI / 2, angle));
-    for (let row = -5; row <= 4; row++) for (let col = -4; col <= 4; col++) {
-      flat(4.02, 3.95, palette[((row + 7) * 17 + (col + 5) * 41) % palette.length], col * 4.06 + (row % 2) * .60, row * 4);
-    }
-    deck.push(part(ring(11.36, 11.74, 96), 0x505e70, 0, .054, 0));
-    deck.push(part(ring(11.75, 11.83, 96), 0x26303d, 0, .055, 0));
-    for (let i = 0; i < 12; i++) {
-      const a = i * Math.PI / 6;
-      flat(.72, .48, 0x616f82, Math.sin(a) * 11.61, Math.cos(a) * 11.61, .057, a);
-    }
-    for (const z of [-8.4, 8.4]) for (let i = -2; i <= 2; i++) {
-      flat(.48, .31, 0xd59a38, i * .63, z, .058, .46);
-    }
-    this.addGeometry(merge(deck), steel, station).name = 'station-deck-panels';
+    const city = this.city = new THREE.Group();
+    city.name = 'ruined-city';
+    city.rotation.y = CITY_YAW;
+    this.scene.add(city);
+    const concrete = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .96 });
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshStandardMaterial({ color: 0xb4a58a, roughness: 1 }));
+    ground.name = 'city-continuous-ground';
+    ground.rotation.x = -Math.PI / 2; ground.position.y = CITY_FLOOR;
+    city.add(ground);
 
-    const block = (w: number, h: number, d: number, color: number, x: number, y: number, z: number) =>
-      shell.push(part(box(w, h, d), color, x, y, z));
-    block(31, 6.1, 1.42, 0x253246, 0, 3.08, -16.9);
-    block(31, .32, 1.7, 0x43536b, 0, 5.98, -16.58);
-    block(27, .46, .95, 0x3e4d61, 0, .26, -14.55);
-    block(6.3, .7, .9, 0x495d76, 0, 4.94, -14.48);
-    for (const x of [-12.6, -9.8, -4.47, 4.47, 9.8, 12.6]) {
-      block(.59, 4.72, 1.45, 0x41536c, x, 2.42, -15.98);
-      block(2.5, .31, .71, 0x60728a, x, 4.46, -15.93);
-      light.push(part(box(1.54, .10, .03), 0x31aeba, x, 3.94, -15.46));
-    }
-    for (const x of [-7.1, 7.1]) {
-      const z = -14.15;
-      for (const [r, y, h, color] of [[1.65,.28,.42,0x475a72],[1.39,.69,.54,0x36495e],[1.28,2.02,1.55,0x3b5167],[1.58,3.04,.43,0x566982],[1.32,3.48,.37,0x415673],[.96,3.75,.37,0x334862]] as const) {
-        shell.push(part(cyl(r, h, 12), color, x, y, z));
+    // Dunes lap against the buses and facades. The inner playfield stays below the portal and shadow planes.
+    const drifts = [
+      [-6.15, 12.6, 3.0, 1.65, .49], [6.9, 12.3, 2.9, 1.65, .52],
+      [-5.5, -15.65, 5.3, 2.75, .73], [5.7, -20.6, 4.9, 3.1, .84],
+      [-12.7, -14.2, 3.8, 3.0, .52], [11.85, -14.25, 4.4, 3.05, .65],
+      [-14.2, 1.5, 2.35, 6.0, .34], [14.65, -.7, 2.95, 5.6, .37],
+    ] as const;
+    const sandHeight = (x: number, z: number) => {
+      let rise = 0;
+      for (const [cx, cz, wx, wz, h] of drifts) {
+        const u = (x - cx) / wx, v = (z - cz + (x - cx) * .2) / wz;
+        rise += h * Math.exp(-u * u - v * v);
       }
-      light.push(part(cyl(1.30, 1.18, 12), 0x15bcb8, x, 1.95, z));
-      light.push(part(cyl(1.445, .17, 12), 0xffaf36, x, 3.32, z));
-      for (const a of [-1.45, -.55, .55, 1.45]) {
-        const postX = x + Math.sin(a) * 1.33, postZ = z + Math.cos(a) * 1.33;
-        shell.push(part(box(.19, 2.34, .25), 0x4e6880, postX, 1.94, postZ, 0, a));
-      }
+      const open = THREE.MathUtils.smoothstep(Math.hypot(x, z), 12.20, 13.60);
+      return .053 + open * rise;
+    };
+    const sand = new THREE.PlaneGeometry(43, 55, 70, 84).rotateX(-Math.PI / 2);
+    const positions = sand.getAttribute('position'), shades = new Float32Array(positions.count * 3);
+    const dark = new THREE.Color(0xa99778), sunlit = new THREE.Color(0xc3b49a), color = new THREE.Color();
+    for (let i = 0; i < positions.count; i++) {
+      const x = positions.getX(i), z = positions.getZ(i);
+      positions.setY(i, sandHeight(x, z));
+      const bands = Math.sin(x * .54 + z * 1.18 + Math.sin(x * .42) * .72);
+      const ripple = Math.sin(x * 2.85 - z * 1.35 + Math.sin(z * .45));
+      const tint = .57 + .13 * bands + .05 * ripple + .09 * Math.sin(z * .35 - x * .25);
+      color.copy(dark).lerp(sunlit, tint);
+      color.toArray(shades, i * 3);
     }
-    for (const x of [-2.52, 2.52]) light.push(part(box(.11, 1.43, .035), 0xffb342, x, 2.15, -13.50));
-    for (const y of [4.82, 5.00, 5.18]) light.push(part(box(2.16, .075, .04), 0x44d5ce, 0, y, -13.99));
-    this.addGeometry(merge(shell), steel, station).name = 'station-reactors-and-hull';
-    this.addGeometry(merge(light), this.glowMaterial, station).name = 'station-reactor-light';
-    this.localGate = this.addGeometry(merge([
-      part(bevelBox(5.8, 4.44, .55, .22), 0x4e617b, 0, 2.27, -14.65),
-      part(bevelBox(4.72, 3.61, .38, .16), 0x28364b, 0, 1.96, -14.26),
-      part(box(.036, 3.26, .03), 0x596a80, 0, 1.97, -14.05),
-    ]), steel, station);
-    this.localGate.name = 'station-gate-fallback';
+    sand.setAttribute('color', new THREE.BufferAttribute(shades, 3));
+    sand.computeVertexNormals();
+    this.addGeometry(sand, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }), city).name = 'city-sand-and-drifts';
+
+    const debris: Piece[] = [], shells: Piece[] = [];
+    const block = (list: Piece[], w: number, h: number, d: number, color: number, x: number, y: number, z: number, tilt = 0) =>
+      list.push(part(box(w, h, d), color, x, y, z, 0, tilt));
+    let seed = 8179;
+    const random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296);
+    for (let i = 0; i < 96; i++) {
+      const side = i % 2 ? -1 : 1, x = side * (5.3 + random() * 7), z = (random() - .5) * 38;
+      if (Math.abs(z) < 4) continue;
+      const w = .10 + random() * .54, h = .05 + random() * .16, d = .12 + random() * .37;
+      const color = [0x938069, 0xac9476, 0x85755f, 0x916f53][i % 4];
+      debris.push({ ...part(new THREE.DodecahedronGeometry(.68, 0), color, x, sandHeight(x, z) + h * .13, z, .2, random() * 7, .13), s: [w, h, d] });
+    }
+    const ruinedShell = (x: number, z: number, width: number, levels: number) => {
+      const depth = 3.8, floorHeight = 1.33;
+      for (let level = 0; level < levels; level++) {
+        const y = CITY_FLOOR + level * floorHeight;
+        const span = width * (level === levels - 1 ? .70 : 1);
+        block(shells, span, .15, depth, 0x77716a, x, y + .10, z, .03 * level);
+        for (let bay = 0; bay < 4; bay++) {
+          const post = x - width * .47 + width * bay / 3.2;
+          if (bay + level >= 4 && (bay + level) % 3 === 0) continue;
+          const c = (bay + level) % 2 ? 0x786f68 : 0x8d8076;
+          block(shells, .24, floorHeight * ((bay + level) % 4 ? 1 : .58), .34, c, post, y + floorHeight * .50, z + depth / 2 - .08);
+          block(shells, width * .18, .28, .18, 0x725e52, post + .24, y + .34, z + depth / 2);
+        }
+        block(shells, .28, 1.14, depth * .78, 0x706961, x - span * .47, y + .65, z - .18);
+      }
+    };
+    ruinedShell(-13.8, -17.0, 5.6, 3);
+    ruinedShell(10.8, -17.5, 5.1, 3);
+    ruinedShell(17.0, -19.8, 5.4, 4);
+    ruinedShell(-7.5, -23.5, 5.1, 3);
+    this.addGeometry(merge(debris), concrete, city).name = 'city-sand-rubble';
+    this.addGeometry(merge(shells), concrete, city).name = 'city-ruined-blocks';
 
     // Cheap baked turret contact shadow, no shadow maps or full-screen postprocessing.
     const shadowCanvas = document.createElement('canvas'); shadowCanvas.width = shadowCanvas.height = 64;
@@ -306,32 +322,42 @@ export class SceneView {
     this.turretHead.add(barrel); return barrel;
   }
 
-  private async loadStationModules() {
-    try {
-      const { scene } = await new GLTFLoader().loadAsync(import.meta.env.BASE_URL + 'assets/reactor/quaternius-station.glb');
-      this.registerAsset(scene);
+  private async loadCityModels() {
+    const path = import.meta.env.BASE_URL + 'assets/city/';
+    const loader = new GLTFLoader();
+    const props = [
+      ['ruined-apartment-shell', [[-5.2, -16.2, .03, 9.3], [5.8, -23.1, -.14, 8.0]]],
+      ['wrecked-bus', [[-6.05, 12.72, .43, 5.2], [7.12, 12.52, -.28, 4.8]]],
+      ['rubble-heap-medium', [[5.3, -10.6, -.48, 2.0], [-7.1, -7.7, .75, 1.7], [8.7, 9.6, -.8, 1.65]]],
+    ] as const;
+    const results = await Promise.allSettled(props.map(([name]) => loader.loadAsync(path + name + '.glb')));
+    results.forEach((result, i) => {
+      if (result.status !== 'fulfilled') return;
+      const source = result.value.scene;
+      this.registerAsset(source);
       if (this.disposed) return;
-      const stamp = (name: string, x: number, y: number, z: number, scale: number, yaw = 0, mirror = false) => {
-        const model = scene.getObjectByName(name)!.clone();
-        model.position.set(x, y, z);
-        model.rotation.y = yaw;
-        model.scale.set(scale * (mirror ? -1 : 1), scale, scale);
-        this.station.add(model);
-      };
-      stamp('Door_Frame_A', 0, .18, -14.03, 1.22);
-      stamp('Door_DarkMetal', 0, .16, -14.22, 1.04);
-      stamp('Door_DarkMetal', 0, .16, -14.22, 1.04, 0, true);
-      for (const x of [-11.25, 11.25]) {
-        stamp('ShortWall_DarkMetal2_Straight', x, .14, -14.8, 1, Math.PI / 2);
-        stamp('Column_Pipes', x * .44, .14, -14.53, .97);
-        stamp('Prop_Crate3', x * .80, .49, -11.95, .86, .11 * Math.sign(x));
-        stamp('Prop_Crate3', x * .87, .36, -12.9, .63, -.2 * Math.sign(x));
+      source.traverse(object => {
+        if (!(object instanceof THREE.Mesh)) return;
+        for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
+          if (!(material instanceof THREE.MeshStandardMaterial)) continue;
+          material.roughness = .95;
+          material.metalness = 0;
+          material.color.set(0xd6cec1);
+        }
+      });
+      const bounds = new THREE.Box3().setFromObject(source);
+      const center = bounds.getCenter(new THREE.Vector3());
+      const span = bounds.getSize(new THREE.Vector3());
+      for (const [x, z, yaw, width] of props[i][1]) {
+        const anchor = new THREE.Group(), model = source.clone();
+        model.position.sub(new THREE.Vector3(center.x, bounds.min.y, center.z));
+        anchor.position.set(x, CITY_FLOOR, z);
+        anchor.rotation.y = yaw;
+        anchor.scale.setScalar(width / Math.max(span.x, span.z));
+        anchor.add(model); this.city.add(anchor);
       }
-      if (this.localGate) this.localGate.visible = false;
-      this.renderer.domElement.dataset.station = 'quaternius';
-    } catch (error) {
-      console.warn('Station modules unavailable; keeping procedural reactor station', error);
-    }
+    });
+    if (!this.disposed && results.every(result => result.status === 'fulfilled')) this.renderer.domElement.dataset.city = 'tevy';
   }
 
   private registerAsset(scene: THREE.Object3D) {
@@ -355,6 +381,10 @@ export class SceneView {
       const head = turret.scene.getObjectByName('Head');
       const barrel = turret.scene.getObjectByName('Barrel');
       if (!base || !head || !barrel) throw new Error('Missing PolygonDan turret parts');
+      if (!this.disposed) {
+        applyCombatPalette(turret.scene, COMBAT_COLORS[4], true);
+        mechs.forEach(({ scene }, i) => applyCombatPalette(scene, COMBAT_COLORS[i]));
+      }
       for (const { scene } of [turret, ...mechs]) this.registerAsset(scene);
       if (this.disposed) return;
       for (const old of this.turretHead.children) if (old !== this.flash) old.visible = false;
