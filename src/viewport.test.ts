@@ -1,6 +1,7 @@
 import {afterEach,describe,expect,it,vi} from 'vitest';
 import * as THREE from 'three';
 import {SceneView} from './scene';
+import {TURRET_RANGE} from './game';
 import {FIELD_HALF_WIDTH,arenaViewport,configureArenaCamera} from './viewport';
 
 const sizes=[[300,382],[320,383],[390,650],[428,730],[568,155],[768,820],[1366,580],[2560,900]];
@@ -34,10 +35,10 @@ describe('full-width phone scene with fixed world width',()=>{
   const p=new THREE.Vector3(6,0,5);
   expect(p.clone().project(short).x).toBeCloseTo(p.clone().project(tall).x,12);
  });
- it.each([[320,383],[390,650],[1280,540]])('keeps the range10 ring inside a portrait phone or desktop field %sx%s',(w,h)=>{
+ it.each([[320,383],[390,650],[1280,540]])('keeps the firing ring inside a portrait phone or desktop field %sx%s',(w,h)=>{
   const v=arenaViewport(w,h),camera=new THREE.OrthographicCamera();configureArenaCamera(camera,v.width,v.height);
   for(let i=0;i<128;i++){
-   const p=new THREE.Vector3(Math.cos(i*Math.PI/64)*10,.076,Math.sin(i*Math.PI/64)*10).project(camera);
+   const p=new THREE.Vector3(Math.cos(i*Math.PI/64)*TURRET_RANGE,.076,Math.sin(i*Math.PI/64)*TURRET_RANGE).project(camera);
    expect(Math.abs(p.x)).toBeLessThan(1);expect(Math.abs(p.y)).toBeLessThan(1);expect(Math.abs(p.z)).toBeLessThan(1);
   }
  });
