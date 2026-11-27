@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
-import { SceneView, type SceneFrame } from './scene';
+import { makeArenaSun, SceneView, type SceneFrame } from './scene';
 import { createEnemyModel, type EnemyModelKind } from './enemyModels';
 import { attackConfig } from './game';
 import { createPortalMesh, PORTAL_CAPACITY } from './spawnPortal';
@@ -10,7 +10,7 @@ function cpuScene() {
   // TS private fields compile to ordinary properties; bypass only the WebGL/DOM constructor.
   const view = Object.create(SceneView.prototype) as Record<string, any>;
   Object.assign(view, {
-    scene: new THREE.Scene(), camera: new THREE.OrthographicCamera(), clock: 0, angle: 0, pulse: 0, prevHp: 1,
+    scene: new THREE.Scene(), camera: new THREE.OrthographicCamera(), sun: makeArenaSun(), shadowTick: -1, clock: 0, angle: 0, pulse: 0, prevHp: 1,
     particles: [], previous: new Map(), lastBulletIds: new Set(), batches: {}, showcase: [], disposed: false,
     turretHead: new THREE.Group(), barrel: new THREE.Group(), flash: new THREE.Mesh(),
     allGeometries: new Set(), allMaterials: new Set(), allTextures: new Set(), observer: { disconnect: vi.fn() },
@@ -27,7 +27,7 @@ function cpuScene() {
     });
     view.batches[kind] = { model, parts, byName, count: 0 };
   }
-  for (const name of ['shadowMesh', 'impactMesh', 'hpBack', 'hpFront']) view[name] = mesh(24);
+  for (const name of ['impactMesh', 'hpBack', 'hpFront']) view[name] = mesh(24);
   view.bulletMesh = mesh(80); view.enemyProjectileMesh = mesh(32); view.particleMesh = mesh(100); view.portals = createPortalMesh(); view.arrivals = new Map(); view.scene.add(view.portals.mesh);
   for (const name of ['rangeRing', 'turretRing', 'targetRing']) { view[name] = new THREE.Mesh(new THREE.RingGeometry(.9, 1, 8), new THREE.MeshBasicMaterial()); view.scene.add(view[name]); }
   return view;
@@ -42,11 +42,28 @@ function frame(): SceneFrame {
 }
 
 describe('real enemy instance rendering', () => {
+  it('uses one light with a bounded and throttled depth map', () => {
+    const view = cpuScene(), current = frame(), sun = view.sun as THREE.DirectionalLight;
+    expect(sun.castShadow).toBe(true);
+    expect(sun.shadow.mapSize.toArray()).toEqual([1024, 1024]);
+    expect(sun.shadow.autoUpdate).toBe(false);
+    view.render(current, .01);
+    expect(sun.shadow.needsUpdate).toBe(true);
+    sun.shadow.needsUpdate = false;
+    view.render(current, .01);
+    expect(sun.shadow.needsUpdate).toBe(false);
+    view.render(current, .03);
+    expect(sun.shadow.needsUpdate).toBe(true);
+    sun.shadow.needsUpdate = false;
+    view.render({ ...current, paused: true }, .05);
+    expect(sun.shadow.needsUpdate).toBe(false);
+    view.dispose();
+  });
   it('renders all four rigs in 30 batches and keeps enemy projectiles outside turret firing bookkeeping', () => {
     const view = cpuScene(); view.render(frame(), .016);
     const parts = Object.values(view.batches).flatMap((batch: any) => batch.parts);
     expect(parts).toHaveLength(30); expect(parts.every((part: any) => part.mesh.count === 1)).toBe(true);
-    expect(view.shadowMesh.count).toBe(4); expect(view.impactMesh.count).toBe(3);
+    expect(view.impactMesh.count).toBe(3);
     expect(view.bulletMesh.count).toBe(1); expect(view.enemyProjectileMesh.count).toBe(1);
     expect([...view.lastBulletIds]).toEqual(['turret-1']);
     expect(view.lastBulletIds.has('enemy-1')).toBe(false);
@@ -75,7 +92,6 @@ describe('real enemy instance rendering', () => {
     const arrival = { ...current, enemies: [enemy] };
     view.render({ ...arrival, spawns: [{ ...point, time: 20 }] }, .016);
     expect(view.portals.timing.getX(0)).toBe(0);
-    expect(view.shadowMesh.count).toBe(0);
     const part = view.batches.normal.parts[0].mesh;
     const position = new THREE.Matrix4();
     part.getMatrixAt(0, position);
@@ -87,7 +103,6 @@ describe('real enemy instance rendering', () => {
     view.render({ ...arrival, elapsed: 20.68 }, .016);
     part.getMatrixAt(0, position);
     expect(position.elements[13]).toBeGreaterThan(buried + 1.5);
-    expect(view.shadowMesh.count).toBe(1);
     view.render({ ...arrival, elapsed: 20.84 }, .016);
     expect(view.portals.mesh.count).toBe(0);
     view.dispose();

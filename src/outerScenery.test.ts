@@ -111,7 +111,7 @@ describe('outer industrial wasteland scenery', () => {
       expect(materialDisposals.size).toBe(0);
       const scene = new THREE.Scene(); scene.add(scenery);
       const target = {
-        disposed: false, scene, observer: { disconnect: vi.fn() },
+        disposed: false, scene, sun: new THREE.DirectionalLight(), observer: { disconnect: vi.fn() },
         allGeometries: new Set<THREE.BufferGeometry>(), allMaterials: new Set<THREE.Material>(), allTextures: new Set<THREE.Texture>(),
         previous: new Map(), lastBulletIds: new Set(), particles: [],
         renderer: { dispose: vi.fn(), domElement: { remove: vi.fn() } },
