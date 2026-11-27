@@ -78,7 +78,7 @@ export class TitleMech {
       if (this.aimPivot) this.aimPivot.rotation.y = workshopAim(this.aimTime += dt);
     }
     const aspect = this.width / this.height;
-    const y = this.turret ? Math.max(.71, 1.24 / aspect) : Math.max(.55, .30 / aspect);
+    const y = this.turret ? Math.max(.69, 1.13 / aspect) : Math.max(.55, .30 / aspect);
     this.camera.left = -y * aspect;
     this.camera.right = y * aspect;
     this.camera.top = y;
