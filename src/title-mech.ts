@@ -13,15 +13,15 @@ export class TitleMech {
   private readonly motion = window.matchMedia('(prefers-reduced-motion: reduce)');
   private dirty = true;
 
-  constructor() {
+  constructor(private readonly turret = false) {
     this.scene.add(new THREE.HemisphereLight(0xffefd8, 0x8d6c62, 2));
     const light = new THREE.DirectionalLight(0xffd1a0, 2.1);
     light.position.set(-3, 3, 4);
     const rim = new THREE.DirectionalLight(0xffa166, 2.1);
     rim.position.set(3, 2, -3);
     this.scene.add(light, rim);
-    this.camera.position.set(-1.04, .08, 1.75);
-    this.camera.lookAt(0, 0, 0);
+    this.camera.position.set(-1.04, turret ? .47 : .08, 1.75);
+    this.camera.lookAt(0, turret ? .07 : 0, 0);
   }
 
   setModel(source: GLTF) {
@@ -41,10 +41,12 @@ export class TitleMech {
       }
     });
     this.model = model;
-    this.mixer = new THREE.AnimationMixer(model);
-    const idle = source.animations.find(clip => clip.name === 'Idle');
-    if (idle) this.mixer.clipAction(idle).play();
-    this.mixer.update(0);
+    const idle = !this.turret && source.animations.find(clip => clip.name === 'Idle');
+    if (idle) {
+      this.mixer = new THREE.AnimationMixer(model);
+      this.mixer.clipAction(idle).play();
+      this.mixer.update(0);
+    }
     this.dirty = true;
   }
 
@@ -58,7 +60,7 @@ export class TitleMech {
     if (!this.dirty && (delta <= 0 || this.motion.matches || !this.mixer)) return;
     if (!this.motion.matches) this.mixer?.update(Math.max(0, Math.min(.05, delta)));
     const aspect = this.width / this.height;
-    const y = Math.max(.55, .30 / aspect);
+    const y = this.turret ? Math.max(.71, 1.24 / aspect) : Math.max(.55, .30 / aspect);
     this.camera.left = -y * aspect;
     this.camera.right = y * aspect;
     this.camera.top = y;

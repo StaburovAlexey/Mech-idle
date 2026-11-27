@@ -1,5 +1,7 @@
 import './style.css';
 import './title.css';
+import './workshop.css';
+import { workshopMarkup } from './workshop-ui';
 import { titleMarkup } from './title-ui';
 import {createState,startRun,step,buyRunUpgrade,buyMetaUpgrade,setPaused,getStats,calculateStats,runPrice,metaPrice,STAT_KEYS,RUN_CAP,META_CAP,DT,type GameState,type StatKey} from './game';
 import {SceneView,type SceneFrame, type SceneSpawn} from './scene';
@@ -40,7 +42,9 @@ function showSaveRecovery(){modal('Сохранение повреждено','�
 function openMenu(){battleMenu.close();screen='menu';workshopOpen=false;pause.add('menu');accumulator=0;save();renderUI(true);$(state.run?'#resume':'#start').focus();}
 function showWorkshop(open:boolean){
  if(screen!=='menu'||(open&&state.run))return;
- workshopOpen=open;renderUI(true);$(open?'#workshop-back':'#open-workshop').focus();
+ workshopOpen=open;renderUI(true);
+ window.scrollTo(0,0);
+ $(open?'#workshop-heading':'#open-workshop').focus({preventScroll:true});
 }
 function resume(){if(!state.run||fatal||saveBlocked||!writable)return;screen='combat';pause.remove('menu');battleMenu.close();state=setPaused(state,false);accumulator=0;last=performance.now();renderUI(true);$(pause.reasons.has('user')?'#unpause':'#battle-menu-toggle').focus();}
 function launch(){if(state.run||fatal||saveBlocked||!writable)return;const seed=crypto.getRandomValues(new Uint32Array(1))[0];state=startRun(state,seed);screen='combat';pause.remove('menu');pause.remove('user');battleMenu.close();accumulator=0;last=performance.now();save();renderUI(true);$('#battle-menu-toggle').focus();toast('Волна 1 · оборона запущена');}
@@ -84,14 +88,15 @@ drawerElement.addEventListener('keydown',event=>{
  event.preventDefault();buttons[(i+(event.shiftKey?-1:1)+buttons.length)%buttons.length]?.focus();
 });
 function drawPanel(){
- const panel=$('#panel');panel.className=screen==='menu'&&!workshopOpen?'title-panel':`panel ${screen}-panel`;
- if(screen==='menu')panel.innerHTML=workshopOpen
-  ? `<div class="menu-intro"><div class="eyebrow">Сектор 07 / Модули</div><h1>Мастерская</h1><p>Улучшения сохраняются и действуют с начала каждого забега.</p></div><div class="currency menu-bank"><span class="symbol" aria-hidden="true">◇</span><strong id="menu-crystals">0</strong><span>кристаллов</span></div><button class="small-button" id="workshop-back">← Главное меню</button>`
-  : titleMarkup;
+ const panel=$('#panel');panel.className=screen==='menu'?(workshopOpen?'workshop-panel':'title-panel'):`panel ${screen}-panel`;
+ if(screen==='menu')panel.innerHTML=workshopOpen?workshopMarkup:titleMarkup;
  else if(screen==='combat')panel.innerHTML='';
  else panel.innerHTML=`<div class="result-emblem">${state.result?.outcome==='victory'?'★':'⬡'}</div><div class="eyebrow">${state.result?.outcome==='victory'?'Периметр защищён':'Связь с оплотом потеряна'}</div><h1>${state.result?.outcome==='victory'?'Колосс<br>повержен.':'Забег<br>завершён.'}</h1><p>${state.result?.outcome==='victory'?'Все 30 волн пройдены. Вы удержали сектор.':'Кристаллы сохранены. Усильте стартовые параметры и вернитесь в бой.'}</p><div class="combat-stats"><div class="stat-box"><span>Пройдено волн</span><strong>${state.result?.completedWaves??0} / 30</strong></div><div class="stat-box crystals"><span>Заработано</span><strong>+${state.result?.earnedCrystals??0} ◇</strong></div><div class="stat-box"><span>Уничтожено мехов</span><strong>${state.result?.kills??0}</strong></div><div class="stat-box"><span>Время обороны</span><strong>${Math.floor((state.result?.duration??0)/60)}:${String(Math.floor((state.result?.duration??0)%60)).padStart(2,'0')}</strong></div></div><p class="hint">Временное золото и боевые модули сброшены. Улучшения мастерской остаются с вами.</p><button class="main-button panel-bottom" id="to-workshop">В мастерскую</button>`;
  if(screen==='menu'){
-  if(workshopOpen)$('#workshop-back').onclick=()=>showWorkshop(false);
+  if(workshopOpen){
+   $('#workshop-back').onclick=()=>showWorkshop(false);
+   for(const stat of STAT_KEYS)$(`[data-workshop-stat="${stat}"]`).onclick=()=>buy(stat);
+  }
   else{$('#start').onclick=launch;$('#resume').onclick=resume;$('#open-workshop').onclick=()=>showWorkshop(true);$('#menu-help').onclick=showHelp;}
  }
  if(screen==='result')$('#to-workshop').onclick=()=>{openMenu();showWorkshop(true);};
@@ -141,21 +146,32 @@ function renderUI(force=false){
  $('#arena-note').textContent=battle?'Автоогонь · покупайте модули за золото':'Один оплот. Тридцать волн.';
  const boss=run?.enemies.find(e=>e.kind==='boss');$('#boss').classList.toggle('hidden',!boss||!battle);if(boss)$('#boss-fill').style.width=`${boss.hp/boss.maxHp*100}%`;
  $('#shop-title').textContent=battle?'Боевые модули · золото':'Мастерская · кристаллы';$('#shop-note').textContent=battle?'Улучшения действуют сразу':'Усиливают старт будущих забегов';
- for(const stat of STAT_KEYS){const btn=$<HTMLButtonElement>(`#upgrade-${stat}`),level=battle?run?.levels[stat]??0:state.profile.meta[stat],cap=battle?RUN_CAP:META_CAP,price=battle?runPrice(stat,level):metaPrice(stat,level),budget=battle?run?.gold??0:state.profile.crystals;
+ for(const stat of STAT_KEYS){const inWorkshop=screen==='menu'&&workshopOpen,btn=$<HTMLButtonElement>(inWorkshop?`[data-workshop-stat="${stat}"]`:`#upgrade-${stat}`),level=battle?run?.levels[stat]??0:state.profile.meta[stat],cap=battle?RUN_CAP:META_CAP,price=battle?runPrice(stat,level):metaPrice(stat,level),budget=battle?run?.gold??0:state.profile.crystals;
  let nextValue=0,current=battle?stats[stat]:calculateStats(state.profile.meta)[stat];
  if(battle&&run){const nextLevel={...run.levels,[stat]:level+1};nextValue=calculateStats(state.profile.meta,nextLevel)[stat];}else nextValue=calculateStats({...state.profile.meta,[stat]:level+1})[stat];
- btn.classList.toggle('meta',!battle);btn.classList.toggle('affordable',budget>=price&&level<cap&&(battle||!run));btn.disabled=level>=cap||budget<price||(!battle&&!!run)||screen==='result'||fatal||saveBlocked||!writable||battleMenu.open;
+ const maxed=level>=cap;
+ btn.disabled=maxed||budget<price||(!battle&&!!run)||screen==='result'||fatal||saveBlocked||!writable||battleMenu.open;
+ const accessible=`${labels[stat].title}, уровень ${level} из ${cap}, сейчас ${fmt(current)} ${labels[stat].unit}, ${maxed?'максимальный уровень':`следующий: ${fmt(nextValue)} ${labels[stat].unit}, цена: ${price} ${battle?'золота':'кристаллов'}`}`;
+ btn.setAttribute('aria-label',accessible);
+ if(inWorkshop){
+  const row=$(`#workshop-${stat}`);
+  row.querySelector('.workshop-current')!.textContent=`${fmt(current)} ${labels[stat].unit}`;
+  row.querySelector('.workshop-next')!.textContent=maxed?'':`→ ${fmt(nextValue)} ${labels[stat].unit}`;
+  row.querySelector('.workshop-level')!.textContent=`${level}/${cap}`;
+  btn.querySelector('span')!.textContent=maxed?'МАКС':`◇ ${coins(price)}`;
+  continue;
+ }
+ btn.classList.toggle('meta',!battle);btn.classList.toggle('affordable',budget>=price&&!maxed&&(battle||!run));
  btn.querySelector('.upgrade-level')!.textContent=`${level}/${cap}`;
  btn.querySelector('.upgrade-value')!.innerHTML=`${fmt(current)}<small>${labels[stat].unit}</small>`;
  btn.querySelector('.upgrade-price')!.textContent=level>=cap?'МАКС':`${battle?'◈':'◇'} ${coins(price)}`;
  btn.querySelector('.upgrade-sub')!.textContent=level>=cap?'Максимальный уровень':`Следующий: ${fmt(nextValue)} ${labels[stat].unit}`;
- btn.setAttribute('aria-label',`${labels[stat].title}, уровень ${level}, сейчас ${fmt(current)}, следующий ${fmt(nextValue)}, цена ${price} ${battle?'золота':'кристаллов'}`);
  }
  if(layoutChanged)scene?.resize();
 }
 function frameForScene(spawns: SceneSpawn[]):SceneFrame{
  const r=state.run,stats=getStats(state),target=r?.enemies.find(e=>e.id===r.targetId);
- return {range:stats.range,paused:pause.paused,enemies:r?.enemies.map(e=>({...e,kind:e.kind==='ordinary'?'normal':e.kind}))??[],bullets:r?.bullets??[],enemyProjectiles:r?.enemyProjectiles??[],warnings:r?.warnings??[],spawns,target:target??null,turretHPfraction:r?r.hp/stats.maxHp:1,phase:screen==='menu'&&!workshopOpen?'title':screen,elapsed:r?.time??0,shooting:state.events.some(e=>e.type==='shot')};
+ return {range:stats.range,paused:pause.paused,enemies:r?.enemies.map(e=>({...e,kind:e.kind==='ordinary'?'normal':e.kind}))??[],bullets:r?.bullets??[],enemyProjectiles:r?.enemyProjectiles??[],warnings:r?.warnings??[],spawns,target:target??null,turretHPfraction:r?r.hp/stats.maxHp:1,phase:screen==='menu'?(workshopOpen?'workshop':'title'):screen,elapsed:r?.time??0,shooting:state.events.some(e=>e.type==='shot')};
 }
 function animate(now:number){
  const spawns: SceneSpawn[] = [];
