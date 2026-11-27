@@ -3,7 +3,6 @@ import { arenaViewport, configureArenaCamera } from './viewport';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { createEnemyModel, type EnemyModel, type EnemyModelPart, type EnemyModelKind, type EnemyPartName } from './enemyModels';
 import { computeEnemyPose, type AttackPhase, type PartPose } from './enemyAnimation';
-import { COMBAT_COLORS, applyCombatPalette } from './combatPalette';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { ImportedMechs, loadOplotModels } from './oplotModels';
 import { TitleMech } from './title-mech';
@@ -385,7 +384,6 @@ export class SceneView {
       if (!base || !head || !barrel) throw new Error('Missing PolygonDan turret parts');
       if (!this.disposed) {
         this.titleMech.setModel(mechs[3]); // George, the green two-antenna mech in the title reference.
-        applyCombatPalette(turret.scene, COMBAT_COLORS[4], true);
         this.workshopTurret.setModel(turret);
       }
       for (const { scene } of [turret, ...mechs]) this.registerAsset(scene);
