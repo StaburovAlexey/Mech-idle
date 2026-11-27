@@ -128,6 +128,33 @@ afterEach(() => {
   document.body.innerHTML = ''; localStorage.clear();
 });
 
+describe('main menu', () => {
+  it('opens the workshop, purchases a permanent upgrade, and returns to the menu', async () => {
+    const profile = createState(); profile.profile.crystals = 5;
+    await boot(profile);
+    expect(element('.shell').classList.contains('at-front-menu')).toBe(true);
+    key('1');
+    click('#open-workshop');
+    expect(element('.shell').classList.contains('at-workshop')).toBe(true);
+    expect(document.activeElement).toBe(button('#workshop-back'));
+    expect(element('#menu-crystals').textContent).toBe('5');
+    click('#upgrade-damage');
+    expect(element('#menu-crystals').textContent).toBe('2');
+    expect(saved().profile.meta.damage).toBe(1);
+    key('Escape');
+    expect(element('.shell').classList.contains('at-front-menu')).toBe(true);
+    expect(document.activeElement).toBe(button('#open-workshop'));
+    click('#menu-help');
+    expect(element('#modal-title').textContent).toBe('Как защитить оплот');
+  });
+  it('prioritizes the saved run and does not open a workshop during it', async () => {
+    await boot(fundedRun());
+    expect(hidden('#start')).toBe(true);
+    expect(hidden('#resume')).toBe(false);
+    expect(button('#open-workshop').disabled).toBe(true);
+  });
+});
+
 describe('fullscreen battle actual UI flows', () => {
   it('New Run swaps the workshop for a compact battle HUD and exactly four upgrade buttons', async () => {
     await boot();

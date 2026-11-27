@@ -225,7 +225,7 @@ body.battle-active{overflow:hidden;overscroll-behavior:none}
 }
 .battle-menu-close:focus-visible{outline-offset:-4px;outline-color:#fff}
 .battle-menu-close:hover:not(:disabled){filter:none;background:#ffffff16}
-.kenney-close-icon{display:block;width:18px;height:18px;background:url('/assets/ui/kenney-ui/icon_cross_red.png') center / 18px 18px no-repeat}
+.battle-close-icon{display:block;width:18px;height:18px;background:url('/assets/ui/kenney-ui/icon_cross_red.png') center / 18px 18px no-repeat}
 .battle-menu-panel p{margin:0;color:#626675;font-size:11px;line-height:1.5}
 .battle-menu-panel .battle-menu-status{padding:0 2px}
 .battle-menu-panel .menu-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
@@ -318,3 +318,112 @@ body.battle-active{overflow:hidden;overscroll-behavior:none}
   .shell.in-battle .upgrade-sub{display:none}
 }
 @media(prefers-reduced-motion:reduce){.shell.in-battle .upgrade,.battle-resource .health-fill,.boss-fill{transition:none}}
+
+/* DRIFTWORKS surfaces. Keep text, buttons and numeric indicators native. */
+:root {
+  --dw-ink:#1b1d1c; --dw-text:#fff6e5; --dw-muted:#c7bcaa; --dw-amber:#ffc56c;
+  --dw-plate:url('/assets/ui/driftworks/plate_large.png');
+  --dw-button:url('/assets/ui/driftworks/btn_standard_normal.png');
+  --dw-hover:url('/assets/ui/driftworks/btn_standard_hover.png');
+  --dw-pressed:url('/assets/ui/driftworks/btn_standard_pressed.png');
+  --dw-disabled:url('/assets/ui/driftworks/btn_standard_disabled.png');
+}
+.shell:not(.in-battle):not(.at-workshop)>.section-head,.shell:not(.in-battle):not(.at-workshop)>.upgrades{display:none}
+.shell.at-workshop .workspace{flex:0;min-height:0;grid-template-columns:1fr}
+.shell.at-workshop .arena-wrap{display:none}
+.panel.menu-panel,.panel.result-panel,.modal,.battle-menu-panel{
+  border:14px solid transparent;
+  border-image:var(--dw-plate) 14 fill / 14px stretch;
+  background:var(--dw-ink);background-clip:padding-box;color:var(--dw-text);
+}
+.panel.menu-panel{padding:16px 13px;gap:15px;justify-content:center}
+.panel.menu-panel::before,.panel.result-panel::before,.modal::before,.battle-menu-head::before,.battle-resources::before{display:none}
+.panel.menu-panel .menu-intro,.panel.menu-panel .menu-intro>.eyebrow,.result-panel>.eyebrow{position:static}
+.panel.menu-panel .menu-intro>.eyebrow,.result-panel>.eyebrow,.battle-menu-head .eyebrow{color:var(--dw-amber)}
+.panel.menu-panel h1{color:var(--dw-text);font-size:clamp(34px,4vw,54px);line-height:.98;letter-spacing:.025em;margin-top:9px}
+.at-workshop .panel.menu-panel h1{font-size:clamp(27px,4vw,44px);letter-spacing:-.025em}
+.panel.menu-panel p,.panel.result-panel p,.modal p,.battle-menu-panel p{color:var(--dw-muted)}
+.panel.menu-panel .hint,.panel.result-panel .hint{color:var(--dw-muted)!important}
+.panel.menu-panel .menu-bank{gap:7px;margin:0}
+.panel.menu-panel .menu-bank strong{color:var(--dw-amber);font-size:21px}
+.panel.menu-panel .menu-bank span{color:var(--dw-muted)}
+.panel.menu-panel .menu-bank .symbol{font-size:19px;color:var(--dw-amber)}
+.panel.menu-panel .menu-actions{display:grid;grid-template-columns:1fr;gap:7px}
+.panel.menu-panel .menu-actions .main-button{width:100%;justify-content:center;color:var(--dw-amber)}
+.panel.menu-panel .menu-actions button:disabled{color:#b5aa9a}
+.panel.menu-panel .menu-actions button::before{
+  content:'';width:19px;height:19px;display:inline-block;flex:none;vertical-align:middle;
+  margin-right:6px;background:var(--dw-icon) center/contain no-repeat;
+}
+#start,#resume{--dw-icon:url('/assets/ui/driftworks/play.svg')}
+#open-workshop{--dw-icon:url('/assets/ui/driftworks/settings.svg')}
+#menu-help{--dw-icon:url('/assets/ui/driftworks/info.svg')}
+.panel.menu-panel .menu-intro::after{
+  content:'';display:block;height:9px;margin-top:12px;opacity:.74;
+  background:url('/assets/ui/driftworks/hazard_strip.png') left center/124px 9px repeat-x;
+}
+
+.main-button,.main-button:not(.secondary),.main-button.secondary,.small-button,.icon-button,.upgrade,.upgrade.affordable,.battle-menu-toggle{
+  border:7px solid transparent;border-image:var(--dw-button) 12 fill / 7px stretch;
+  color:var(--dw-text);background:#1f211f;background-clip:padding-box;
+}
+.main-button:not(.secondary){color:var(--dw-amber)}
+:is(.main-button,.main-button:not(.secondary),.small-button,.icon-button,.upgrade,.battle-menu-toggle):hover:not(:disabled){border-image-source:var(--dw-hover)}
+:is(.main-button,.main-button:not(.secondary),.small-button,.icon-button,.upgrade,.battle-menu-toggle):active:not(:disabled){border-image-source:var(--dw-pressed)}
+:is(.main-button,.main-button:not(.secondary),.small-button,.icon-button,.upgrade,.battle-menu-toggle):disabled{border-image-source:var(--dw-disabled);color:#b5aa9a}
+.upgrade .upgrade-level,.battle-menu-panel .menu-grid>div,.result-panel .stat-box{background:#1c1e1c;color:var(--dw-muted);border-color:#ffffff20}
+.upgrade .upgrade-value small,.upgrade .upgrade-sub,.result-panel .stat-box span,.battle-menu-panel .menu-grid span,.battle-menu-panel .keyboard{color:var(--dw-muted)}
+.upgrade .upgrade-price,.upgrade.meta .upgrade-price,.result-panel .stat-box.crystals strong{color:var(--dw-amber)}
+.upgrade:disabled .upgrade-price{color:var(--dw-muted)}
+.result-panel .stat-box strong,.panel.result-panel h1,.battle-menu-panel .menu-grid strong{color:var(--dw-text)}
+.panel.result-panel,.modal{padding-top:15px}
+.modal h2{margin:0;color:var(--dw-text)}
+.battle-menu-panel .menu-actions .danger{color:#ffc1b0;border-image-source:var(--dw-button);background:#352321}
+.battle-menu-panel .menu-actions .danger:hover{border-image-source:var(--dw-hover);background:#352321}
+.battle-close-icon{background:url('/assets/ui/driftworks/close.svg') center/contain no-repeat}
+
+.shell.in-battle,.shell.in-battle .battle-hud,.shell.in-battle>.upgrades{background:#242621;border-color:#121411}
+.battle-resources{
+  border:7px solid transparent;border-image:var(--dw-plate) 14 fill / 7px stretch;
+  padding:0 5px;color:var(--dw-text);
+}
+.battle-resource{padding-top:3px}
+.battle-resource>span,.battle-resource>small{color:var(--dw-muted)}
+.battle-resource>strong{color:var(--dw-text);margin-top:7px}
+.battle-resource.gold>strong,.battle-resource.crystals>strong{color:var(--dw-amber)}
+.battle-resource.health>strong{margin-top:5px}
+.battle-resource+.battle-resource::before{top:11px;bottom:6px;background:#ffffff27}
+.battle-resource .health-track,.shell.in-battle .boss-track{
+  background:url('/assets/ui/driftworks/gauge_frame.png') center/100% 100% no-repeat;height:8px;padding:1px 2px;
+}
+.battle-resource .health-track{bottom:0}
+.battle-resource .health-fill,.shell.in-battle .boss-fill{
+  background:url('/assets/ui/driftworks/gauge_fill_hull.png') center/100% 100% no-repeat;
+}
+.battle-resource .health-fill.low,.shell.in-battle .boss-fill{background:linear-gradient(#fa826e,#bd3f32)}
+@media(max-width:720px){
+  .panel.menu-panel{display:flex;flex-direction:column;align-items:stretch;gap:11px;padding:9px 9px 8px}
+  .panel.menu-panel .menu-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
+  .panel.menu-panel .menu-actions .main-button{grid-column:1/-1}
+  .panel.menu-panel .menu-intro::after{margin-top:8px}
+  .panel.menu-panel .hint{font-size:11px}
+}
+
+.upgrade[data-stat=damage]{--dw-stat-icon:url('/assets/ui/driftworks/attack.svg')}
+.upgrade[data-stat=maxHp]{--dw-stat-icon:url('/assets/ui/driftworks/hull_plate.svg')}
+.upgrade[data-stat=attackSpeed]{--dw-stat-icon:url('/assets/ui/driftworks/thruster.svg')}
+.upgrade[data-stat=regen]{--dw-stat-icon:url('/assets/ui/driftworks/medkit.svg')}
+.upgrade .stat-icon{background:var(--dw-stat-icon) center/19px 19px no-repeat;color:transparent}
+@media(max-width:600px){
+  .battle-resources{border-width:4px;border-image-width:4px}
+  .battle-resource{padding-top:5px}
+  .battle-resource .health-track{bottom:5px;height:7px}
+}
+
+.brand-mark{
+  border:4px solid transparent;border-image:var(--dw-button) 12 fill / 4px stretch;
+  color:var(--dw-amber);background:#242722;
+}
+@media(max-width:720px){
+  .at-front-menu .panel.menu-panel{order:-1}
+}

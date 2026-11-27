@@ -179,51 +179,33 @@ describe('battle layout stylesheet contract (static, not a browser layout measur
   });
 });
 
-describe('shipped original Kenney skins (asset and authored CSS checks)', () => {
-  it('uses fixed-size original header artwork and thin rectangular screw surfaces', () => {
-    for (const selector of ['.panel::before', '.modal::before']) {
-      const header=combinedRulesFor(selector);
-      expect(header.height).toBe('64px');
-      expect(header['border-image']).toMatch(/button_square_header_large_rectangle_screws\.png['"]?\) 12 fill \/ 12px/);
-      expect(header['pointer-events']).toBe('none');
-    }
-    expect(combinedRulesFor('.battle-resources').height).toBe('64px');
-    expect(combinedRulesFor('.battle-menu-head')).toMatchObject({height:'64px',margin:'0'});
-    for(const selector of ['.battle-resources::before','.battle-menu-head::before'])
-      expect(combinedRulesFor(selector)['border-image']).toContain('button_square_header_large_rectangle_screws.png');
-    expect(combinedRulesFor('.battle-menu-panel')['border-image']).toContain('panel_glass_screws.png');
+describe('DRIFTWORKS skin and asset provenance', () => {
+  it('keeps the resource row compact and uses the pack plate as a nine-slice surface', () => {
+    expect(combinedRulesFor('.battle-resources')).toMatchObject({height:'64px','border-image':'var(--dw-plate) 14 fill / 7px stretch'});
+    expect(combinedRulesFor('.battle-menu-panel')['border-image']).toBe('var(--dw-plate) 14 fill / 14px stretch');
     expect(combinedRulesFor('.battle-menu-panel').overflow).toBe('auto');
-    expect(rulesFor('.battle-menu-panel::before')).toHaveLength(0);
-    expect(combinedRulesFor('.upgrade')['border-image']).toMatch(/button_rectangle_depth_flat_grey\.png['"]?\) 8 fill \/ 4px/);
-    expect(combinedRulesFor('.upgrade')).toMatchObject({background:'transparent',opacity:'1',filter:'none'});
-    expect(css).not.toContain('panel_glass_notches.png');
-    expect(css).not.toContain('button_rectangle_depth_border.png');
+    expect(combinedRulesFor('.battle-resources::before').display).toBe('none');
   });
 
-  it('uses original neutral normal/hover/pressed faces and one blue primary action without fading', () => {
-    expect(combinedRulesFor('.upgrade.affordable')['border-image-source']).toContain('/button_rectangle_depth_flat_grey.png');
-    expect(combinedRulesFor('.upgrade:disabled')).toMatchObject({opacity:'1',filter:'none',background:'transparent'});
-    expect(combinedRulesFor('.upgrade:disabled')['border-image-source']).toContain('/button_rectangle_flat_grey.png');
-    expect(combinedRulesFor('.upgrade:hover:not(:disabled)')['border-image-source']).toContain('/button_rectangle_depth_gloss_grey.png');
-    expect(combinedRulesFor('.upgrade:active:not(:disabled)')['border-image-source']).toContain('/button_rectangle_flat_grey.png');
-    expect(combinedRulesFor('.main-button.secondary')['border-image']).toContain('button_rectangle_depth_flat_grey.png');
-    expect(combinedRulesFor('.main-button.secondary').border).toBe('4px solid transparent');
-    expect(combinedRulesFor('.main-button:not(.secondary)')['border-image-source']).toContain('/button_rectangle_depth_flat.png');
-    expect(combinedRulesFor('.main-button:not(.secondary):hover:not(:disabled)')['border-image-source']).toContain('/button_rectangle_depth_gloss.png');
-    expect(combinedRulesFor('.main-button:not(.secondary):active:not(:disabled)')['border-image-source']).toContain('/button_rectangle_flat.png');
+  it('uses the pack button for all four interactive states and keeps the primary action distinct', () => {
+    expect(combinedRulesFor('.upgrade')['border-image']).toBe('var(--dw-button) 12 fill / 7px stretch');
+    expect(combinedRulesFor('.panel.menu-panel .menu-actions .main-button').color).toBe('var(--dw-amber)');
+    for(const [variable,file] of [['button','normal'],['hover','hover'],['pressed','pressed'],['disabled','disabled']]){
+      expect(combinedRulesFor(':root')[`--dw-${variable}`]).toContain(`btn_standard_${file}.png`);
+    }
   });
 
   it('keeps a compact two-column menu, a pack cross icon and 44px touch targets', () => {
     document.body.innerHTML=battleMenuMarkup;
-    expect(document.querySelector('#battle-menu-close .kenney-close-icon')?.getAttribute('aria-hidden')).toBe('true');
+    expect(document.querySelector('#battle-menu-close .battle-close-icon')?.getAttribute('aria-hidden')).toBe('true');
     expect(document.querySelector('.battle-menu-panel > .hint')).toBeNull();
     expect(document.querySelector('#battle-menu-save')?.getAttribute('aria-label')).toContain('Сохранить забег');
     expect(combinedRulesFor('.battle-menu-panel .menu-actions')).toMatchObject({display:'grid','grid-template-columns':'repeat(2,minmax(0,1fr))'});
     expect(combinedRulesFor('.battle-menu-panel .menu-actions button')['min-height']).toBe('44px');
     expect(combinedRulesFor('.battle-menu-close')).toMatchObject({'min-width':'44px','min-height':'44px'});
     expect(combinedRulesFor('.battle-menu-panel #battle-menu-return')['grid-column']).toBe('1/-1');
-    expect(combinedRulesFor('.kenney-close-icon').background).toContain('/icon_cross_red.png');
-    expect(combinedRulesFor('.kenney-close-icon')).toMatchObject({width:'18px',height:'18px'});
+    expect(combinedRulesFor('.battle-close-icon').background).toContain('/driftworks/close.svg');
+    expect(combinedRulesFor('.battle-close-icon')).toMatchObject({width:'18px',height:'18px'});
   });
 
   it('has every CSS-referenced sprite present, licensed and byte-identical to its provenance hash', () => {
@@ -235,15 +217,20 @@ describe('shipped original Kenney skins (asset and authored CSS checks)', () => 
       const records = manifest.filter(record => record.file === file);
       expect(records, file).toHaveLength(1);
       const record = records[0];
-      expect(record.source).toMatch(/^https:\/\/kenney\.nl\/assets\/ui-pack(?:-sci-fi)?$/);
-      expect(record.original).toMatch(/^PNG\/(?:Extra|Blue|Red|Grey)\/Default\/.+\.png$/);
-      expect(record.license).toBe('CC0-1.0');
+      if (file.startsWith('driftworks/')) {
+        expect(record.source).toMatch(/^https:\/\/victorgabrielf\.itch\.io\/driftworks-free-/);
+        expect(record.original).toMatch(/^(?:ui\/png|icons\/svg)\/.+\.(?:png|svg)$/);
+        expect(record.license).toBe('DRIFTWORKS Standard Royalty-Free');
+      } else {
+        expect(record.source).toMatch(/^https:\/\/kenney\.nl\/assets\/ui-pack(?:-sci-fi)?$/);
+        expect(record.original).toMatch(/^PNG\/(?:Extra|Blue|Red|Grey)\/Default\/.+\.png$/);
+        expect(record.license).toBe('CC0-1.0');
+      }
       expect(createHash('sha256').update(readFileSync(`${assetRoot}${file}`)).digest('hex'), file).toBe(record.sha256);
     }
-    // Pin the two primary visible faces so changing artwork and its manifest
-    // together cannot silently replace the original source artwork.
-    expect(manifest.find(record => record.file === 'kenney-sci-fi/panel_glass_screws.png')?.sha256).toBe('6059efb0bbff5597104ecaef460d120eb30e31b174a7556e6122cec70419cc94');
-    expect(manifest.find(record => record.file === 'kenney-ui/button_rectangle_depth_flat.png')?.sha256).toBe('6c709a45aae0330ffff5b060d9f14cc2297839f664e0a4c9e516d90ad085ec0b');
+    expect(manifest.find(record => record.file === 'driftworks/plate_large.png')?.sha256).toBe('1fdef20dbf84deaefa5e1ada54ab7c905bb747975e62c627839c75a1cba22234');
+    expect(manifest.find(record => record.file === 'driftworks/btn_standard_normal.png')?.sha256).toBe('b27713539c455cb0e7425f5ea44877831fdd2c1a8f821b7925020aff6d3342bd');
+    expect(readFileSync(`${assetRoot}driftworks/LICENSE.txt`, 'utf8')).toContain('personal or commercial');
     for (const pack of ['kenney-ui', 'kenney-sci-fi']) expect(readFileSync(`${assetRoot}${pack}/License.txt`, 'utf8')).toContain('Creative Commons Zero, CC0');
   });
 });
