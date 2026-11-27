@@ -91,7 +91,7 @@ async function boot(state?: GameState) {
   await import('./main');
   await vi.waitFor(() => {
     expect(fakes.ready).toHaveBeenCalledOnce();
-    expect(button('#start').disabled).toBe(false);
+    expect(button(state?.run?'#resume':'#start').disabled).toBe(false);
     expect(frameCallback).not.toBeNull();
   });
 }
@@ -147,10 +147,23 @@ describe('main menu', () => {
     click('#menu-help');
     expect(element('#modal-title').textContent).toBe('Как защитить оплот');
   });
+  it('animates the title independently while leaving a saved run paused', async () => {
+    const initial = fundedRun();
+    await boot(initial);
+    advanceFrames(3);
+    const [frame, delta] = fakes.render.mock.calls.at(-1)!;
+    expect(frame.phase).toBe('title');
+    expect(frame.paused).toBe(true);
+    expect(frame.elapsed).toBe(initial.run!.time);
+    expect(delta).toBeGreaterThan(0);
+    expect(saved().run).toEqual(initial.run);
+    click('#menu-help'); advanceFrames();
+    expect(fakes.render.mock.calls.at(-1)![1]).toBe(0);
+  });
   it('prioritizes the saved run and does not open a workshop during it', async () => {
     await boot(fundedRun());
-    expect(hidden('#start')).toBe(true);
-    expect(hidden('#resume')).toBe(false);
+    expect(button('#start').disabled).toBe(true);
+    expect(button('#resume').disabled).toBe(false);
     expect(button('#open-workshop').disabled).toBe(true);
   });
 });
@@ -432,9 +445,9 @@ describe('fullscreen battle actual UI flows', () => {
     expect(document.body.classList.contains('battle-active')).toBe(false);
     expect(hidden('#battle-menu-overlay')).toBe(true);
     expect(hidden('#battle-hud')).toBe(true);
-    expect(hidden('#resume')).toBe(false);
+    expect(button('#resume').disabled).toBe(false);
     expect(document.activeElement).toBe(button('#resume'));
-    expect(hidden('#start')).toBe(true);
+    expect(button('#start').disabled).toBe(true);
     expect(button('#upgrade-damage').disabled).toBe(true);
     expect(saved().run).toEqual(initial.run);
     expect(saved().profile).toEqual(initial.profile);
@@ -479,9 +492,9 @@ describe('fullscreen battle actual UI flows', () => {
     expect(element('.shell').classList.contains('in-battle')).toBe(false);
     expect(element('.shell').inert).toBe(false);
     expect(hidden('#battle-menu-overlay')).toBe(true);
-    expect(hidden('#start')).toBe(false);
+    expect(button('#start').disabled).toBe(false);
     expect(document.activeElement).toBe(button('#start'));
-    expect(hidden('#resume')).toBe(true);
+    expect(button('#resume').disabled).toBe(true);
     expect(element('#menu-crystals').textContent).toBe('17');
     expect(fakes.pause?.reasons.has('battleMenu')).toBe(false);
     expect(fakes.pause?.reasons.has('dialog')).toBe(false);
