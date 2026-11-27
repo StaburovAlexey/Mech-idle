@@ -113,6 +113,7 @@ beforeEach(() => {
   localStorage.clear();
   frameCallback = null; now = 1000; fakes.pause = null;
   vi.spyOn(performance, 'now').mockImplementation(() => now);
+  vi.spyOn(window,'scrollTo').mockImplementation(() => {});
   vi.stubGlobal('requestAnimationFrame', vi.fn((callback: FrameRequestCallback) => {
     frameCallback = callback; return 1;
   }));
@@ -136,9 +137,13 @@ describe('main menu', () => {
     key('1');
     click('#open-workshop');
     expect(element('.shell').classList.contains('at-workshop')).toBe(true);
-    expect(document.activeElement).toBe(button('#workshop-back'));
+    expect(document.activeElement).toBe(element('#workshop-heading'));
     expect(element('#menu-crystals').textContent).toBe('5');
-    click('#upgrade-damage');
+    expect(element('#workshop-damage .workshop-next').textContent).toBe('→ 11 урона');
+    advanceFrames();
+    expect(fakes.render.mock.calls.at(-1)?.[0].phase).toBe('workshop');
+    expect(fakes.render.mock.calls.at(-1)?.[1]).toBe(0);
+    click('[data-workshop-stat="damage"]');
     expect(element('#menu-crystals').textContent).toBe('2');
     expect(saved().profile.meta.damage).toBe(1);
     key('Escape');
@@ -146,6 +151,21 @@ describe('main menu', () => {
     expect(document.activeElement).toBe(button('#open-workshop'));
     click('#menu-help');
     expect(element('#modal-title').textContent).toBe('Как защитить оплот');
+  });
+  it('shows unchanged live workshop prices and disables unaffordable or capped upgrades', async () => {
+    const profile = createState(); profile.profile.crystals = 0; profile.profile.meta.damage = 10;
+    await boot(profile);
+    click('#open-workshop');
+    expect(button('[data-workshop-stat="damage"]').disabled).toBe(true);
+    expect(element('[data-workshop-stat="damage"]').textContent).toBe('МАКС');
+    expect(element('[data-workshop-stat="damage"]').getAttribute('aria-label')).not.toContain('цена');
+    expect(element('#workshop-damage .workshop-next').textContent).toBe('');
+    for (const [stat, next] of [['maxHp', '→ 110 HP'], ['attackSpeed', '→ 1,1 /с'], ['regen', '→ 0,2 HP/с']]) {
+      const purchase = button(`[data-workshop-stat="${stat}"]`);
+      expect(purchase.disabled).toBe(true);
+      expect(purchase.textContent).toBe('◇ 3');
+      expect(element(`#workshop-${stat} .workshop-next`).textContent).toBe(next);
+    }
   });
   it('animates the title independently while leaving a saved run paused', async () => {
     const initial = fundedRun();

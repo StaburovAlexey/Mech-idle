@@ -119,7 +119,8 @@ export class SceneView {
   private city!: THREE.Group;
   private importedMechs?: ImportedMechs;
   private readonly titleMech = new TitleMech();
-  private showingTitle = false;
+  private readonly workshopTurret = new TitleMech(true);
+  private presentation?: TitleMech;
   private turretGlow = new THREE.Group();
   private barrel: THREE.Group;
   private flash: THREE.Mesh;
@@ -385,6 +386,7 @@ export class SceneView {
       if (!this.disposed) {
         this.titleMech.setModel(mechs[3]); // George, the green two-antenna mech in the title reference.
         applyCombatPalette(turret.scene, COMBAT_COLORS[4], true);
+        this.workshopTurret.setModel(turret);
         mechs.forEach(({ scene }, i) => applyCombatPalette(scene, COMBAT_COLORS[i]));
       }
       for (const { scene } of [turret, ...mechs]) this.registerAsset(scene);
@@ -429,6 +431,7 @@ export class SceneView {
     const width = Math.max(1, bounds.width), height = Math.max(1, bounds.height);
     this.renderer.setSize(width, height, false);
     this.titleMech?.resize(width, height);
+    this.workshopTurret?.resize(width, height);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, MAX_RENDER_DPR));
     this.fieldViewport = arenaViewport(width, height);
     configureArenaCamera(this.camera, this.fieldViewport.width, this.fieldViewport.height);
@@ -447,14 +450,15 @@ export class SceneView {
 
   render(frame: SceneFrame, dt: number) {
     if (this.disposed) return;
-    if (frame.phase === 'title') {
-      if (!this.showingTitle) this.titleMech.enter();
-      this.showingTitle = true;
-      this.titleMech.render(this.renderer, dt);
+    const presentation = frame.phase === 'title' ? this.titleMech : frame.phase === 'workshop' ? this.workshopTurret : undefined;
+    if (presentation) {
+      if (this.presentation !== presentation) presentation.enter();
+      this.presentation = presentation;
+      presentation.render(this.renderer, dt);
       return;
     }
-    if (this.showingTitle) {
-      this.showingTitle = false;
+    if (this.presentation) {
+      this.presentation = undefined;
       this.previous.clear();
     }
     dt = frame.paused ? 0 : Math.max(0, Math.min(dt || 0, .05)); this.clock += dt;
@@ -582,6 +586,7 @@ export class SceneView {
   dispose() {
     if (this.disposed) return; this.disposed = true; this.observer.disconnect();
     this.titleMech?.dispose();
+    this.workshopTurret?.dispose();
     this.importedMechs?.dispose();
     this.sun.shadow.dispose();
     this.scene.traverse(object => { if (object instanceof THREE.Mesh) { this.allGeometries.add(object.geometry); const ms = Array.isArray(object.material) ? object.material : [object.material]; ms.forEach(m => this.allMaterials.add(m)); if (object instanceof THREE.InstancedMesh) object.dispose(); } });
