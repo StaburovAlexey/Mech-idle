@@ -10,7 +10,7 @@ export const TITLE_TIPS = [
 const MATRIX_MS = 560;
 const GLYPHS = '0101XYZКМФ#%+<>';
 
-export function rotateTitleTips(panel: HTMLElement) {
+export function rotateTitleTips(panel: HTMLElement, ripple = () => true) {
   const copy = panel.querySelector<HTMLElement>('.title-tip-text')!;
   const tips = [...copy.querySelectorAll<HTMLElement>('p:not(.title-tip-code)')];
   const code = copy.querySelector<HTMLElement>('.title-tip-code')!;
@@ -33,7 +33,7 @@ export function rotateTitleTips(panel: HTMLElement) {
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
 
     stopRipple();
-    stopRipple = trackVhs(panel, 480);
+    stopRipple = ripple() ? trackVhs(panel, 480) : () => {};
     const text = next.textContent ?? '';
     const start = performance.now();
     let lastPaint = -Infinity;

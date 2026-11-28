@@ -21,6 +21,7 @@ export const titleMarkup = `
     ${titleButton('resume', 'Продолжить', true)}
     ${titleButton('open-workshop', 'Мастерская')}
     ${titleButton('open-module-shop', 'Магазин')}
+    ${titleButton('menu-settings', 'Настройки')}
     ${titleButton('menu-help', 'Как играть')}
     <div class="title-vents" aria-hidden="true"><i></i><i></i><i></i></div>
   `, 'Главное меню')}

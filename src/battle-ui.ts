@@ -111,7 +111,7 @@ export const battleMenuMarkup = chainPanelSheet(`<section class="battle-menu-pan
  <h2 id="battle-menu-title">Меню боя</h2>
  <div class="menu-actions">
   ${titleButton('battle-menu-return','Вернуться в бой',true)}
-  ${titleButton('battle-menu-sound','Звук: выключен')}
+  ${titleButton('battle-menu-settings','Настройки')}
   ${titleButton('battle-menu-save','Сохранить и выйти',false,'Сохранить и выйти в главное меню')}
   ${titleButton('battle-menu-abandon','Завершить забег')}
  </div>

@@ -2,13 +2,14 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { attackConfig, enemyStats, ENEMY_PROJECTILE_SPEED, createState, getStats, parseState, serializeState, startRun, STAT_KEYS, type GameState } from './game';
+import { SETTINGS_KEY } from './game-settings';
 import { SAVE_KEY } from './persistence';
 import type { SceneFrame } from './scene';
 
 // These tests run the actual UI, game rules and local save repository. Only GPU,
 // audio hardware, platform setup, tab ownership and frame scheduling are replaced.
 const fakes = vi.hoisted(() => ({
-  render: vi.fn(), ready: vi.fn(), soundToggle: vi.fn(), soundSuspend: vi.fn(), soundResume: vi.fn(),
+  render: vi.fn(), ready: vi.fn(), soundUnlock: vi.fn(), soundSuspend: vi.fn(), soundResume: vi.fn(),
   assets: undefined as Promise<boolean> | undefined,
   acquire: vi.fn<() => Promise<'acquired'|'busy'|'unavailable'>>(), release: vi.fn(),
   pause: null as null | { reasons: Set<string>; readonly paused: boolean },
@@ -29,7 +30,7 @@ vi.mock('./boot', async importOriginal => ({
 vi.mock('./audio', () => ({
   Sound: class {
     enabled = false;
-    toggle() { fakes.soundToggle(); this.enabled = !this.enabled; return this.enabled; }
+    unlock() { fakes.soundUnlock(); }
     play() {}
     suspend() { fakes.soundSuspend(); }
     resume() { fakes.soundResume(); }
@@ -174,27 +175,23 @@ describe('save protection at startup', () => {
 });
 
 describe('startup', () => {
-  it('unlocks the menu while the VHS sweep is active without advancing the notification', async () => {
+  it.each([true,false])('starts with the saved CRT choice (%s) and no VHS tracking', async (crt) => {
     vi.useFakeTimers({toFake:['setTimeout','clearTimeout']});
     const page=new DOMParser().parseFromString(readFileSync('index.html','utf8'),'text/html');
     document.body.append(page.querySelector('.boot-filter')!,page.querySelector('#boot')!);
-    const app=element('#app');
-    app.inert=true;
+    const app=element('#app'); app.inert=true;
+    localStorage.setItem(SETTINGS_KEY,JSON.stringify({crt}));
     vi.stubGlobal('matchMedia',()=>({matches:false}));
     for(const target of [app,element('#boot-display'),element('#boot-beam')])
       target.animate=vi.fn().mockReturnValue({finished:Promise.resolve(),cancel:vi.fn()});
     await import('./main');
     await vi.advanceTimersByTimeAsync(0);
-    now+=3105;
-    await vi.advanceTimersByTimeAsync(3105);
+    now+=3200;
+    await vi.advanceTimersByTimeAsync(3200);
     expect(app.inert).toBe(false);
-    expect(element('#boot').dataset.inputReady).toBe('true');
-    expect(element('.shell').classList.contains('boot-tracking')).toBe(true);
-    expect(document.querySelector('.menu-announcement')).toBeNull();
-    click('#menu-help');
-    expect(element('#modal-title').textContent).toBe('Как защитить оплот');
-    await vi.advanceTimersByTimeAsync(780);
     expect(document.querySelector('#boot')).toBeNull();
+    expect(element('.shell').classList.contains('boot-tracking')).toBe(false);
+    expect(vi.mocked(app.animate).mock.calls.length).toBe(crt?2:0);
     expect(element('.menu-announcement strong').textContent).toBe('Новинка в магазине');
   });
   it.each([
@@ -627,12 +624,12 @@ describe('fullscreen battle actual UI flows', () => {
     expect(fakes.pause?.reasons.has('user')).toBe(false);
     const overlay = element('#battle-menu-overlay');
     expect([...overlay.querySelectorAll('#battle-menu-actions button')].map(button => button.id)).toEqual([
-      'battle-menu-return', 'battle-menu-sound', 'battle-menu-save', 'battle-menu-abandon',
+      'battle-menu-return', 'battle-menu-settings', 'battle-menu-save', 'battle-menu-abandon',
     ]);
     expect(overlay.querySelectorAll('#battle-menu-actions button.title-button')).toHaveLength(4);
     expect(overlay.textContent).not.toMatch(/Управление оплотом|Бой остановлен|Урон|Пауза|Как играть/);
     advanceFrames(8); expect(elapsed()).toBe(before);
-    button('#battle-menu-sound').focus();
+    button('#battle-menu-settings').focus();
     expect(key('Escape', document.activeElement!).defaultPrevented).toBe(true);
     expect(hidden('#battle-menu-overlay')).toBe(true);
     expect(document.querySelector('#paused')).toBeNull();
@@ -723,12 +720,33 @@ describe('fullscreen battle actual UI flows', () => {
     expect(element('#upgrades').textContent).not.toContain('Заказано');
   });
 
+  it('shares saved sound, volume and CRT settings between title and paused battle', async () => {
+    await boot(); click('#menu-settings');
+    const input=(name:string)=>element<HTMLInputElement>(`#game-settings-controls [name=${name}]`);
+    expect(input('crt').checked).toBe(true);
+    click('#game-settings-controls [name=sound]');
+    expect(fakes.soundUnlock).toHaveBeenCalledOnce();
+    input('volume').value='37';input('volume').dispatchEvent(new Event('input'));
+    click('#game-settings-controls [name=crt]');
+    expect(JSON.parse(localStorage.getItem(SETTINGS_KEY)!)).toEqual({sound:true,volume:37,crt:false});
+    expect(element('#game-settings-controls output').textContent).toBe('37%');
+    click('#game-settings-close'); expect(document.activeElement).toBe(button('#menu-settings'));
+    click('#start'); advanceFrames(2); openDrawer();
+    const before=elapsed();
+    click('#battle-menu-settings');
+    expect(element('#battle-menu-overlay').classList.contains('settings-underlay')).toBe(true);
+    expect(input('sound').checked).toBe(true);
+    expect(input('volume').value).toBe('37');
+    expect(input('crt').checked).toBe(false);
+    advanceFrames(5); expect(elapsed()).toBe(before);
+    key('Escape',document.activeElement!);
+    expect(document.activeElement).toBe(button('#battle-menu-settings'));
+    expect(fakes.pause?.reasons.has('battleMenu')).toBe(true);
+    expect(element('#battle-menu-overlay').classList.contains('settings-underlay')).toBe(false);
+  });
+
   it('switches to confirmation in the same paused drawer, trapping focus on its visible actions', async () => {
     await boot(fundedRun()); click('#resume'); advanceFrames(2); openDrawer();
-    click('#battle-menu-sound');
-    expect(fakes.soundToggle).toHaveBeenCalledOnce();
-    expect(element('#battle-menu-sound').textContent).toContain('включён');
-    expect(fakes.soundSuspend).toHaveBeenCalled();
     click('#battle-menu-abandon');
     expect(hidden('#battle-menu-actions')).toBe(true);
     expect(hidden('#battle-confirmation')).toBe(false);
