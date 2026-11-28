@@ -10,7 +10,7 @@ function shopCard(key: ShopModule) {
   <span class="workshop-icon" aria-hidden="true">${statIcon(icon)}</span>
   <span class="workshop-data"><span class="workshop-name">${title}</span><span class="module-shop-more">Подробнее</span></span>
   <span class="workshop-price">${priceMarkup(moduleCost(key,0))}</span>
-  <span class="module-shop-ribbon" aria-hidden="true">Куплено</span>
+  <span class="corner-ribbon module-shop-ribbon" aria-hidden="true">Куплено</span>
  </button>`;
 }
 

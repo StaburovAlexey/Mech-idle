@@ -44,15 +44,16 @@
 .module-shop-card .workshop-name { font-size: clamp(10px,3cqw,22px); overflow-wrap: anywhere; }
 .module-shop-more { display: block; color: #c7d791; font-size: clamp(9px,2.45cqw,14px); }
 .module-shop-card .workshop-price { min-width: 2em; gap: 3px; font-size: clamp(14px,4.5cqw,25px); }
-.module-shop-ribbon { display: none; }
-.module-shop-card.purchased .workshop-price { visibility: hidden; }
-.module-shop-card.purchased .module-shop-ribbon {
-  position: absolute; display: block; pointer-events: none;
-  width: clamp(76px,23cqw,116px); right: clamp(-31px,-6.6cqw,-21px); top: clamp(8px,2.6cqw,14px);
-  padding: 2px 0; transform: rotate(43deg); text-align: center; text-transform: uppercase;
-  color: #f4ffdd; background: linear-gradient(#618d38,#355621); border-block: 1px solid #a7c775;
-  box-shadow: 0 2px 3px #111914b3; font-size: clamp(8px,2.1cqw,11px); font-weight: 800;
+.corner-ribbon {
+  position:absolute;display:block;pointer-events:none;
+  width:var(--ribbon-width,clamp(76px,23cqw,116px));right:var(--ribbon-right,clamp(-31px,-6.6cqw,-21px));top:var(--ribbon-top,clamp(8px,2.6cqw,14px));
+  padding:var(--ribbon-padding,2px) 0;transform:rotate(43deg);text-align:center;text-transform:uppercase;
+  color:#f4ffdd;background:linear-gradient(#618d38,#355621);border-block:1px solid #a7c775;
+  box-shadow:0 2px 3px #111914b3;font-size:var(--ribbon-font,clamp(8px,2.1cqw,11px));font-weight:800;
 }
+.module-shop-ribbon {display:none}
+.module-shop-card.purchased .workshop-price {visibility:hidden}
+.module-shop-card.purchased .module-shop-ribbon {display:block}
 #module-shop-back { grid-row: 3; min-height: 49px; font-size: clamp(18px,5.5cqw,30px); }
 
 @container game (min-width: 700px) {

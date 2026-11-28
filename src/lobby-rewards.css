@@ -15,30 +15,38 @@
 .reward-panes > [role=tabpanel] {grid-area:1/1;min-width:0}
 .reward-panes > [hidden] {display:block;visibility:hidden;pointer-events:none}
 .reward-section {padding:10px;border-radius:7px;background:linear-gradient(145deg,#393940,#24242c 65%);border:1px solid #64565c;box-shadow:inset 0 -2px #201b21}
-.reward-section h3,.quest h3 {margin:0 0 4px;font-size:16px;line-height:1.25;text-transform:uppercase}
+.reward-section h3 {margin:0 0 4px;font-size:16px;line-height:1.25;text-transform:uppercase}
 .reward-copy,.reward-foot,.quest-list-note {font-size:11px;line-height:1.45;color:#d8cbbd;margin:0}
 .reward-foot {text-align:center;margin-top:8px}
 .reward-cells {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:11px}
 .reward-day {
   --plate-bolt-size:9px;--plate-bolt-top:8px;--plate-bolt-inset:4px;
-  min-height:61px;padding:11px 4px 5px;display:grid;align-content:center;justify-items:center;gap:2px;
+  min-height:63px;padding:15px 4px 5px;display:grid;align-content:center;justify-items:center;gap:2px;
   color:#e9e0d6;font-size:9px;text-transform:uppercase;text-align:center;
 }
-.reward-day.done {color:#cde3aa}
-.reward-day.last {grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;min-height:42px;padding:6px 18px;color:#ffe1a1}
-.reward-day.today,.quest.is-ready {--plate-edge:#8da956;--plate-bevel:#acc278}
-.reward-day.today {color:#e2f2bd}
-.reward-day > div,.reward-amounts {display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+.reward-day.last {grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;min-height:48px;padding:13px 18px 6px;color:#ffe1a1}
+.reward-day.last.is-received {padding-right:38px}
+.lobby-rewards .is-ready {--plate-edge:#a6d758;--plate-edge-width:2px;--plate-bevel:#b3da77}
+.lobby-rewards button.steel-plate {border:0;width:100%;font-family:inherit}
+.lobby-rewards button.steel-plate:focus-visible {outline:2px solid #fff2d6;outline-offset:-4px}
+.reward-day.is-ready {color:#e2f2bd}
+.reward-amounts {display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
 .reward-value {display:inline-flex;align-items:center;gap:3px;color:#fcf0de;font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
 .reward-value .currency-icon {width:16px;height:16px}
-.lobby-rewards .title-button {min-height:48px;font-size:clamp(11px,3.45cqw,14px);margin-top:11px}
 .quest-list {display:grid;gap:7px;margin-top:7px}
-.quest {min-width:0;padding:10px 20px}
-.quest h3 {font-size:12px;text-transform:none;overflow-wrap:anywhere}
+.quest {display:block;min-width:0;padding:10px 20px;text-align:left;color:#fff0da}
+.quest-title {display:block;padding-right:24px;margin:0 0 4px;font-size:12px;line-height:1.25;font-weight:750;overflow-wrap:anywhere}
 .quest-info {display:flex;align-items:center;justify-content:space-between;gap:7px;margin-top:8px}
-.quest .title-button {min-height:38px;width:auto;padding:4px 9px;margin:0;font-size:11px}
-.quest-status {font-size:10px;color:#bcd48f;text-align:right}
-.quest-progress {height:6px;margin-top:5px;border:1px solid #5b525f;border-radius:3px;background:#19181d;overflow:hidden}
+.quest-claim {font-size:10px;color:#cce89a;font-weight:750;text-transform:uppercase}
+.quest-progress {display:block;height:6px;margin-top:5px;border:1px solid #5b525f;border-radius:3px;background:#19181d;overflow:hidden}
 .quest-progress i {display:block;height:100%;background:linear-gradient(#b4d86b,#647c37)}
+.lobby-rewards .is-received {
+  overflow:hidden;color:#c3c3c3;
+  background:repeating-linear-gradient(0deg,#18181826 0 1px,transparent 1px 3px),linear-gradient(170deg,#525252,#3c3c3c 36%,#303030 66%,#3d3d3d);
+}
+.is-received :is(.reward-value,.reward-copy) {color:#d3d3d3}
+.is-received :is(.currency-icon,.quest-progress i,.steel-plate-bolt) {filter:grayscale(1)}
+.reward-day .corner-ribbon {--ribbon-width:59px;--ribbon-right:-16px;--ribbon-top:8px;--ribbon-font:6.5px;--ribbon-padding:0px}
+.quest .corner-ribbon {--ribbon-width:85px;--ribbon-right:-23px;--ribbon-top:12px;--ribbon-font:8px;--ribbon-padding:1px}
 .reward-feedback {color:#dbe9b9;text-align:center;font-size:11px;margin:8px 0 0}
 .reward-feedback:empty {margin:0}
