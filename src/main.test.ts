@@ -138,7 +138,7 @@ describe('main menu', () => {
     key('1');
     click('#open-workshop');
     expect(element('.shell').classList.contains('at-workshop')).toBe(true);
-    expect(document.activeElement).toBe(element('#workshop-heading'));
+    expect(document.activeElement).toBe(element('#screen-heading'));
     expect(element('section.armored-frame')).toBe(element('.workshop-rack'));
     expect(element('#menu-crystals').textContent).toBe('5');
     expect(element('#workshop-damage .workshop-next').textContent).toBe('→ 11 урона');
@@ -178,7 +178,7 @@ describe('main menu', () => {
     completion[2](); completion[3]();
     await vi.waitFor(() => expect(gates.hidden).toBe(true));
     expect(element('.shell').inert).toBe(false);
-    expect(document.activeElement).toBe(element('#workshop-heading'));
+    expect(document.activeElement).toBe(element('#screen-heading'));
   });
   it('shows next values and price without displaying upgrade levels', async () => {
     const profile = createState(); profile.profile.crystals = 0; profile.profile.meta.damage = 10;

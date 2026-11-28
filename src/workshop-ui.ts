@@ -1,6 +1,6 @@
 import { STAT_KEYS } from './game';
 import { STAT_LABELS } from './battle-ui';
-import { titleBank, titleButton } from './title-ui';
+import { screenHeader, titleButton } from './title-ui';
 import { armoredFrame } from './armored-frame';
 
 const icons = {
@@ -11,10 +11,7 @@ const icons = {
 };
 
 export const workshopMarkup = `
-  <header class="workshop-head">
-    <h1 class="title-logo" id="workshop-heading" tabindex="-1"><span>Мастерская</span></h1>
-    ${titleBank}
-  </header>
+  ${screenHeader('МАСТЕРСКАЯ')}
   <div class="workshop-hero" aria-hidden="true"></div>
   ${armoredFrame('section', 'workshop-rack', `
     ${STAT_KEYS.map(stat => `

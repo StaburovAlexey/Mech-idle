@@ -1,3 +1,16 @@
+/* The menu and workshop reserve the same title slot at every viewport. */
+:root {
+  --screen-header-inset: clamp(14px,4vw,40px);
+  --screen-heading-size: clamp(27px,10vw,64px);
+  --screen-header-reserve: calc(var(--screen-heading-size) * 1.32);
+}
+.screen-header {
+  position: absolute; z-index: 3;
+  top: max(var(--screen-header-inset),env(safe-area-inset-top));
+  left: 50%; transform: translateX(-50%);
+  width: min(1120px, calc(100vw - max(var(--screen-header-inset),env(safe-area-inset-left)) - max(var(--screen-header-inset),env(safe-area-inset-right))));
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
+}
 .shell.at-front-menu {
   width: 100%; max-width: none; margin: 0; padding: 0; gap: 0;
 }
@@ -27,7 +40,7 @@
 .title-panel {
   position: relative; z-index: 2;
   display: grid; grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: auto minmax(min-content, 1fr) auto;
+  grid-template-rows: var(--screen-header-reserve) minmax(min-content, 1fr) auto;
   gap: clamp(19px, 3svh, 50px) 7px; min-height: inherit;
   padding: max(var(--title-space), env(safe-area-inset-top)) max(var(--title-space), env(safe-area-inset-right))
     max(var(--title-space), env(safe-area-inset-bottom)) max(var(--title-space), env(safe-area-inset-left));
@@ -39,8 +52,9 @@
   --lime: #a4e369;
   color: #fce6c7; position: relative; justify-self: start;
   align-self: start; isolation: isolate; margin: 0; padding: .21em .18em .18em;
-  font: 800 clamp(48px, 14vw, 125px)/.88 var(--oplot-font);
-  letter-spacing: -.045em; text-shadow: 0 -1px #fff9dfc4, .012em .027em #a4714f, .022em .053em #634330, .04em .075em #372429, .055em .09em .065em #120d17c9;
+  font: 800 var(--screen-heading-size)/.88 var(--oplot-font);
+  min-width: 10ch;
+  letter-spacing: -.045em; text-shadow: .012em .027em #a4714f, .022em .053em #634330, .04em .075em #372429, .055em .11em .06em #120d17c9;
   transform: skewX(-9deg);
 }
 .title-logo::before, .title-logo::after {
@@ -80,6 +94,7 @@
 }
 
 .title-console {
+  grid-row: 2;
   grid-column: 1 / -1; width: min(63%,433px); align-self: center; margin-bottom: min(7svh,54px);
   padding: clamp(24px,5vw,34px) calc(var(--rim) + 4px) clamp(21px,4.5vw,29px);
   display: grid; gap: clamp(7px,1.25svh,13px);
@@ -137,6 +152,7 @@
 .title-button:focus-visible { outline: 2px solid #fff2d6; outline-offset: 2px; }
 
 .title-tip {
+  grid-row: 3;
   display: flex; grid-column: 1 / -1; align-items: center; gap: clamp(10px,2.5vw,24px);
   align-self: end; color: #f8eddb; padding: calc(var(--rim) + 3px) calc(var(--rim) + 5px);
   max-width: 760px;
@@ -156,13 +172,12 @@
 @media (min-width: 760px) {
   .at-front-menu .workspace { background-position: center 52%; }
   .at-front-menu .arena-wrap { inset: 8% max(5%,calc((100% - 1100px) / 2)) 12% 43%; }
-  .title-panel { grid-template-rows: auto minmax(min-content,1fr) auto; }
   .title-button { font-size: clamp(20px,2.7vw,32px); }
 }
 @media (max-height: 530px) and (orientation: landscape) {
   .at-front-menu .workspace { min-height: max(350px,100svh); }
   .title-panel { --title-space: 10px; gap: 5px; }
-  .title-logo { font-size: clamp(38px,7vw,46px); }
+  :root { --screen-heading-size: clamp(30px,6vw,45px); --screen-header-inset: 12px; }
   .title-console { width: min(51%,350px); margin-bottom: 0; padding-block: 20px 18px; gap: 4px; }
   .title-button { min-height: 44px; font-size: 18px; }
   .title-tip { padding-block: 17px; }
