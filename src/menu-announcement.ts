@@ -1,24 +1,21 @@
+import type { RewardTab } from './lobby-rewards-ui';
 import './menu-announcement.css';
 
-type Destination = 'shop' | 'workshop' | 'offer';
-type Announcement = { title: string; text: string; action: string; destination: Destination };
+type Destination = RewardTab | 'offer';
+export type Announcement = { title: string; text: string; action: string; destination: Destination };
 
-export const TEST_ANNOUNCEMENTS: readonly Announcement[] = [
- {title:'Новинка в магазине',text:'Модуль «Импульс»',action:'В магазин',destination:'shop'},
- {title:'Сообщение мастерской',text:'Проверь улучшения турели',action:'В мастерскую',destination:'workshop'},
- {title:'Спецпредложение',text:'Набор снабжения',action:'Посмотреть',destination:'offer'},
-];
+export const SPECIAL_OFFER: Announcement = {
+ title:'Спецпредложение',text:'Набор снабжения',action:'Посмотреть',destination:'offer',
+};
 
 const icon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Zm0 9 8-4.5M12 12 4 7.5M12 12v9"/></svg>';
 
 export class MenuAnnouncements {
- private index=0;
- private host?: HTMLElement;
+ private offerDismissed=false;
 
- constructor(private readonly queue: readonly Announcement[]) {}
-
- mount(host: HTMLElement, open: (destination: Destination)=>void, canOpen: (destination:Destination)=>boolean, fallbackFocus: ()=>void) {
-  this.host=host;
+ mount(host: HTMLElement, queue: ()=>readonly Announcement[], open: (destination: Destination)=>void, fallbackFocus: ()=>void) {
+  const dismissed=new Set<Destination>();
+  let current:Destination|undefined, leaving=false;
   const play=(card: HTMLElement,frames: Keyframe[],duration: number,done: ()=>void)=>{
    if(!card.animate||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches){done();return;}
    const animation=card.animate(frames,{duration,easing:'cubic-bezier(.22,.72,.25,1)',fill:'both'});
@@ -26,8 +23,12 @@ export class MenuAnnouncements {
    return animation;
   };
   const show=(from: 'right'|'bottom', returnFocus=false)=>{
-   const item=this.queue[this.index];
-   if(!item){host.replaceChildren();if(returnFocus)fallbackFocus();return;}
+   if(leaving||!host.isConnected)return;
+   const item=queue().find(({destination})=>!dismissed.has(destination)&&!(destination==='offer'&&this.offerDismissed));
+   if(item?.destination===current&&!returnFocus)return;
+   const hadFocus=host.contains(document.activeElement);
+   current=item?.destination;
+   if(!item){host.replaceChildren();if(returnFocus||hadFocus)fallbackFocus();return;}
    host.innerHTML=`<aside class="menu-announcement" aria-label="Оповещение">
     <span class="menu-announcement-icon" aria-hidden="true">${icon}</span>
     <div class="menu-announcement-copy" aria-live="polite"><strong></strong><p></p></div>
@@ -40,28 +41,29 @@ export class MenuAnnouncements {
    const action=card.querySelector<HTMLButtonElement>('.menu-announcement-action')!;
    const close=card.querySelector<HTMLButtonElement>('.menu-announcement-close')!;
    action.querySelector('span')!.textContent=item.action;
-   action.disabled=!canOpen(item.destination);
    const entering=play(card,[{transform:from==='right'?'translateX(102%)':'translateY(18px)',opacity:0},
     {transform:'none',opacity:1}],from==='right'?360:280,()=>{});
-   let leaving=false;
    const dismiss=(navigate: boolean)=>{
-    if(leaving||this.host!==host||(navigate&&!canOpen(item.destination)))return;
+    if(leaving||card.parentElement!==host||!host.isConnected||host.closest('[inert]'))return;
     leaving=true;
-    this.index++;
+    dismissed.add(item.destination);
+    if(item.destination==='offer')this.offerDismissed=true;
     card.inert=true;
     const { transform,opacity }=getComputedStyle(card);
     entering?.cancel();
     play(card,[{transform,opacity},{transform:'translateY(-18px)',opacity:0}],240,()=>{
-     if(this.host!==host||!host.isConnected)return;
-     if(navigate){if(item.destination==='offer')host.replaceChildren();open(item.destination);return;}
-     show('bottom',true);
+     leaving=false;
+     if(!host.isConnected)return;
+     if(navigate)open(item.destination);
+     show('bottom',!navigate);
     });
    };
    action.onclick=()=>dismiss(true);
    if(item.destination==='offer')card.onclick=event=>{if(!(event.target as HTMLElement).closest('button'))dismiss(true);};
    close.onclick=()=>dismiss(false);
-   if(returnFocus)close.focus({preventScroll:true});
+   if(returnFocus||host.contains(document.activeElement)||hadFocus&&!host.closest('[inert]'))close.focus({preventScroll:true});
   };
-  show(this.index===0?'right':'bottom');
+  show('right');
+  return ()=>show('right');
  }
 }
