@@ -1,3 +1,4 @@
+const MIN_BOOT_MS = 3000;
 const delay = (ms: number) => new Promise<void>(resolve => window.setTimeout(resolve, ms));
 
 const uiImages = [
@@ -77,9 +78,10 @@ export function bootScreen(app: HTMLElement) {
       retry.focus();
     },
     async reveal(onShow: () => void) {
+      // Assets may take longer; only wait out the remainder on a fast load.
+      const remaining = MIN_BOOT_MS - (performance.now() - started);
+      if (remaining > 0) await delay(remaining);
       if (motion) {
-        // Give a cached visit time to show the terminal, but never fake load progress.
-        await delay(Math.max(0, 650 - (performance.now() - started)));
         stop();
         const darken = animate(display, [
           { transform:'scale(1)', filter:'brightness(1)' },

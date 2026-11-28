@@ -143,12 +143,17 @@ beforeEach(() => {
   };
 });
 afterEach(() => {
-  removeListeners(); vi.restoreAllMocks(); vi.unstubAllGlobals();
+  removeListeners(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals();
   document.body.innerHTML = ''; localStorage.clear();
 });
 
 describe('startup', () => {
-  it.each([true, false])('does not reveal the menu until model readiness is known (%s)', async ready => {
+  it.each([
+    { ready: true, loadMs: 700 },
+    { ready: true, loadMs: 4200 },
+    { ready: false, loadMs: 700 },
+  ])('waits for both three seconds and model readiness ($ready after $loadMs ms)', async ({ ready, loadMs }) => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     const page = new DOMParser().parseFromString(readFileSync('index.html', 'utf8'), 'text/html');
     document.body.append(page.querySelector('#boot')!);
     element('#app').inert = true;
@@ -161,14 +166,27 @@ describe('startup', () => {
     expect(element('#boot-status').textContent).toBe('ИНИЦИАЛИЗАЦИЯ СИСТЕМЫ');
     expect(fakes.ready).not.toHaveBeenCalled();
     expect(frameCallback).toBeNull();
+    now += loadMs;
+    await vi.advanceTimersByTimeAsync(loadMs);
+    expect(element('#app').inert).toBe(true);
+    expect(fakes.ready).not.toHaveBeenCalled();
     finish(ready);
+    await vi.advanceTimersByTimeAsync(0);
     if (ready) {
-      await vi.waitFor(() => expect(fakes.ready).toHaveBeenCalledOnce());
+      if (loadMs < 3000) {
+        now += 2999 - loadMs;
+        await vi.advanceTimersByTimeAsync(2999 - loadMs);
+        expect(element('#app').inert).toBe(true);
+        expect(fakes.ready).not.toHaveBeenCalled();
+        now++;
+        await vi.advanceTimersByTimeAsync(1);
+      }
+      expect(fakes.ready).toHaveBeenCalledOnce();
       expect(document.querySelector('#boot')).toBeNull();
       expect(element('#app').inert).toBe(false);
       expect(frameCallback).not.toBeNull();
     } else {
-      await vi.waitFor(() => expect(button('#boot-retry').hidden).toBe(false));
+      expect(button('#boot-retry').hidden).toBe(false);
       expect(element('#app').inert).toBe(true);
       expect(fakes.ready).not.toHaveBeenCalled();
       expect(frameCallback).toBeNull();
