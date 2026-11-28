@@ -1,5 +1,5 @@
 import { legacyPickupDrops, MAX_PICKUP_PILES, pickupQuantity, pickupDrops, pickupExpired, pickupLanded, pickupSource, type Pickup } from './pickup';
-import { COMBAT_UPGRADES, combatEffect, combatUpgradePrice, createEnhancements, moduleCost, isLootModule, isShopModule, type CombatEnhancements, type CombatUpgrade, type CombatUpgradeLevels, type ShopModule } from './combat-upgrades';
+import { COMBAT_UPGRADES, combatEffect, combatUpgradePrice, createEnhancements, moduleCost, isScrapModule, isShopModule, type CombatEnhancements, type CombatUpgrade, type CombatUpgradeLevels, type ShopModule } from './combat-upgrades';
 import { PORTAL_RISE_SECONDS } from './portalTiming';
 import { clampToSpawnCircle, onSpawnCircle, SPAWN_RADIUS, spawnPoint, validSpawnGeometry, WORLD_LIMIT, type SpawnGeometry } from './spawnGeometry';
 /** Deterministic, fixed-step game simulation. No wall clock, browser, or renderer dependencies. */
@@ -144,7 +144,7 @@ export function buyRunUpgrade(state: GameState, stat: StatKey): GameState {
 /** Combat-only purchases are separate from the permanent workshop stat schema. */
 export function buyCombatUpgrade(state: GameState, key: CombatUpgrade): GameState {
   const run = state.run;
-  if (!run || !Object.hasOwn(COMBAT_UPGRADES, key) || isLootModule(key)) return state;
+  if (!run || !Object.hasOwn(COMBAT_UPGRADES, key) || isScrapModule(key)) return state;
   const level = run.enhancements?.levels[key] ?? 0;
   if (key === 'scanner' && level > 0) return state;
   const price = combatUpgradePrice(key, level - (state.profile.enhancements?.[key] ?? 0));
@@ -195,6 +195,7 @@ function restoreHull(state: GameState, amount: number, maxHp = getStats(state).m
 }
 function damageHull(state: GameState, amount: number, melee: boolean): void {
   const run = state.run!, upgrades = run.enhancements;
+  amount *= 1-effect(run,melee?'hullArmor':'boltScreen');
   if (melee && upgrades) {
     const mitigation = effect(run, 'dampen');
     if (mitigation > 0) {
@@ -405,7 +406,9 @@ export function collectPickups(state: GameState, ids: readonly string[]): GameSt
 
 function hitWithBullet(state: GameState, target: Enemy, bullet: Bullet, dx: number, dy: number): void {
   const run = state.run!, pierce = effect(run, 'pierce'), splash = effect(run, 'splash');
-  damageEnemy(state, target, bullet.damage);
+  const tracking = target.kind==='fast' ? effect(run,'fastTracker') : 0;
+  const finishing = target.hp<=target.maxHp*.5 ? effect(run,'finisher') : 0;
+  damageEnemy(state,target,bullet.damage*(1+tracking+finishing));
   if (!pierce && !splash) return;
   const others = run.enemies.filter(e => e !== target && e.hp > 0 && e.emergingUntil === undefined);
   if (pierce > 0) {
@@ -445,6 +448,7 @@ function advanceTick(state: GameState): void {
     // Healing continues in the mandatory two-second rest; fractional healing is retained.
     heal(state, stats);
     if (r.phaseTime + 1e-9 >= 2) {
+      restoreHull(state,stats.maxHp * effect(r,'waveRegen'),stats.maxHp);
       r.wave++; r.phase = 'combat'; r.phaseTime = 0; r.spawned = 0; r.spawnCooldown = 0; r.shotCooldown = 0;
       state.events.push({ type: 'waveStart', wave: r.wave });
     }
