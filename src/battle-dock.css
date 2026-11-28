@@ -1,0 +1,138 @@
+/* Bars stay in normal flow; content scrolls inside the rack, not the arena. */
+.shell.in-battle .battle-hud {
+  display: flex; flex-direction: column; align-items: stretch;
+  gap: 4px; padding: max(6px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right))
+    6px max(8px,env(safe-area-inset-left));
+  background: #27232a; border-color: #151216;
+}
+.shell.in-battle .battle-resources {
+  grid-template-columns: minmax(0,1.2fr) repeat(2,minmax(0,1fr)) minmax(0,1.6fr) auto;
+  gap: 5px; height: auto; max-width: 1120px; width: 100%; margin: 0 auto;
+  border: 0; padding: 0; background: none;
+}
+.shell.in-battle .battle-resource,
+.shell.in-battle .battle-upgrade-tab,
+.shell.in-battle .battle-upgrade-list .upgrade {
+  min-width: 0; color: #fff0da; border: 1px solid #141116; border-radius: 8px;
+  background: linear-gradient(150deg,#494147,#29262c 62%,#242126);
+  box-shadow: inset 0 1px #82747a, inset 0 -2px #18161b, 0 2px 3px #110e14;
+}
+.shell.in-battle .battle-resource {
+  min-height: 38px; padding: 3px 5px; justify-content: center; align-items: center;
+  text-align: center;
+}
+.shell.in-battle .battle-resource::before { display: none; }
+.shell.in-battle .battle-resource > span { font-size: 9px; line-height: 1.1; text-transform: uppercase; }
+.shell.in-battle .battle-resource > strong {
+  color: #fff0da; font-size: clamp(11px,2.5vw,17px); line-height: 1.12; margin: 2px 0 0;
+  max-width: 100%; white-space: normal; overflow-wrap: anywhere;
+}
+.shell.in-battle .battle-resource.gold > strong { color: #ffd478; }
+.shell.in-battle .battle-resource.crystals > strong { color: #bee68a; }
+.shell.in-battle .battle-resource.health > strong { z-index: 1; margin: 0; }
+.shell.in-battle .battle-resource .health-track {
+  inset: 5px; height: auto; padding: 0; background: #19171c; border: 1px solid #151218; border-radius: 4px;
+}
+.shell.in-battle .battle-resource .health-fill { background: linear-gradient(#7fa941,#537530); }
+.shell.in-battle .battle-resource .health-fill.low { background: linear-gradient(#c56559,#893629); }
+.shell.in-battle .battle-menu-toggle {
+  position: static; width: 44px; min-width: 44px; min-height: 44px; height: 100%; padding: 0;
+  color: #fff0da; border: 1px solid #1c141b; border-radius: 8px;
+  background: linear-gradient(#884654,#51222d); box-shadow: inset 0 1px #b8787f, inset 0 -2px #321823, 0 2px 3px #110e14;
+}
+
+.shell.in-battle .upgrades {
+  --dock-row: clamp(51px,8dvh,66px);
+  --dock-rows: 1;
+  display: block; width: 100%; margin: 0; border: 0; background: #27232a;
+  padding: 4px max(8px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom))
+    max(8px,env(safe-area-inset-left));
+}
+.shell.in-battle .battle-upgrade-tabs,
+.shell.in-battle .battle-upgrade-rack { max-width: 1120px; margin: 0 auto; }
+.shell.in-battle .battle-upgrade-tabs {
+  display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 4px; padding: 0 8px;
+}
+.shell.in-battle .battle-upgrade-tab {
+  display: flex; gap: 5px; align-items: center; justify-content: center;
+  min-height: 44px; padding: 0 2px; border-radius: 8px 8px 3px 3px;
+  text-transform: uppercase; font-size: clamp(10px,2.7vw,14px); font-weight: 800;
+}
+.shell.in-battle .battle-upgrade-tab > span { color: #c4ccab; font-size: 1.25em; }
+.shell.in-battle .battle-upgrade-tab[aria-selected="true"] {
+  background: linear-gradient(#627b39,#344823);
+  box-shadow: inset 0 1px #a8be70, inset 0 -2px #25351d, 0 2px 3px #110e14;
+}
+.shell.in-battle .battle-upgrade-tab[aria-selected="true"] > span { color: #d9ee9d; }
+.shell.in-battle .battle-upgrade-rack { padding: calc(var(--rim) + 2px) calc(var(--rim) + 3px); }
+.shell.in-battle .battle-upgrade-list {
+  display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); align-content: start;
+  grid-auto-rows: var(--dock-row); gap: 5px; padding: 2px;
+  height: calc(var(--dock-rows) * (var(--dock-row) + 5px) - 1px);
+  overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y pinch-zoom;
+  scrollbar-width: thin; scrollbar-color: #867a80 transparent;
+}
+.shell.in-battle .battle-upgrade-list[hidden] { display: none; }
+.shell.in-battle .battle-upgrade-list:focus-visible { outline: 2px solid #fff2d6; }
+.shell.in-battle .battle-upgrade-list .upgrade {
+  display: grid; grid-template-columns: auto minmax(0,1fr); align-content: center;
+  gap: 2px 5px; min-height: 0; padding: 3px 5px;
+}
+.battle-card-icon {
+  display: grid; place-items: center; grid-row: span 2; align-self: center;
+  width: clamp(21px,5.7vw,34px); aspect-ratio: 1; padding: 3px;
+  border: 1px solid #86965e; border-radius: 6px; color: #d3e899;
+  background: linear-gradient(#475433,#283124); box-shadow: inset 0 0 0 1px #303b29;
+}
+.battle-card-icon svg { width: 100%; }
+.shell.in-battle .battle-upgrade-list .upgrade-top { display: block; min-width: 0; }
+.shell.in-battle .battle-upgrade-list .upgrade-title {
+  display: block; font-size: clamp(10px,2.7vw,13px); line-height: 1.12; text-transform: uppercase;
+  white-space: normal; overflow-wrap: anywhere;
+}
+.shell.in-battle .battle-upgrade-list .stat-label-full,
+.shell.in-battle .battle-upgrade-list .upgrade-sub { display: none; }
+.shell.in-battle .battle-upgrade-list .stat-label-short { display: inline; }
+.shell.in-battle .battle-upgrade-list .upgrade-data {
+  display: flex; flex-flow: row nowrap; align-items: baseline; justify-content: space-between; margin: 0; gap: 3px;
+}
+.shell.in-battle .battle-upgrade-list .upgrade-value,
+.shell.in-battle .battle-upgrade-list .upgrade-price {
+  font-size: clamp(10px,2.85vw,15px); line-height: 1.12; min-width: 0; white-space: normal; overflow-wrap: anywhere;
+}
+.shell.in-battle .battle-upgrade-list .upgrade-value small { font-size: .7em; }
+.shell.in-battle .battle-upgrade-list .upgrade-price { color: #ffd478; text-align: right; }
+.shell.in-battle .battle-upgrade-list .upgrade:disabled { color: #c4b8b0; background: #29262d; }
+.shell.in-battle .battle-upgrade-list .upgrade:disabled .upgrade-price { color: #baa995; }
+.shell.in-battle .battle-upgrade-list .upgrade:disabled .battle-card-icon { opacity: .55; }
+.shell.in-battle .battle-upgrade-list .upgrade:active:not(:disabled) { transform: translateY(1px); box-shadow: inset 0 2px 5px #0d0b10; }
+.shell.in-battle .battle-upgrade-list .upgrade:focus-visible,
+.shell.in-battle .battle-upgrade-tab:focus-visible,
+.shell.in-battle .battle-menu-toggle:focus-visible { outline: 2px solid #fff2d6; outline-offset: -3px; }
+.battle-upgrade-empty {
+  grid-column: 1/-1; align-self: center; margin: 0; padding: 6px;
+  text-align: center; color: #d0c4b8; font-size: 12px;
+}
+
+@media (max-width: 600px) {
+  .shell.in-battle .battle-resources {
+    grid-template-columns: minmax(0,1.35fr) minmax(0,1fr) minmax(0,1fr) 44px;
+  }
+  .shell.in-battle .battle-resource.health { grid-column: 1/4; min-height: 28px; }
+  .shell.in-battle .battle-menu-toggle { grid-column: 4; grid-row: 1/3; }
+  .shell.in-battle .battle-upgrade-tab > span { display: none; }
+}
+@media (max-width: 649px) {
+  .shell.in-battle .upgrades:has(.battle-upgrade-list .upgrade:nth-child(3)) { --dock-rows: 2; }
+}
+@media (min-width: 650px) {
+  .shell.in-battle .battle-upgrade-list { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .shell.in-battle .upgrades:has(.battle-upgrade-list .upgrade:nth-child(4)) { --dock-rows: 2; }
+}
+@media (orientation: landscape) and (max-height: 480px) {
+  .shell.in-battle .battle-hud { padding-block: max(3px,env(safe-area-inset-top)) 3px; }
+  .shell.in-battle .upgrades { --dock-row: 44px; }
+  .shell.in-battle .upgrades:has(.battle-upgrade-list .upgrade) { --dock-rows: 1; }
+  .shell.in-battle .battle-upgrade-rack { --rim: 13px; padding-block: var(--rim); }
+  .shell.in-battle .battle-upgrade-rack::before { border-width: 18px; }
+}

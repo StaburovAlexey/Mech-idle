@@ -2,6 +2,7 @@ import './style.css';
 import './title.css';
 import './workshop.css';
 import './workshop-gates.css';
+import './battle-dock.css';
 import { workshopMarkup } from './workshop-ui';
 import { titleMarkup } from './title-ui';
 import {createState,startRun,step,buyRunUpgrade,buyMetaUpgrade,setPaused,getStats,calculateStats,runPrice,metaPrice,STAT_KEYS,DT,type GameState,type StatKey} from './game';
@@ -9,7 +10,7 @@ import {SceneView,type SceneFrame, type SceneSpawn} from './scene';
 import {SaveRepository,PauseManager,TabLock} from './persistence';
 import {LocalPlatformAdapter} from './platform';
 import {Sound} from './audio';
-import {BattleMenuController,battleHudMarkup,battleMenuMarkup,bossBarMarkup,upgradeButtonsMarkup,STAT_LABELS,isInteractiveTarget} from './battle-ui';
+import {BattleMenuController,battleHudMarkup,battleMenuMarkup,bossBarMarkup,battleUpgradeDockMarkup,bindBattleUpgradeTabs,STAT_LABELS,isInteractiveTarget} from './battle-ui';
 const $=<T extends HTMLElement=HTMLElement>(s:string)=>document.querySelector<T>(s)!;
 const root=$('#app');
 for (const type of ['contextmenu', 'dragstart']) {
@@ -87,7 +88,8 @@ function resume(){if(!state.run||fatal||saveBlocked||!writable)return;screen='co
 function launch(){if(state.run||fatal||saveBlocked||!writable)return;const seed=crypto.getRandomValues(new Uint32Array(1))[0];state=startRun(state,seed);screen='combat';pause.remove('menu');pause.remove('user');battleMenu.close();accumulator=0;last=performance.now();save();renderUI(true);$('#battle-menu-toggle').focus();toast('Волна 1 · оборона запущена');}
 function togglePause(){if(screen!=='combat'||!state.run)return;if(pause.reasons.has('user'))pause.remove('user');else pause.add('user');accumulator=0;save();renderUI();}
 function buy(stat:StatKey){if(!writable||saveBlocked||fatal||screen==='result'||(screen==='menu'&&!workshopOpen)||battleMenu.open||pause.reasons.has('dialog'))return;const before=state;state=screen==='combat'?buyRunUpgrade(state,stat):buyMetaUpgrade(state,stat);if(state!==before){sound.play('upgrade');save();toast(screen==='combat'?'Модуль улучшен · действует сразу':'Стартовые параметры улучшены');renderUI();}}
-$('#upgrades').innerHTML=upgradeButtonsMarkup();
+$('#upgrades').innerHTML=battleUpgradeDockMarkup;
+bindBattleUpgradeTabs($('#upgrades'));
 for(const stat of STAT_KEYS)$(`#upgrade-${stat}`).onclick=()=>buy(stat);
 function toggleSound(){const enabled=sound.toggle();$('#sound').textContent=enabled?'♫':'♪';$('#sound').setAttribute('aria-label',enabled?'Выключить звук':'Включить звук');$('#sound').setAttribute('aria-pressed',String(enabled));if(pause.paused)sound.suspend();renderUI();}
 $('#sound').onclick=toggleSound;

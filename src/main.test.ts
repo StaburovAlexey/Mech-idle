@@ -232,7 +232,7 @@ describe('fullscreen battle actual UI flows', () => {
     expect(hidden('#battle-menu-overlay')).toBe(true);
     expect(element('#panel').children.length).toBe(0);
     expect(document.querySelectorAll('#arena canvas').length).toBe(1);
-    expect(document.querySelectorAll('#upgrades > button').length).toBe(4);
+    expect(document.querySelectorAll('#upgrades .upgrade').length).toBe(4);
     expect(element('#battle-wave').textContent).toBe('1 / 30');
     expect(element('#battle-hp').textContent).toBe('100 / 100');
     expect(element('#battle-gold').textContent).toBe('0');
@@ -252,7 +252,7 @@ describe('fullscreen battle actual UI flows', () => {
       expect(hud.contains(element(selector)), `${selector} belongs to the reserved status row`).toBe(true);
       expect(workspace.contains(element(selector)), `${selector} must not cover the arena`).toBe(false);
     }
-    expect(upgrades.querySelectorAll(':scope > .upgrade')).toHaveLength(4);
+    expect(upgrades.querySelectorAll('.upgrade')).toHaveLength(4);
     expect(hud.contains(upgrades)).toBe(false);
     expect(workspace.contains(upgrades)).toBe(false);
   });
@@ -414,7 +414,13 @@ describe('fullscreen battle actual UI flows', () => {
     await boot(initial); click('#resume');
     expect(element('#battle-hp').textContent).toMatch(/^110 \/ /);
     const oldStats = getStats(initial);
-    for (const stat of STAT_KEYS) click(`#upgrade-${stat}`);
+    for (const [tab, stats] of [['attack', ['damage', 'attackSpeed']], ['defense', ['maxHp']], ['repair', ['regen']]] as const) {
+      click(`#battle-tab-${tab}`);
+      for (const stat of stats) {
+        expect(button(`#upgrade-${stat}`).closest('[role="tabpanel"]')?.hasAttribute('hidden')).toBe(false);
+        click(`#upgrade-${stat}`);
+      }
+    }
     const after = saved(), stats = getStats(after);
     for (const stat of STAT_KEYS) {
       expect(stats[stat]).toBeGreaterThan(oldStats[stat]);

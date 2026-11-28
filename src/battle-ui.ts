@@ -1,9 +1,57 @@
+import { armoredFrame } from './armored-frame';
 import type { PauseManager } from './persistence';
 import {STAT_KEYS,type StatKey} from './game';
 
-export const STAT_LABELS:Record<StatKey,{title:string,icon:string,unit:string}>={damage:{title:'Сила атаки',icon:'↗',unit:'урона'},maxHp:{title:'Бронекорпус',icon:'⬡',unit:'HP'},attackSpeed:{title:'Темп стрельбы',icon:'⌁',unit:'/с'},regen:{title:'Ремонт',icon:'✚',unit:'HP/с'}};
-export const SHORT_STAT_LABELS:Record<StatKey,string>={damage:'Атака',maxHp:'Корпус',attackSpeed:'Темп',regen:'Ремонт'};
-export function upgradeButtonsMarkup(){return STAT_KEYS.map(stat=>`<button class="upgrade" aria-label="${STAT_LABELS[stat].title}" data-stat="${stat}" id="upgrade-${stat}"><div class="upgrade-top"><span class="upgrade-title"><span class="stat-icon" aria-hidden="true">${STAT_LABELS[stat].icon}</span><span class="stat-label-full">${STAT_LABELS[stat].title}</span><span class="stat-label-short" aria-hidden="true">${SHORT_STAT_LABELS[stat]}</span></span></div><div class="upgrade-data"><span class="upgrade-value"></span><span class="upgrade-price"></span></div><div class="upgrade-sub"></div></button>`).join('');}
+const statIcons = {
+  damage: '<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/>',
+  maxHp: '<path d="m12 3 8 3v5c0 5-3 8-8 10-5-2-8-5-8-10V6l8-3Zm0 4v10"/>',
+  attackSpeed: '<path d="M2 13h5l3-8 4 14 3-6h5"/>',
+  regen: '<path d="M10 4h4v6h6v4h-6v6h-4v-6H4v-4h6z"/>',
+};
+export const statIcon = (stat: StatKey) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${statIcons[stat]}</svg>`;
+
+export const STAT_LABELS:Record<StatKey,{title:string,unit:string}>={damage:{title:'Сила атаки',unit:'урона'},maxHp:{title:'Бронекорпус',unit:'HP'},attackSpeed:{title:'Темп стрельбы',unit:'/с'},regen:{title:'Ремонт',unit:'HP/с'}};
+export const SHORT_STAT_LABELS:Record<StatKey,string>={damage:'Урон',maxHp:'Корпус',attackSpeed:'Темп',regen:'Ремонт'};
+export function upgradeButtonsMarkup(stats: readonly StatKey[] = STAT_KEYS){return stats.map(stat=>`<button class="upgrade" aria-label="${STAT_LABELS[stat].title}" type="button" data-stat="${stat}" id="upgrade-${stat}"><span class="battle-card-icon" aria-hidden="true">${statIcon(stat)}</span><div class="upgrade-top"><span class="upgrade-title"><span class="stat-label-full">${STAT_LABELS[stat].title}</span><span class="stat-label-short" aria-hidden="true">${SHORT_STAT_LABELS[stat]}</span></span></div><div class="upgrade-data"><span class="upgrade-value"></span><span class="upgrade-price"></span></div><div class="upgrade-sub"></div></button>`).join('');}
+const upgradeCategories: { id: string; label: string; icon: string; stats: StatKey[] }[] = [
+ {id:'attack',label:'Атака',icon:'◎',stats:['damage','attackSpeed']},
+ {id:'defense',label:'Защита',icon:'⬡',stats:['maxHp']},
+ {id:'repair',label:'Ремонт',icon:'✚',stats:['regen']},
+ {id:'modules',label:'Модули',icon:'◇',stats:[]},
+];
+
+export const battleUpgradeDockMarkup = `
+ <div class="battle-upgrade-tabs" role="tablist" aria-label="Категории улучшений">
+  ${upgradeCategories.map(({id,label,icon},i)=>`<button type="button" class="battle-upgrade-tab" role="tab" id="battle-tab-${id}" aria-controls="battle-upgrades-${id}" aria-selected="${i===0}" tabindex="${i===0?0:-1}"><span aria-hidden="true">${icon}</span>${label}</button>`).join('')}
+ </div>
+ ${armoredFrame('section','battle-upgrade-rack',upgradeCategories.map(({id,stats},i)=>`
+  <div class="battle-upgrade-list" role="tabpanel" id="battle-upgrades-${id}" aria-labelledby="battle-tab-${id}" tabindex="0"${i===0?'':' hidden'}>
+   ${stats.length?upgradeButtonsMarkup(stats):'<p class="battle-upgrade-empty">Боевых модулей пока нет</p>'}
+  </div>`).join(''),'Боевые улучшения')}
+`;
+
+export function bindBattleUpgradeTabs(dock: HTMLElement) {
+ const tabs=[...dock.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+ const panels=[...dock.querySelectorAll<HTMLElement>('[role="tabpanel"]')];
+ function select(index: number) {
+  tabs.forEach((tab,i)=>{
+   tab.tabIndex=i===index?0:-1;
+   tab.setAttribute('aria-selected',String(i===index));
+   panels[i].hidden=i!==index;
+  });
+ }
+ tabs.forEach((tab,i)=>{
+  tab.onclick=()=>select(i);
+  tab.onkeydown=event=>{
+   const index=event.key==='Home'?0:event.key==='End'?tabs.length-1:
+    event.key==='ArrowLeft'?(i+tabs.length-1)%tabs.length:event.key==='ArrowRight'?(i+1)%tabs.length:-1;
+   if(index<0)return;
+   event.preventDefault();select(index);tabs[index].focus();
+  };
+ });
+ select(0);
+}
+
 export const bossBarMarkup=`<div id="boss" class="boss-bar hidden"><b>КОЛОСС / ТЯЖЁЛЫЙ МЕХ</b><div class="boss-track"><div class="boss-fill" id="boss-fill"></div></div></div>`;
 
 /** Owns only the battle drawer pause. Never removes user/hidden/dialog pauses. */
@@ -17,10 +65,10 @@ export class BattleMenuController {
 
 export const battleHudMarkup = `<div class="battle-resources" aria-label="Ресурсы и состояние турели">
  <div class="battle-resource wave"><span>Волна</span><strong id="battle-wave">1 / 30</strong></div>
- <div class="battle-resource health"><span>Корпус</span><strong id="battle-hp">100 / 100</strong><div class="health-track"><div class="health-fill" id="battle-hp-fill"></div></div></div>
  <div class="battle-resource gold"><span>◈ Золото</span><strong id="battle-gold">0</strong></div>
  <div class="battle-resource crystals"><span aria-label="Кристаллы">◇ Крист.</span><strong id="battle-crystals">0</strong></div>
-</div><button class="battle-menu-toggle" id="battle-menu-toggle" aria-label="Открыть меню боя" aria-haspopup="dialog" aria-expanded="false" aria-controls="battle-menu-overlay"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Меню</span></button><div id="battle-notice" class="battle-notice hidden" role="status"></div>`;
+ <div class="battle-resource health" role="group" aria-label="Здоровье корпуса"><div class="health-track" aria-hidden="true"><div class="health-fill" id="battle-hp-fill"></div></div><strong id="battle-hp">100 / 100</strong></div>
+ <button type="button" class="battle-menu-toggle" id="battle-menu-toggle" aria-label="Открыть меню боя" aria-haspopup="dialog" aria-expanded="false" aria-controls="battle-menu-overlay"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="m10 2-.6 2.5-2 .9-2.4-1.1-2 3.4 2 1.7v2.2l-2 1.7 2 3.4 2.4-1.1 2 .9.6 2.5h4l.6-2.5 2-.9 2.4 1.1 2-3.4-2-1.7V9.4l2-1.7-2-3.4-2.4 1.1-2-.9L14 2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" transform="translate(0 1.5)"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button></div><div id="battle-notice" class="battle-notice hidden" role="status"></div>`;
 
 export const battleMenuMarkup = `<section class="battle-menu-panel" role="dialog" aria-modal="true" aria-labelledby="battle-menu-title" tabindex="-1">
  <div class="battle-menu-head"><h2 id="battle-menu-title">Меню боя</h2><div class="eyebrow">Управление оплотом</div><button class="battle-menu-close" id="battle-menu-close" aria-label="Закрыть меню боя"><span class="battle-close-icon" aria-hidden="true"></span></button></div>
@@ -30,5 +78,5 @@ export const battleMenuMarkup = `<section class="battle-menu-panel" role="dialog
 </section>`;
 
 export function isInteractiveTarget(target:EventTarget|null):boolean {
- return target instanceof HTMLElement && !!target.closest('button,input,select,textarea,a,[contenteditable]');
+ return target instanceof HTMLElement && !!target.closest('button,input,select,textarea,a,[contenteditable],[role=tabpanel]');
 }
