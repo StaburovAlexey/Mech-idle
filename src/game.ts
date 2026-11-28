@@ -1,4 +1,4 @@
-import { pickupDrop, pickupLanded, type Pickup } from './pickup';
+import { pickupDrops, pickupLanded, type Pickup } from './pickup';
 import { COMBAT_UPGRADES, combatEffect, combatUpgradePrice, createEnhancements, workshopCombatPrice, isShopModule, type CombatEnhancements, type CombatUpgrade, type CombatUpgradeLevels, type ShopModule } from './combat-upgrades';
 import { PORTAL_RISE_SECONDS } from './portalTiming';
 import { clampToSpawnCircle, onSpawnCircle, SPAWN_RADIUS, spawnPoint, validSpawnGeometry, WORLD_LIMIT, type SpawnGeometry } from './spawnGeometry';
@@ -367,8 +367,9 @@ function damageEnemy(state: GameState, enemy: Enemy, damage: number): void {
   const reward = BASE_ENEMIES[enemy.kind].reward;
   run.gold += reward; run.earnedGold += reward;
   state.events.push({ type: 'kill', id: enemy.id, kind: enemy.kind, x: enemy.x, y: enemy.y, amount: reward });
-  const kind = pickupDrop(run.seed, enemy.id);
-  if (kind) (run.pickups ??= []).push({ id: enemy.id, kind, x: enemy.x, y: enemy.y, born: run.time });
+  pickupDrops(run.seed, enemy.id).forEach((kind, index) => {
+    (run.pickups ??= []).push({ id: index ? enemy.id + ':bonus' : enemy.id, kind, x: enemy.x, y: enemy.y, born: run.time });
+  });
   const salvage = effect(run, 'salvage');
   if (salvage > 0 && run.enhancements && ++run.enhancements.salvageKills === 5) {
     run.enhancements.salvageKills = 0;
@@ -377,17 +378,21 @@ function damageEnemy(state: GameState, enemy: Enemy, damage: number): void {
   }
 }
 
-/** Currency is awarded only once, after a landed pickup is explicitly collected. */
-export function collectPickup(state: GameState, id: string): GameState {
-  const run = state.run, pickup = run?.pickups?.find(item => item.id === id);
-  if (!run || run.paused || !pickup || !pickupLanded(pickup, run.time)) return state;
-  const field = pickup.kind === 'parts' ? 'crystals' : 'scrap';
-  const amount = state.profile[field] ?? 0;
-  if (amount >= 1e9) return state;
+/** Consume exactly the landed pieces captured at click time, once, in one update. */
+export function collectPickups(state: GameState, ids: readonly string[]): GameState {
+  const run = state.run;
+  if (!run || run.paused || !run.pickups?.length || !ids.length) return state;
+  const selected = new Set(ids);
+  const pickups = run.pickups.filter(item => selected.has(item.id) && pickupLanded(item, run.time));
+  if (pickups.length !== selected.size) return state;
+  const parts = pickups.filter(item => item.kind === 'parts').length;
+  const scrap = pickups.length - parts;
+  if (state.profile.crystals + parts > 1e9 || (state.profile.scrap ?? 0) + scrap > 1e9) return state;
   const next = clone(state);
   next.events = [];
-  next.run!.pickups = run.pickups!.filter(item => item.id !== id);
-  next.profile[field] = amount + 1;
+  next.run!.pickups = run.pickups.filter(item => !selected.has(item.id));
+  next.profile.crystals += parts;
+  if (scrap) next.profile.scrap = (state.profile.scrap ?? 0) + scrap;
   return next;
 }
 
@@ -626,11 +631,16 @@ export function validateState(value: unknown, allowLegacy = false): value is Gam
   const validKind = (kind: any) => (telegraphed ? ['ordinary','fast','ranged','boss'] : ['ordinary','fast','boss']).includes(kind) && (r.wave===30 ? kind==='boss' : kind!=='boss') && (kind==='boss'||r.wave>=FIRST_WAVE[kind as keyof typeof FIRST_WAVE]);
   if (!r.paidKillIds.every(validId)) return false;
   if (Object.hasOwn(r, 'pickups')) {
-    if (!Array.isArray(r.pickups) || r.pickups.length > r.kills) return false;
+    if (!Array.isArray(r.pickups) || r.pickups.length > r.kills * 2) return false;
     const pending = new Set<string>(), paid = new Set(r.paidKillIds);
     for (const d of r.pickups) {
-      if (!object(d) || !keys(d, ['id','kind','x','y','born']) || !str(d.id) || !paid.has(d.id) || pending.has(d.id) ||
-          !position(d) || !num(d.born, 0, r.time) || pickupDrop(r.seed, d.id) !== d.kind || d.kind === null) return false;
+      if (!object(d) || !keys(d, ['id','kind','x','y','born']) || !str(d.id) || pending.has(d.id) ||
+          !position(d) || !num(d.born, 0, r.time)) return false;
+      const bonus = d.id.endsWith(':bonus'), source = bonus ? d.id.slice(0,-6) : d.id;
+      if (!paid.has(source)) return false;
+      const [primary, secondary] = pickupDrops(r.seed, source);
+      const kind = bonus ? secondary : primary;
+      if (!kind || kind !== d.kind) return false;
       pending.add(d.id);
     }
   }
