@@ -1,3 +1,5 @@
+import { trackVhs } from './vhs';
+
 const MIN_BOOT_MS = 3000;
 const delay = (ms: number) => new Promise<void>(resolve => window.setTimeout(resolve, ms));
 
@@ -38,33 +40,13 @@ export function bootScreen(app: HTMLElement) {
   if (!boot) return;
   const display = boot.querySelector<HTMLElement>('#boot-display')!;
   const beam = boot.querySelector<HTMLElement>('#boot-beam')!;
-  const band = boot.querySelector('#boot-band')!;
   const motion = !window.matchMedia('(prefers-reduced-motion: reduce)').matches && !!display.animate;
   const started = performance.now();
-  let frame = 0;
-  let moving: HTMLElement | undefined;
-
-  const track = (element: HTMLElement, duration: number, loop = false) => {
-    const start = performance.now(), height = window.innerHeight;
-    moving = element;
-    element.classList.add('boot-tracking');
-    const draw = (now: number) => {
-      const position = Math.max(0, (now - start) / duration);
-      const p = loop ? position % 1 : Math.min(1, position);
-      band.setAttribute('y', String(Math.round(-96 + p * (height + 112))));
-      if (loop || position < 1) frame = requestAnimationFrame(draw);
-    };
-    draw(start);
-  };
-  const stop = () => {
-    cancelAnimationFrame(frame);
-    moving?.classList.remove('boot-tracking');
-    band.setAttribute('y', '-96');
-  };
+  let stop = () => {};
   const animate = (element: HTMLElement, keyframes: Keyframe[], duration: number) =>
     element.animate(keyframes, { duration, fill:'both' });
 
-  if (motion) track(display, 1180, true);
+  if (motion) stop = trackVhs(display, 1180, true);
 
   return {
     fail(message: string) {
@@ -118,7 +100,7 @@ export function bootScreen(app: HTMLElement) {
         open.cancel();
         fade.cancel();
         const title = app.querySelector<HTMLElement>('.shell')!;
-        track(title, 780);
+        stop = trackVhs(title, 780, false, window.innerHeight);
         await delay(780);
         stop();
       }
