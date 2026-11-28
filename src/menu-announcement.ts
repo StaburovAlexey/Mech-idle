@@ -1,11 +1,12 @@
 import './menu-announcement.css';
 
-type Destination = 'shop' | 'workshop';
+type Destination = 'shop' | 'workshop' | 'offer';
 type Announcement = { title: string; text: string; action: string; destination: Destination };
 
 export const TEST_ANNOUNCEMENTS: readonly Announcement[] = [
  {title:'Новинка в магазине',text:'Модуль «Импульс»',action:'В магазин',destination:'shop'},
  {title:'Сообщение мастерской',text:'Проверь улучшения турели',action:'В мастерскую',destination:'workshop'},
+ {title:'Спецпредложение',text:'Набор снабжения',action:'Посмотреть',destination:'offer'},
 ];
 
 const icon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Zm0 9 8-4.5M12 12 4 7.5M12 12v9"/></svg>';
@@ -16,7 +17,7 @@ export class MenuAnnouncements {
 
  constructor(private readonly queue: readonly Announcement[]) {}
 
- mount(host: HTMLElement, open: (destination: Destination)=>void, canOpen: ()=>boolean, fallbackFocus: ()=>void) {
+ mount(host: HTMLElement, open: (destination: Destination)=>void, canOpen: (destination:Destination)=>boolean, fallbackFocus: ()=>void) {
   this.host=host;
   const play=(card: HTMLElement,frames: Keyframe[],duration: number,done: ()=>void)=>{
    if(!card.animate||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches){done();return;}
@@ -39,12 +40,12 @@ export class MenuAnnouncements {
    const action=card.querySelector<HTMLButtonElement>('.menu-announcement-action')!;
    const close=card.querySelector<HTMLButtonElement>('.menu-announcement-close')!;
    action.querySelector('span')!.textContent=item.action;
-   action.disabled=!canOpen();
+   action.disabled=!canOpen(item.destination);
    const entering=play(card,[{transform:from==='right'?'translateX(102%)':'translateY(18px)',opacity:0},
     {transform:'none',opacity:1}],from==='right'?360:280,()=>{});
    let leaving=false;
    const dismiss=(navigate: boolean)=>{
-    if(leaving||this.host!==host||(navigate&&!canOpen()))return;
+    if(leaving||this.host!==host||(navigate&&!canOpen(item.destination)))return;
     leaving=true;
     this.index++;
     card.inert=true;
@@ -52,11 +53,12 @@ export class MenuAnnouncements {
     entering?.cancel();
     play(card,[{transform,opacity},{transform:'translateY(-18px)',opacity:0}],240,()=>{
      if(this.host!==host||!host.isConnected)return;
-     if(navigate){open(item.destination);return;}
+     if(navigate){if(item.destination==='offer')host.replaceChildren();open(item.destination);return;}
      show('bottom',true);
     });
    };
    action.onclick=()=>dismiss(true);
+   if(item.destination==='offer')card.onclick=event=>{if(!(event.target as HTMLElement).closest('button'))dismiss(true);};
    close.onclick=()=>dismiss(false);
    if(returnFocus)close.focus({preventScroll:true});
   };

@@ -224,7 +224,7 @@ describe('startup', () => {
 });
 
 describe('main menu', () => {
-  it('queues two test announcements, preserves the queue across navigation, and never adds a shop badge', async () => {
+  it('queues three test announcements, preserves the queue across navigation, and never adds a shop badge', async () => {
     await boot();
     expect(element('.menu-announcement strong').textContent).toBe('Новинка в магазине');
     expect(document.querySelector('#open-module-shop i')).toBeNull();
@@ -235,6 +235,15 @@ describe('main menu', () => {
     expect(element('#screen-heading').textContent).toBe('МАСТЕРСКАЯ');
     click('#workshop-back');
     expect(element('.menu-announcement-slot').hidden).toBe(false);
+    expect(element('.menu-announcement strong').textContent).toBe('Спецпредложение');
+    click('.menu-announcement-action');
+    expect(element('#special-offer-heading').textContent).toBe('Спецпредложение');
+    expect(element('.chain-panel-sheet').querySelectorAll('.chain-panel-chain')).toHaveLength(2);
+    expect(element('.shell').inert).toBe(true);
+    key('Escape',button('#special-offer-close'));
+    expect(document.querySelector('.chain-panel-layer')).toBeNull();
+    expect(element('.shell').inert).toBe(false);
+    expect(document.activeElement).toBe(button('#start'));
     expect(element('.menu-announcement-slot').childElementCount).toBe(0);
     expect(element('.title-tip').textContent).toContain('Совет');
   });
@@ -244,6 +253,8 @@ describe('main menu', () => {
     expect(button('.menu-announcement-action').disabled).toBe(true);
     click('.menu-announcement-close');
     expect(button('.menu-announcement-action').disabled).toBe(true);
+    click('.menu-announcement-close');
+    expect(button('.menu-announcement-action').disabled).toBe(false);
     click('.menu-announcement-close');
     expect(element('.menu-announcement-slot').hidden).toBe(false);
     expect(element('.menu-announcement-slot').childElementCount).toBe(0);
@@ -390,8 +401,8 @@ describe('main menu', () => {
     expect(fakes.render.mock.calls.at(-1)![1]).toBe(0);
     window.dispatchEvent(new Event('focus'));
     expect(element('#module-detail-cooldown').textContent).toBe('10 с');
-    expect(element('.module-detail-sheet').textContent).not.toMatch(/выключен|включён/i);
-    expect(element('.module-detail-sheet').querySelectorAll('.module-detail-chain')).toHaveLength(2);
+    expect(element('.chain-panel-sheet').textContent).not.toMatch(/выключен|включён/i);
+    expect(element('.chain-panel-sheet').querySelectorAll('.chain-panel-chain')).toHaveLength(2);
     expect(saved().profile.crystals).toBe(30);
     expect(button('#module-detail-buy').textContent).toBe('Купить за  8');
     click('#module-detail-buy');expect(saved().profile.crystals).toBe(22);

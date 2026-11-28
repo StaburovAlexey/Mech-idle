@@ -10,7 +10,7 @@ function cpuScene() {
   // TS private fields compile to ordinary properties; bypass only the WebGL/DOM constructor.
   const view = Object.create(SceneView.prototype) as Record<string, any>;
   Object.assign(view, {
-    scene: new THREE.Scene(), camera: new THREE.OrthographicCamera(), sun: makeArenaSun(), shadowTick: -1, clock: 0, angle: 0, pulse: 0, prevHp: 1,
+    pickups: { render() {}, dispose() {} }, scene: new THREE.Scene(), camera: new THREE.OrthographicCamera(), sun: makeArenaSun(), shadowTick: -1, clock: 0, angle: 0, pulse: 0, prevHp: 1,
     particles: [], previous: new Map(), lastBulletIds: new Set(), batches: {}, showcase: [], disposed: false,
     turretHead: new THREE.Group(), barrel: new THREE.Group(), flash: new THREE.Mesh(),
     allGeometries: new Set(), allMaterials: new Set(), allTextures: new Set(), observer: { disconnect: vi.fn() },

@@ -1,3 +1,5 @@
+import { PickupView } from './pickup-view';
+import type { Pickup } from './pickup';
 import * as THREE from 'three';
 import { arenaViewport, configureArenaCamera } from './viewport';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -17,6 +19,7 @@ type PortalPoint = { id: string; x: number; y: number; kind: string };
 export type SceneSpawn = PortalPoint & { time: number };
 export interface SceneFrame {
   enemies: SceneEnemy[];
+  pickups?: readonly Pickup[];
   bullets: { id: number | string; x: number; y: number }[];
   enemyProjectiles?: { id: number | string; sourceId?: string; x: number; y: number }[];
   paused?: boolean;
@@ -114,6 +117,7 @@ export class SceneView {
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.OrthographicCamera(-16, 16, 10, -10, .1, 2000);
   private container: HTMLElement;
+  private readonly pickups: PickupView;
   private material = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: .34, roughness: .68, flatShading: true });
   private glowMaterial = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false });
   private turretHead = new THREE.Group();
@@ -205,7 +209,8 @@ export class SceneView {
     const gameFrame = container.closest('#game-viewport');
     if (gameFrame) this.observer.observe(gameFrame);
     this.resize();
-    this.assetsReady = Promise.all([this.loadCityModels(), this.loadModels()])
+    this.pickups = new PickupView(this.scene,container);
+    this.assetsReady = Promise.all([this.loadCityModels(), this.loadModels(), this.pickups.load(asset => this.registerAsset(asset), () => this.disposed)])
       .then(results => results.every(Boolean));
   }
 
@@ -215,6 +220,7 @@ export class SceneView {
     this.render({
       ...empty, phase: 'combat', target: { x: 4, y: 3 },
       enemies: this.showcase.map(enemy => ({ ...enemy, hp: enemy.hp - 1 })),
+      pickups: [{id:'warm-parts',kind:'parts',x:3,y:1,born:0},{id:'warm-scrap',kind:'scrap',x:-3,y:1,born:0}],
       bullets: [{ id: 'warm-shot', x: 1, y: 1 }],
       enemyProjectiles: [{ id: 'warm-incoming', x: 2, y: 3 }],
       warnings: [{ id: 'warm-portal', kind: 'normal', x: -3, y: -4, remaining: .2 }],
@@ -486,7 +492,10 @@ export class SceneView {
     if (this.disposed) return;
     const presentation = frame.phase === 'title' ? this.titleMech : frame.phase === 'workshop' ? this.workshopTurret : frame.phase === 'shop' ? this.shopMech : undefined;
     if (presentation) {
-      if (this.presentation !== presentation) presentation.enter();
+      if (this.presentation !== presentation) {
+        this.pickups.render([],0,this.camera,this.fieldViewport,false);
+        presentation.enter();
+      }
       this.presentation = presentation;
       presentation.render(this.renderer, dt);
       return;
@@ -609,6 +618,7 @@ export class SceneView {
     this.renderer.setScissorTest(false);
     this.renderer.clear();
     const field = this.fieldViewport;
+    this.pickups.render(playing ? frame.pickups ?? [] : [], t, this.camera, field, playing && !frame.paused);
     this.renderer.setViewport(field.x, field.y, field.width, field.height);
     this.renderer.setScissor(field.x, field.y, field.width, field.height);
     this.renderer.setScissorTest(true);
@@ -625,6 +635,7 @@ export class SceneView {
 
   dispose() {
     if (this.disposed) return; this.disposed = true; this.observer.disconnect();
+    this.pickups.dispose();
     this.titleMech?.dispose();
     this.workshopTurret?.dispose();
     this.shopMech?.dispose();

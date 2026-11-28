@@ -30,26 +30,17 @@ const descriptions: Record<ShopModule,string> = {
  pulse: 'Замедляет мехов в радиусе 4 вокруг турели на 40% на 1 секунду.',
  deflect: 'Гасит один вражеский снаряд, достигший турели. Не защищает от ударов ближнего боя.',
 };
-export function moduleDetailMarkup(key: ShopModule) {
+export function moduleDetailContent(key: ShopModule) {
  const item=COMBAT_UPGRADES[key];
- return `<div class="module-detail-layer">
-  ${armoredFrame('section','module-detail-sheet',`
-   <span class="module-detail-chain left" aria-hidden="true"></span><span class="module-detail-chain right" aria-hidden="true"></span>
-   <div class="module-detail-content" role="dialog" aria-modal="true" aria-labelledby="module-detail-heading" aria-describedby="module-detail-description">
-    <header class="module-detail-head">
-     <span class="workshop-icon" aria-hidden="true">${statIcon(item.icon)}</span>
-     <div><small>Модуль</small><h2 id="module-detail-heading">${item.title}</h2></div>
-     <button type="button" id="module-detail-close" aria-label="Закрыть">×</button>
-    </header>
-    <p id="module-detail-description">${descriptions[key]}</p>
+ return {
+  title:item.title,subtitle:'Модуль',leading:`<span class="workshop-icon" aria-hidden="true">${statIcon(item.icon)}</span>`,
+  headingId:'module-detail-heading',closeId:'module-detail-close',descriptionId:'module-detail-description',
+  body:`<p id="module-detail-description" class="chain-panel-description">${descriptions[key]}</p>
     ${key==='scanner'?'':`<div class="module-detail-stats"><div><small>Перезарядка</small><strong id="module-detail-cooldown"></strong></div></div>`}
     <p class="module-detail-note" id="module-detail-note" role="status"></p>
-    ${titleButton('module-detail-buy','Купить',true)}
-   </div>
-  `)}
- </div>`;
+    ${titleButton('module-detail-buy','Купить',true)}`,
+ };
 }
-
 export function renderModuleDetail(root: HTMLElement, key: ShopModule, level: number, crystals: number, blocked: boolean) {
  const price=workshopCombatPrice(key,0), bought=level>0;
  const cooldown=root.querySelector('#module-detail-cooldown');

@@ -166,3 +166,13 @@
   .shell.in-battle .battle-hud { padding-block: 3px 3px; }
   .shell.in-battle .upgrades { --dock-row: 44px; }
 }
+
+/* A 44px target around the item also covers the gear's open center. */
+.battle-pickup {
+  position: absolute; z-index: 1; transform: translate(-50%, -50%);
+  width: 44px; height: 44px; padding: 0; border-radius: 50%;
+  background: radial-gradient(ellipse at center,transparent 28%,#ffdf8310 53%,transparent 70%);
+}
+.battle-pickup:hover,.battle-pickup:focus-visible {
+  outline: 1px solid #ffe4a7; outline-offset: -5px;
+}
