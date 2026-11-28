@@ -214,10 +214,17 @@ describe('main menu', () => {
   it('buys an improvement for crystals in the workshop and carries it into battle', async () => {
     const initial=createState(); initial.profile.crystals=10;
     await boot(initial); click('#open-workshop');
-    expect(element('#workshop-list-special').hasAttribute('hidden')).toBe(true);
-    click('#workshop-tab-special');
-    expect(element('#workshop-list-special').hasAttribute('hidden')).toBe(false);
-    expect(element('#workshop-list-special').querySelectorAll('button')).toHaveLength(9);
+    expect(element('#workshop-list-attack').hasAttribute('hidden')).toBe(false);
+    expect(element('#workshop-list-attack').querySelectorAll('button')).toHaveLength(5);
+    expect(element('#workshop-list-defense').hasAttribute('hidden')).toBe(true);
+    click('#workshop-tab-defense');
+    expect(element('#workshop-list-attack').hasAttribute('hidden')).toBe(true);
+    expect(element('#workshop-list-defense').querySelectorAll('button')).toHaveLength(3);
+    click('#workshop-tab-repair');
+    expect(element('#workshop-list-repair').querySelectorAll('button')).toHaveLength(3);
+    click('#workshop-tab-modules');
+    expect(element('#workshop-list-modules').querySelectorAll('button')).toHaveLength(2);
+    click('#workshop-tab-attack');
     click('#workshop-critical');
     expect(saved().profile.enhancements?.critical).toBe(1);
     expect(saved().profile.crystals).toBe(4);
