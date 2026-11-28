@@ -167,14 +167,14 @@
   .shell.in-battle .upgrades { --dock-row: 44px; }
 }
 
-/* Only the blue glyph is visible; its transparent touch target stays 44px. */
+/* One transparent touch target covers the icon and its 3D loot. */
 .battle-pickup {
-  position: absolute; z-index: 1; transform: translate(-50%, -50%);
-  display: grid; place-items: center; width: 44px; height: 44px;
+  position: absolute; z-index: 1; transform: translateX(-50%);
+  display: grid; justify-items: center; align-content: start; min-width: 44px; min-height: 44px;
   padding: 0; border-radius: 6px; background: none; color: #075cbc;
   -webkit-tap-highlight-color: transparent; touch-action: manipulation;
 }
-.battle-pickup svg { width: 22px; height: 18px; pointer-events: none; }
+.battle-pickup svg { width: 22px; height: 18px; margin-top: 13px; pointer-events: none; }
 .battle-pickup:active svg { transform: scale(.88); }
 .battle-pickup-count {
   position: absolute; z-index: 1; pointer-events: none;

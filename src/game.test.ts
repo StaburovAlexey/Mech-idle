@@ -91,6 +91,27 @@ describe('battle pickups', () => {
     expect(collectPickups(collected,ids)).toBe(collected);
     expect(parseState(serializeState(collected))).toEqual(collected);
   });
+  it('expires unclaimed loot after ten seconds on the ground, independent of the pause and reload', () => {
+    let seed=1;
+    while(!pickupDrops(seed,'enemy:1').length)seed++;
+    const state=startRun(createState(),seed), run=state.run!;
+    const target=enemy(state);
+    run.enemies.push(target);run.spawned=1;run.spawnCooldown=2;run.shotCooldown=1;
+    run.bullets.push({id:`${run.id}:${run.nextEntityId++}`,targetId:target.id,x:target.x,y:target.y,damage:10,speed:16});
+    const killed=step(state), lifetimeTicks = Math.ceil((PICKUP_LAND_SECONDS+10)/DT);
+    const before=killed;
+    before.run!.tick += lifetimeTicks - 1;
+    before.run!.time = before.run!.tick * DT;
+    const ids=before.run!.pickups!.map(item=>item.id);
+    expect(ids.length).toBeGreaterThan(0);
+    const reloaded=parseState(serializeState(before))!;
+    expect(collectPickups(reloaded,ids)).not.toBe(reloaded);
+    expect(step(setPaused(reloaded,true),60).run!.pickups).toEqual(before.run!.pickups);
+    const expired=step(reloaded);
+    expect(expired.run!.pickups).toEqual([]);
+    expect(collectPickups(expired,ids)).toBe(expired);
+    expect(expired.profile).toEqual(before.profile);
+  });
 });
 
 describe('stat and economy rules', () => {

@@ -1,4 +1,4 @@
-import { pickupDrops, pickupLanded, type Pickup } from './pickup';
+import { pickupDrops, pickupExpired, pickupLanded, type Pickup } from './pickup';
 import { COMBAT_UPGRADES, combatEffect, combatUpgradePrice, createEnhancements, workshopCombatPrice, isShopModule, type CombatEnhancements, type CombatUpgrade, type CombatUpgradeLevels, type ShopModule } from './combat-upgrades';
 import { PORTAL_RISE_SECONDS } from './portalTiming';
 import { clampToSpawnCircle, onSpawnCircle, SPAWN_RADIUS, spawnPoint, validSpawnGeometry, WORLD_LIMIT, type SpawnGeometry } from './spawnGeometry';
@@ -383,7 +383,7 @@ export function collectPickups(state: GameState, ids: readonly string[]): GameSt
   const run = state.run;
   if (!run || run.paused || !run.pickups?.length || !ids.length) return state;
   const selected = new Set(ids);
-  const pickups = run.pickups.filter(item => selected.has(item.id) && pickupLanded(item, run.time));
+  const pickups = run.pickups.filter(item => selected.has(item.id) && pickupLanded(item, run.time) && !pickupExpired(item, run.time));
   if (pickups.length !== selected.size) return state;
   const parts = pickups.filter(item => item.kind === 'parts').length;
   const scrap = pickups.length - parts;
@@ -429,6 +429,9 @@ function advanceTick(state: GameState): void {
   if (!r || r.paused) return;
   r.tick++;
   r.time = r.tick * DT;
+  if (r.pickups?.some(item => pickupExpired(item, r.time))) {
+    r.pickups = r.pickups.filter(item => !pickupExpired(item, r.time));
+  }
   r.phaseTime += DT;
   const stats = getStats(state);
   if (r.phase === 'interwave') {
