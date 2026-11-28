@@ -248,6 +248,15 @@ describe('main menu', () => {
     expect(element('#shop-pulse .workshop-price').textContent).toBe('◇ 8');
     click('#shop-pulse');
     expect(element('#module-detail-heading').textContent).toBe('Импульс');
+    expect(element('.shell').inert).toBe(true);
+    advanceFrames(2);
+    const [frame, delta] = fakes.render.mock.calls.at(-1)!;
+    expect(frame).toMatchObject({phase:'shop',paused:true,elapsed:0});
+    expect(delta).toBeGreaterThan(0);
+    window.dispatchEvent(new Event('blur'));
+    advanceFrames();
+    expect(fakes.render.mock.calls.at(-1)![1]).toBe(0);
+    window.dispatchEvent(new Event('focus'));
     expect(element('#module-detail-cooldown').textContent).toBe('10 с');
     expect(element('.module-detail-sheet').textContent).not.toMatch(/выключен|включён/i);
     expect(element('.module-detail-sheet').querySelectorAll('.module-detail-chain')).toHaveLength(2);
