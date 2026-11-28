@@ -202,6 +202,8 @@ export class SceneView {
     this.rangeRing = new THREE.Mesh(ring(.994, 1.006, 256), new THREE.MeshBasicMaterial({ color: 0xe6faff, transparent: true, opacity: .56, toneMapped: false, depthWrite: false, side: THREE.DoubleSide }));
     this.rangeRing.position.y = .076; this.rangeRing.scale.set(TURRET_RANGE, 1, TURRET_RANGE); this.scene.add(this.rangeRing);
     this.observer = new ResizeObserver(() => this.resize()); this.observer.observe(container);
+    const gameFrame = container.closest('#game-viewport');
+    if (gameFrame) this.observer.observe(gameFrame);
     this.resize();
     this.assetsReady = Promise.all([this.loadCityModels(), this.loadModels()])
       .then(results => results.every(Boolean));
@@ -456,12 +458,15 @@ export class SceneView {
   resize() {
     if (this.disposed) return;
     const bounds=this.container.getBoundingClientRect();
-    const width = Math.max(1, bounds.width), height = Math.max(1, bounds.height);
+    const width = Math.max(1, this.container.clientWidth || bounds.width);
+    const height = Math.max(1, this.container.clientHeight || bounds.height);
+    const stage = this.container.closest?.<HTMLElement>('#game-stage');
+    const scale = stage ? stage.getBoundingClientRect().width / stage.clientWidth : 1;
     this.renderer.setSize(width, height, false);
     this.titleMech?.resize(width, height);
     this.workshopTurret?.resize(width, height);
     this.shopMech?.resize(width, height);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, MAX_RENDER_DPR));
+    this.renderer.setPixelRatio(Math.min((window.devicePixelRatio || 1) * scale, MAX_RENDER_DPR));
     this.fieldViewport = arenaViewport(width, height);
     configureArenaCamera(this.camera, this.fieldViewport.width, this.fieldViewport.height);
     // Camera depth changes must not change the visual fog over the central arena.

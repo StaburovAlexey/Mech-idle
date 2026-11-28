@@ -61,7 +61,7 @@ function showSaveRecovery(){modal('Сохранение повреждено','�
 function openMenu(){battleMenu.close();screen='menu';menuPage='title';pause.add('menu');accumulator=0;save();renderUI(true);$(state.run?'#resume':'#start').focus();}
 function setMenuPage(page: MenuPage){
  menuPage=page;renderUI(true);
- window.scrollTo(0,0);
+ root.scrollTop=0;
 }
 async function throughGates(swap:()=>void,finish:()=>void,animated=true){
  if(gatesMoving)return;
@@ -108,7 +108,7 @@ function enterBattle(newRun:boolean){
    save();
   }else state=setPaused(state,false);
   screen='combat';pause.remove('menu');battleMenu.close();
-  renderUI(true);window.scrollTo(0,0);
+  renderUI(true);root.scrollTop=0;
  },()=>{
   accumulator=0;last=performance.now();
   $(pause.reasons.has('user')?'#unpause':'#battle-menu-toggle').focus({preventScroll:true});
@@ -194,7 +194,7 @@ function openModuleDetail(key: ShopModule, source: HTMLButtonElement){
   if(closing)return;
   if(moving){closeRequested=true;return;}
   closing=true;layer.classList.add('closing');render();
-  animate([{transform:'translateY(0)',easing:'ease-out'},{transform:'translateY(10px)',offset:.23,easing:'cubic-bezier(.55,0,.8,.45)'},{transform:'translateY(-100dvh)'}],460,()=>{
+  animate([{transform:'translateY(0)',easing:'ease-out'},{transform:'translateY(10px)',offset:.23,easing:'cubic-bezier(.55,0,.8,.45)'},{transform:'translateY(-100cqh)'}],460,()=>{
    area.replaceChildren();area.onkeydown=null;shell.inert=false;source.focus({preventScroll:true});
   });
  }
@@ -213,7 +213,7 @@ function openModuleDetail(key: ShopModule, source: HTMLButtonElement){
  };
  render();
  closeButton.focus();
- animate([{transform:'translateY(-100dvh)',easing:'cubic-bezier(.26,.65,.44,1)'},{transform:'translateY(14px)',offset:.76,easing:'ease-out'},{transform:'translateY(0)'}],590,()=>{render();if(closeRequested)close();});
+ animate([{transform:'translateY(-100cqh)',easing:'cubic-bezier(.26,.65,.44,1)'},{transform:'translateY(14px)',offset:.76,easing:'ease-out'},{transform:'translateY(0)'}],590,()=>{render();if(closeRequested)close();});
 }
 let disposeTitleTips: (()=>void) | undefined;
 function mountTitleWidgets(){

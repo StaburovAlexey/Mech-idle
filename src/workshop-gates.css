@@ -36,7 +36,7 @@
   content: '';
   position: absolute;
   inset: auto 0 4px;
-  height: clamp(17px,4svh,32px);
+  height: clamp(17px,4cqh,32px);
   border-block: 2px solid #121015;
   background: linear-gradient(#fff3b52b,#1b161b63),
     repeating-linear-gradient(135deg,#b89132 0 15px,#242127 15px 30px);

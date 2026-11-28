@@ -25,6 +25,10 @@ export function bindArmoredScrollbars(root: HTMLElement) {
    const progress=!maxScroll?0:maxScroll-offset<1?1:offset/maxScroll;
    thumb.style.transform=`translateY(${travel*progress}px)`;
   }
+  function railHeight(){
+   // Computed height is fractional and is measured before the outer frame is scaled.
+   return parseFloat(getComputedStyle(rail).height) || rail.offsetHeight || rail.getBoundingClientRect().height;
+  }
   function refresh(){
    const scrollTop=panel.scrollTop;
    // Measure without the slot; the gutter itself must never cause overflow.
@@ -32,23 +36,29 @@ export function bindArmoredScrollbars(root: HTMLElement) {
    if(!panel.clientHeight||panel.scrollHeight<=panel.clientHeight+1)return;
    rail.hidden=false;
    maxScroll=panel.scrollHeight-panel.clientHeight;
-   const trackHeight=Math.max(0,rail.getBoundingClientRect().height - 2 * rail.clientTop);
+   const trackHeight=Math.max(0,railHeight() - 2 * rail.clientTop);
    const thumbHeight=Math.min(trackHeight,Math.max(24,trackHeight*panel.clientHeight/panel.scrollHeight));
    travel=trackHeight-thumbHeight;
    thumb.style.height=`${thumbHeight}px`;
    panel.scrollTop=scrollTop;
    sync();
   }
+  function railScale(){
+   return rail.getBoundingClientRect().height / railHeight() || 1;
+  }
+  function localPointer(e: PointerEvent){
+   return (e.clientY-rail.getBoundingClientRect().top)/railScale()-rail.clientTop;
+  }
   function move(e: PointerEvent){
    if(!travel)return;
-   const y=e.clientY-rail.getBoundingClientRect().top-rail.clientTop-grab;
+   const y=localPointer(e)-grab;
    panel.scrollTop=Math.max(0,Math.min(1,y/travel))*maxScroll;
    sync();
   }
   rail.onpointerdown=e=>{
    if(e.button!==0||!travel)return;
    e.preventDefault();
-   grab=e.target===thumb?e.clientY-thumb.getBoundingClientRect().top:thumb.offsetHeight/2;
+   grab=e.target===thumb?(e.clientY-thumb.getBoundingClientRect().top)/railScale():thumb.offsetHeight/2;
    rail.setPointerCapture(e.pointerId);
    move(e);
   };

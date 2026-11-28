@@ -1,14 +1,14 @@
 /* The menu and workshop reserve the same title slot at every viewport. */
 :root {
-  --screen-header-inset: clamp(14px,4vw,40px);
-  --screen-heading-size: clamp(27px,10vw,64px);
+  --screen-header-inset: clamp(14px,4cqw,40px);
+  --screen-heading-size: clamp(27px,10cqw,64px);
   --screen-header-reserve: calc(var(--screen-heading-size) * 1.32);
 }
 .screen-header {
   position: absolute; z-index: 3;
-  top: max(var(--screen-header-inset),env(safe-area-inset-top));
+  top: max(var(--screen-header-inset));
   left: 50%; transform: translateX(-50%);
-  width: min(1120px, calc(100vw - max(var(--screen-header-inset),env(safe-area-inset-left)) - max(var(--screen-header-inset),env(safe-area-inset-right))));
+  width: min(1120px, calc(100cqw - max(var(--screen-header-inset)) - max(var(--screen-header-inset))));
   display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
 }
 .shell.at-front-menu {
@@ -17,10 +17,10 @@
 .at-front-menu > :is(.topbar,.foot) { display: none; }
 .at-front-menu .status-warning:not(.hidden) { z-index: 4; margin: 0; border-radius: 0; }
 .at-front-menu .workspace {
-  --title-space: clamp(14px, 4vw, 60px);
+  --title-space: clamp(14px, 4cqw, 60px);
   isolation: isolate;
   position: relative; display: block; flex: none;
-  width: 100%; min-height: max(490px, 100svh);
+  width: 100%; min-height: max(490px, 100cqh);
   background: linear-gradient(90deg,#15151c5c,transparent 66%), linear-gradient(0deg,#12131e84,transparent 25%),
     #332a36 url('/assets/ui/title/sand-city.webp') center 59% / cover no-repeat;
 }
@@ -42,9 +42,9 @@
   display: grid; grid-template-columns: minmax(0, 1fr) auto;
   grid-template-rows: var(--screen-header-reserve) auto minmax(min-content, 1fr) auto;
   overflow-x: clip;
-  gap: clamp(19px, 3svh, 50px) 7px; min-height: inherit;
-  padding: max(var(--title-space), env(safe-area-inset-top)) max(var(--title-space), env(safe-area-inset-right))
-    max(var(--title-space), env(safe-area-inset-bottom)) max(var(--title-space), env(safe-area-inset-left));
+  gap: clamp(19px, 3cqh, 50px) 7px; min-height: inherit;
+  padding: max(var(--title-space)) max(var(--title-space))
+    max(var(--title-space)) max(var(--title-space));
   max-width: 1200px; margin: 0 auto;
   pointer-events: none;
 }
@@ -96,9 +96,9 @@
 
 .title-console {
   grid-row: 3;
-  grid-column: 1 / -1; width: min(63%,433px); align-self: center; margin-bottom: min(7svh,54px);
-  padding: clamp(24px,5vw,34px) calc(var(--rim) + 4px) clamp(21px,4.5vw,29px);
-  display: grid; gap: clamp(7px,1.25svh,13px);
+  grid-column: 1 / -1; width: min(63%,433px); align-self: center; margin-bottom: min(7cqh,54px);
+  padding: clamp(24px,5cqw,34px) calc(var(--rim) + 4px) clamp(21px,4.5cqw,29px);
+  display: grid; gap: clamp(7px,1.25cqh,13px);
 }
 .title-seam {
   position: absolute; left: 50%; transform: translateX(-50%); width: min(52%,132px); top: calc((var(--rim) - 12px) / 2);
@@ -123,12 +123,12 @@
 
 .title-button {
   --light: #e89999; --edge: #aa4856; --fill-top: #963c48; --fill-bottom: #4a1c2a; --depth: #381a24;
-  display: grid; place-items: center; width: 100%; min-height: clamp(46px,8svh,94px); padding: 5px 5px;
+  display: grid; place-items: center; width: 100%; min-height: clamp(46px,8cqh,94px); padding: 5px 5px;
   margin: 0; position: relative; isolation: isolate; border: 1px solid #181217; border-radius: 8px;
   background: linear-gradient(177deg,var(--light),var(--edge) 48%,var(--depth));
   box-shadow: inset 0 1px var(--light), inset 0 -2px var(--depth), 0 2px 0 #100e12, 0 4px 5px #0c0a0ec7;
   color: #fff0da;
-  font: 700 clamp(12px,3.75vw,29px)/1.11 var(--oplot-font);
+  font: 700 clamp(12px,3.75cqw,29px)/1.11 var(--oplot-font);
   text-transform: uppercase; text-shadow: var(--type-raised);
 }
 .title-button::before {
@@ -156,19 +156,19 @@
 
 .title-tip {
   grid-row: 4;
-  display: flex; grid-column: 1 / -1; align-items: center; gap: clamp(10px,2.5vw,24px);
+  display: flex; grid-column: 1 / -1; align-items: center; gap: clamp(10px,2.5cqw,24px);
   align-self: end; color: #f8eddb; padding: calc(var(--rim) + 3px) calc(var(--rim) + 5px);
   max-width: 760px;
 }
 .title-tip::after { background: linear-gradient(135deg,#263940,#17262c 55%,#121c25); }
 .title-bulb {
-  flex: none; width: clamp(33px,9vw,62px); aspect-ratio: 1; display: grid; place-items: center;
+  flex: none; width: clamp(33px,9cqw,62px); aspect-ratio: 1; display: grid; place-items: center;
   color: #b9f17d; border: 1px solid #82a96c; border-radius: 7px;
   background: radial-gradient(ellipse at top,#3a5740,#1d302a 70%);
   box-shadow: inset 0 0 0 2px #192b24, 0 2px 3px #0e171c;
 }
 .title-bulb svg { width: 68%; }
-.title-tip strong { color: #a6e270; font: 700 clamp(13px,3vw,21px)/1.2 var(--oplot-font); text-transform: uppercase; }
+.title-tip strong { color: #a6e270; font: 700 clamp(13px,3cqw,21px)/1.2 var(--oplot-font); text-transform: uppercase; }
 .title-tip-text { display: grid; position: relative; }
 .title-tip-text p { grid-area: 1 / 1; visibility: hidden; }
 .title-tip-text p.current { visibility: visible; }
@@ -176,18 +176,18 @@
 .title-tip-text.scrambling p.current { color: transparent; text-shadow: none; }
 .title-tip-text.scrambling .title-tip-code { visibility: visible; }
 .title-tip-code span:last-child { color: #b9f17d; text-shadow: 0 0 6px #a8e47580; }
-.title-tip p { margin: 2px 0 0; font-size: clamp(12px,2.7vw,18px); line-height: 1.38; }
-.modal { max-height: calc(100dvh - 28px); overflow: auto; }
+.title-tip p { margin: 2px 0 0; font-size: clamp(12px,2.7cqw,18px); line-height: 1.38; }
+.modal { max-height: calc(100cqh - 28px); overflow: auto; }
 
-@media (min-width: 760px) {
+@container game (min-width: 760px) {
   .at-front-menu .workspace { background-position: center 52%; }
   .at-front-menu .arena-wrap { inset: 8% max(5%,calc((100% - 1100px) / 2)) 12% 43%; }
-  .title-button { font-size: clamp(20px,2.7vw,32px); }
+  .title-button { font-size: clamp(20px,2.7cqw,32px); }
 }
-@media (max-height: 530px) and (orientation: landscape) {
-  .at-front-menu .workspace { min-height: max(350px,100svh); }
+@container game (max-height: 530px) and (orientation: landscape) {
+  .at-front-menu .workspace { min-height: max(350px,100cqh); }
   .title-panel { --title-space: 10px; gap: 5px; }
-  :root { --screen-heading-size: clamp(30px,6vw,45px); --screen-header-inset: 12px; }
+  :root { --screen-heading-size: clamp(30px,6cqw,45px); --screen-header-inset: 12px; }
   .title-console { width: min(51%,350px); margin-bottom: 0; padding-block: 20px 18px; gap: 4px; }
   .title-button { min-height: 44px; font-size: 18px; }
   .title-tip { padding-block: 17px; }

@@ -147,7 +147,7 @@ describe('battle controls and keyboard target semantics', () => {
 describe('battle layout stylesheet contract (static, not a browser layout measurement)', () => {
   it('reserves control rows while the scene spans the transparent gaps', () => {
     expect(combinedRulesFor('.shell.in-battle')).toMatchObject({
-      position: 'fixed', inset: '0', display: 'grid', height: '100dvh',
+      position: 'fixed', inset: '0', display: 'grid', height: '100cqh',
       'grid-template-rows': 'auto minmax(0,1fr) auto', 'min-height': '0', overflow: 'hidden',
     });
     for (const [selector, row] of [['.shell.in-battle .battle-hud', '1'], ['.shell.in-battle .workspace', '1/-1'], ['.shell.in-battle .upgrades', '3']]) {
@@ -167,12 +167,11 @@ describe('battle layout stylesheet contract (static, not a browser layout measur
     });
   });
 
-  it('keeps safe-area padding inside both reserved bars at every responsive override', () => {
-    for (const [selector, edge] of [['.shell.in-battle .battle-hud', 'top'], ['.shell.in-battle .upgrades', 'bottom']]) {
-      const rule = combinedRulesFor(selector);
-      expect(rule[`padding-${edge}`]).toContain(`env(safe-area-inset-${edge})`);
-      expect(rule['padding-left']).toContain('env(safe-area-inset-left)');
-      expect(rule['padding-right']).toContain('env(safe-area-inset-right)');
+  it('keeps safe areas outside the logical game rather than shifting HUD positions', () => {
+    const frame = readFileSync(`${process.cwd()}/src/game-frame.css`, 'utf8');
+    for (const edge of ['top','right','bottom','left']) {
+      expect(frame).toContain(`env(safe-area-inset-${edge})`);
+      expect(css).not.toContain(`env(safe-area-inset-${edge})`);
     }
   });
 
