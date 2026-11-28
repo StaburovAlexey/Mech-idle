@@ -144,7 +144,9 @@
   --light: #836d6f; --edge: #594c50; --fill-top: #493f44; --fill-bottom: #30272e; --depth: #241c22;
   color: #b1a2a1; opacity: 1; cursor: default;
 }
-.title-button:hover:not(:disabled) { filter: brightness(1.13); }
+@media (hover: hover) {
+  .title-button:hover:not(:disabled) { filter: brightness(1.13); }
+}
 .title-button:active:not(:disabled) {
   transform: translateY(2px); filter: brightness(.94);
   box-shadow: inset 0 1px var(--light), inset 0 -2px var(--depth), 0 1px 0 #100e12;
