@@ -1,3 +1,4 @@
+import { titleButton } from './title-ui';
 import { chainPanelSheet } from './chain-panel';
 import { currencyCounter, currencyIcon } from './currency-ui';
 import { armoredScrollMarkup, bindArmoredScrollbars } from './armored-scroll';
@@ -88,7 +89,7 @@ export function bindUpgradeTabs(dock: HTMLElement) {
 
 export const bossBarMarkup=`<div id="boss" class="boss-bar hidden"><b>КОЛОСС / ТЯЖЁЛЫЙ МЕХ</b><div class="boss-track"><div class="boss-fill" id="boss-fill"></div></div></div>`;
 
-/** Owns only the battle drawer pause. Never removes user/hidden/dialog pauses. */
+/** Owns only the battle drawer pause. Never removes hidden or dialog pauses. */
 export class BattleMenuController {
  open=false;
  constructor(private readonly pause:PauseManager){}
@@ -106,10 +107,13 @@ export const battleHudMarkup = `<div class="battle-resources" aria-label="Рес
  <button type="button" class="battle-menu-toggle" id="battle-menu-toggle" aria-label="Открыть меню боя" aria-haspopup="dialog" aria-expanded="false" aria-controls="battle-menu-overlay"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="m10 2-.6 2.5-2 .9-2.4-1.1-2 3.4 2 1.7v2.2l-2 1.7 2 3.4 2.4-1.1 2 .9.6 2.5h4l.6-2.5 2-.9 2.4 1.1 2-3.4-2-1.7V9.4l2-1.7-2-3.4-2.4 1.1-2-.9L14 2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" transform="translate(0 1.5)"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button></div><div id="battle-notice" class="battle-notice hidden" role="status"></div>`;
 
 export const battleMenuMarkup = chainPanelSheet(`<section class="battle-menu-panel chain-panel-content" role="dialog" aria-modal="true" aria-labelledby="battle-menu-title" tabindex="-1">
- <div class="battle-menu-head"><h2 id="battle-menu-title">Меню боя</h2><div class="eyebrow">Управление оплотом</div><button class="battle-menu-close" id="battle-menu-close" aria-label="Закрыть меню боя"><span class="battle-close-icon" aria-hidden="true"></span></button></div>
- <p class="battle-menu-status" id="battle-menu-status">Бой остановлен, пока открыто меню</p>
- <div class="menu-grid"><div><span>Урон</span><strong id="menu-damage"></strong></div><div><span>Темп</span><strong id="menu-speed"></strong></div><div><span>Ремонт</span><strong id="menu-regen"></strong></div><div><span>Пройдено</span><strong id="menu-progress"></strong></div></div>
- <div class="menu-actions"><button class="main-button" id="battle-menu-return">Вернуться в бой</button><button class="main-button secondary" id="battle-menu-pause">Оставить на паузе</button><button class="small-button" id="battle-menu-sound">Звук: выключен</button><button class="small-button" id="battle-menu-help">Как играть</button><button class="small-button" id="battle-menu-save" aria-label="Сохранить забег и открыть главное меню" title="Сохранить забег и открыть главное меню">Сохранить и выйти</button><button class="small-button danger" id="battle-menu-abandon">Завершить забег</button></div>
+ <div class="battle-menu-head"><h2 id="battle-menu-title">Меню боя</h2>${titleButton('battle-menu-close','×',false,'Закрыть меню боя')}</div>
+ <div class="menu-actions">
+  ${titleButton('battle-menu-return','Вернуться в бой',true)}
+  ${titleButton('battle-menu-sound','Звук: выключен')}
+  ${titleButton('battle-menu-save','Сохранить и выйти',false,'Сохранить и выйти в главное меню')}
+  ${titleButton('battle-menu-abandon','Завершить забег')}
+ </div>
 </section>`);
 
 export function isInteractiveTarget(target:EventTarget|null):boolean {
