@@ -5,7 +5,7 @@ import { SPAWN_RADIUS, WORLD_LIMIT, type SpawnGeometry } from './spawnGeometry';
 import {
   DT, STAT_KEYS, createState, startRun, step, setPaused, collectPickups, buyRunUpgrade, buyMetaUpgrade,
   runPrice, metaPrice, getStats, enemyStats, waveConfig, serializeState, parseState,
-  attackConfig, ENEMY_PROJECTILE_SPEED, RANGED_MUZZLE_OFFSET, MAX_ENEMIES, MAX_ENEMY_PROJECTILES, MAX_SPAWN_GROUP, TURRET_RANGE, ESCORT_SPAWN_RADIUS, type GameState, type GameEvent, type Enemy, type StatKey,
+  runRewards, claimRunReward, attackConfig, ENEMY_PROJECTILE_SPEED, RANGED_MUZZLE_OFFSET, MAX_ENEMIES, MAX_ENEMY_PROJECTILES, MAX_SPAWN_GROUP, TURRET_RANGE, ESCORT_SPAWN_RADIUS, type GameState, type GameEvent, type Enemy, type StatKey,
 } from './game';
 
 function legacyGeometry(): SpawnGeometry {
@@ -32,6 +32,34 @@ function clearAtNextTick(s: GameState): GameState {
   const r = s.run!; r.enemies = []; r.bullets = []; r.warnings = []; r.spawned = waveConfig(r.wave).count; return step(s);
 }
 
+
+describe('run reward settlement', () => {
+  it('reopens an unclaimed result and never pays the base payout twice', () => {
+    const before=atWave(30);
+    before.run!.collectedLoot={parts:12,scrap:15};
+    before.profile.crystals+=12;before.profile.scrap=15;
+    const done=clearAtNextTick(before);
+    const result=done.result!;
+    expect(result.outcome).toBe('victory');
+    expect(runRewards(result)).toEqual({parts:42,scrap:15});
+    const loaded=parseState(serializeState(done))!;
+    expect(claimRunReward(loaded,'other-run',true)).toBe(loaded);
+    const normal=claimRunReward(loaded,result.runId);
+    expect(normal.profile).toEqual(loaded.profile);
+    expect(claimRunReward(normal,result.runId,true)).toBe(normal);
+    const doubled=claimRunReward(loaded,result.runId,true);
+    expect(doubled.profile).toMatchObject({crystals:84,scrap:30});
+    const reload=parseState(serializeState(doubled))!;
+    expect(claimRunReward(reload,result.runId,true)).toBe(reload);
+  });
+  it('accepts old result snapshots without inventing loot or an unpaid bonus', () => {
+    const finished=clearAtNextTick(atWave(30));
+    delete finished.result!.collectedLoot; delete finished.result!.rewardPending;
+    const old=parseState(serializeState(finished))!;
+    expect(runRewards(old.result!)).toEqual({parts:30,scrap:0});
+    expect(claimRunReward(old,old.result!.runId,true)).toBe(old);
+  });
+});
 
 describe('battle pickups', () => {
   it('rolls 8% loot overall and about 1% mixed, with scalable module odds', () => {
@@ -69,6 +97,7 @@ describe('battle pickups', () => {
     const collected=collectPickups(loaded,[item.id]);
     expect(collected.profile[kind==='parts'?'crystals':'scrap']).toBe(item.quantity);
     expect(collected.run?.pickups).toEqual([]);
+    expect(collected.run?.collectedLoot).toEqual({parts:kind==='parts'?3:0,scrap:kind==='scrap'?3:0});
     expect(collectPickups(collected,[item.id])).toBe(collected);
     expect(parseState(serializeState(collected))).toEqual(collected);
   });
