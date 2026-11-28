@@ -7,6 +7,7 @@ import './battle-dock.css';
 import { COMBAT_KEYS, SHOP_MODULES, type ShopModule } from './combat-upgrades';
 import { workshopMarkup, renderWorkshopCombatUpgrade } from './workshop-ui';
 import { moduleShopMarkup, moduleDetailMarkup, renderShopCard, renderModuleDetail } from './module-shop';
+import { MenuAnnouncements, TEST_ANNOUNCEMENTS } from './menu-announcement';
 import { titleMarkup } from './title-ui';
 import {createState,startRun,step,buyRunUpgrade,buyCombatUpgrade,buyMetaUpgrade,buyWorkshopCombatUpgrade,buyShopModule,setPaused,getStats,calculateStats,runPrice,metaPrice,STAT_KEYS,DT,type GameState,type StatKey} from './game';
 import {SceneView,type SceneFrame, type SceneSpawn} from './scene';
@@ -37,6 +38,7 @@ let repository:SaveRepository|null=null, writable=false, saveBlocked=false, fata
 let scene:SceneView|null=null;
 const pause=new PauseManager(),lock=new TabLock(),platform=new LocalPlatformAdapter(),sound=new Sound();
 const battleMenu=new BattleMenuController(pause);
+const announcements=new MenuAnnouncements(TEST_ANNOUNCEMENTS);
 let menuReturnFocus:HTMLElement|null=null;
 pause.add('menu');
 function notify(text:string){$('#notice').textContent=text;$('#notice').classList.remove('hidden');}
@@ -217,7 +219,13 @@ function drawPanel(){
    $('#module-shop-back').onclick=()=>showMenuPage('title');
    for(const key of SHOP_MODULES){const card=$<HTMLButtonElement>(`#shop-${key}`);card.onclick=()=>openModuleDetail(key,card);}
   }
-  else{$('#open-module-shop').onclick=()=>showMenuPage('shop');$('#start').onclick=launch;$('#resume').onclick=resume;$('#open-workshop').onclick=()=>showMenuPage('workshop');$('#menu-help').onclick=showHelp;}
+  else {
+   $('#open-module-shop').onclick=()=>showMenuPage('shop');
+   $('#start').onclick=launch;$('#resume').onclick=resume;
+   $('#open-workshop').onclick=()=>showMenuPage('workshop');$('#menu-help').onclick=showHelp;
+   announcements.mount($('.menu-announcement-slot'),destination=>{void showMenuPage(destination);},
+    ()=>!state.run&&!gatesMoving, ()=>$(state.run?'#resume':'#start').focus({preventScroll:true}));
+  }
  }
  if(screen==='result')$('#to-workshop').onclick=()=>{openMenu();void showMenuPage('workshop',false);};
  renderedScreen=screen;

@@ -130,6 +130,30 @@ afterEach(() => {
 });
 
 describe('main menu', () => {
+  it('queues two test announcements, preserves the queue across navigation, and never adds a shop badge', async () => {
+    await boot();
+    expect(element('.menu-announcement strong').textContent).toBe('Новинка в магазине');
+    expect(document.querySelector('#open-module-shop i')).toBeNull();
+    click('.menu-announcement-close');
+    expect(element('.menu-announcement strong').textContent).toBe('Сообщение мастерской');
+    expect(document.activeElement).toBe(button('.menu-announcement-close'));
+    click('.menu-announcement-action');
+    expect(element('#screen-heading').textContent).toBe('МАСТЕРСКАЯ');
+    click('#workshop-back');
+    expect(element('.menu-announcement-slot').hidden).toBe(true);
+    expect(element('.title-tip').textContent).toContain('Совет');
+  });
+
+  it('leaves notifications dismissible when a saved run prevents opening workshop or shop', async () => {
+    await boot(fundedRun());
+    expect(button('.menu-announcement-action').disabled).toBe(true);
+    click('.menu-announcement-close');
+    expect(button('.menu-announcement-action').disabled).toBe(true);
+    click('.menu-announcement-close');
+    expect(element('.menu-announcement-slot').hidden).toBe(true);
+    expect(document.activeElement).toBe(button('#resume'));
+  });
+
   it('opens the workshop, purchases a permanent upgrade, and returns to the menu', async () => {
     const profile = createState(); profile.profile.crystals = 5;
     await boot(profile);
