@@ -6,6 +6,7 @@ import './run-result.css';
 
 const format = (n:number)=>n.toLocaleString('ru-RU');
 const video='<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="1.8" y="4" width="16.4" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="m8 7 5 3-5 3z" fill="currentColor"/></svg>';
+const bolt=`<svg class="result-plate-bolt" viewBox="-7 -7 14 14" aria-hidden="true"><use href="${import.meta.env.BASE_URL}assets/ui/shared/armored-frame.svg#screw"/></svg>`;
 const badges={
  victory:'<path d="M18 3 31 8v8c0 8-6 13-13 17C11 29 5 24 5 16V8l13-5Z"/><path d="m12 18 4 4 8-9"/><path d="M10 12V9l8-3" opacity=".5"/>',
  defeat:'<path d="M16 4 5 8v8c0 8 5 13 12 17M22 5l9 3v8c0 8-5 13-12 17"/><path d="m20 4-5 9 6 4-5 7 3 8"/>',
@@ -23,7 +24,7 @@ export function runResultMarkup(result: RunResult) {
  return chainPanelSheet(`<div class="chain-panel-content result-report" role="dialog" aria-modal="true" aria-labelledby="run-result-title">
    <div class="result-status">
     <div class="result-badge" aria-hidden="true"><svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${badges[result.outcome]}</svg></div>
-    <h1 tabindex="-1" id="run-result-title">${result.outcome==='victory'?'Победа':'Оплот пал'}</h1>
+    <h1 tabindex="-1" id="run-result-title">${bolt}${result.outcome==='victory'?'Победа':'Оплот пал'}${bolt}</h1>
    </div>
    <div class="result-waves">
     <p>Отбито волн: <strong aria-hidden="true"><span id="result-wave-count">0</span> / 30</strong><span class="result-sr-only">${result.completedWaves} из 30</span></p>
