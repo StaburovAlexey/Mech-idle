@@ -37,7 +37,6 @@
     linear-gradient(#393439,#272329) center / calc(100% - 13px) 100% no-repeat,
     repeating-linear-gradient(135deg,#bd963a 0 5px,#28252a 5px 10px);
 }
-.battle-resource .currency-icon { width: 18px; height: 18px; }
 .battle-hp-icon {
   position: absolute; inset: 0 auto 0 7px; margin: auto 0; width: 18px; color: #a8d968;
 }
@@ -133,7 +132,7 @@
 .shell.in-battle .battle-upgrade-list .upgrade-price {
   display: inline-flex; align-items: center; gap: 3px; white-space: nowrap;
 }
-.shell.in-battle .upgrade-price .currency-icon { width: 13px; height: 13px; }
+.shell.in-battle .upgrade-price .currency-icon { --currency-size: 13px; }
 
 @container game (max-width: 600px) {
   .shell.in-battle .battle-resources { grid-template-columns: minmax(0,1.6fr) repeat(3,minmax(0,1fr)); }

@@ -362,11 +362,11 @@ describe('main menu', () => {
     expect(element('#workshop-list-defense').hasAttribute('hidden')).toBe(true);
     click('#workshop-tab-defense');
     expect(element('#workshop-list-attack').hasAttribute('hidden')).toBe(true);
-    expect(element('#workshop-list-defense').querySelectorAll('button')).toHaveLength(3);
+    expect(element('#workshop-list-defense').querySelectorAll('button')).toHaveLength(2);
     click('#workshop-tab-repair');
     expect(element('#workshop-list-repair').querySelectorAll('button')).toHaveLength(3);
     click('#workshop-tab-modules');
-    expect(element('#workshop-list-modules').querySelectorAll('button')).toHaveLength(9);
+    expect(element('#workshop-list-modules').querySelectorAll('button')).toHaveLength(0);
     click('#workshop-tab-attack');
     click('#workshop-critical');
     expect(saved().profile.enhancements?.critical).toBe(1);
@@ -381,8 +381,9 @@ describe('main menu', () => {
   it('previews shop modules without spending, buys once, and upgrades only in the workshop', async () => {
     const initial=createState();initial.profile.crystals=30;
     await boot(initial);click('#open-workshop');click('#workshop-tab-modules');
-    expect(button('#workshop-pulse').disabled).toBe(true);
-    expect(element('#workshop-pulse .workshop-current').textContent).toBe('Купи в магазине');
+    expect(document.querySelector('#workshop-pulse')).toBeNull();
+    expect(document.querySelector('#workshop-deflect')).toBeNull();
+    expect(element('#workshop-list-modules .workshop-empty').textContent).toContain('Купленные');
     click('#workshop-back');click('#open-module-shop');
     expect(element('#screen-heading').textContent).toBe('МАГАЗИН');
     expect(element('.module-shop-rack').querySelectorAll('button')).toHaveLength(10);
@@ -414,7 +415,11 @@ describe('main menu', () => {
     click('#shop-pulse');expect(button('#module-detail-buy').disabled).toBe(true);
     key('Escape',button('#module-detail-close'));
     click('#module-shop-back');expect(document.activeElement).toBe(button('#open-module-shop'));
-    click('#open-workshop');click('#workshop-tab-modules');click('#workshop-pulse');
+    click('#open-workshop');click('#workshop-tab-modules');
+    expect(element('#workshop-list-modules').querySelectorAll('button')).toHaveLength(1);
+    expect(document.querySelector('#workshop-list-modules .workshop-empty')).toBeNull();
+    expect(document.querySelector('#workshop-scanner')).toBeNull();
+    click('#workshop-pulse');
     expect(saved().profile.enhancements?.pulse).toBe(2);
     expect(saved().profile.crystals).toBe(10);
   });

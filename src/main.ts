@@ -8,8 +8,8 @@ import './workshop-gates.css';
 import './module-shop.css';
 import './battle-dock.css';
 import { bootScreen, loadInterface, waitForBoot } from './boot';
-import { COMBAT_KEYS, WORKSHOP_KEYS, SHOP_MODULES, type ShopModule } from './combat-upgrades';
-import { workshopMarkup, renderWorkshopCombatUpgrade } from './workshop-ui';
+import { COMBAT_KEYS, SHOP_MODULES, type ShopModule } from './combat-upgrades';
+import { workshopMarkup, visibleWorkshopKeys, renderWorkshopCombatUpgrade } from './workshop-ui';
 import { moduleShopMarkup, moduleDetailContent, renderShopCard, renderModuleDetail } from './module-shop';
 import { MenuAnnouncements, TEST_ANNOUNCEMENTS } from './menu-announcement';
 import { rotateTitleTips } from './title-tips';
@@ -191,7 +191,7 @@ function applyCrystalPurchase(next: GameState){
  state=next;sound.play('upgrade');renderUI();
 }
 function bindCrystalModules(){
- for(const key of WORKSHOP_KEYS) $(`#workshop-${key}`).onclick=()=>{
+ for(const key of visibleWorkshopKeys(state.profile.enhancements)) $(`#workshop-${key}`).onclick=()=>{
   if(canSpendCrystals()&&menuPage==='workshop'&&!pause.reasons.has('dialog'))
    applyCrystalPurchase(buyWorkshopCombatUpgrade(state,key));
  };
@@ -235,7 +235,7 @@ function drawPanel(){
  disposeWorkshopTabs?.();disposeWorkshopTabs=undefined;
  disposeShopScrollbars?.();disposeShopScrollbars=undefined;
  const panel=$('#panel');panel.className=screen==='menu'?(menuPage==='shop'?'module-shop-panel':menuPage==='workshop'?'workshop-panel':'title-panel'):`panel ${screen}-panel`;
- if(screen==='menu')panel.innerHTML=menuPage==='shop'?moduleShopMarkup:menuPage==='workshop'?workshopMarkup:titleMarkup;
+ if(screen==='menu')panel.innerHTML=menuPage==='shop'?moduleShopMarkup:menuPage==='workshop'?workshopMarkup(state.profile.enhancements):titleMarkup;
  else if(screen==='combat')panel.innerHTML='';
  else panel.innerHTML=`<div class="result-emblem">${state.result?.outcome==='victory'?'★':'⬡'}</div><div class="eyebrow">${state.result?.outcome==='victory'?'Периметр защищён':'Связь с оплотом потеряна'}</div><h1>${state.result?.outcome==='victory'?'Колосс<br>повержен.':'Забег<br>завершён.'}</h1><p>${state.result?.outcome==='victory'?'Все 30 волн пройдены. Вы удержали сектор.':'Детали сохранены. Усильте стартовые параметры и вернитесь в бой.'}</p><div class="combat-stats"><div class="stat-box"><span>Пройдено волн</span><strong>${state.result?.completedWaves??0} / 30</strong></div><div class="stat-box crystals"><span>Заработано</span><strong>+${state.result?.earnedCrystals??0} ${currencyIcon('parts')}</strong></div><div class="stat-box"><span>Уничтожено мехов</span><strong>${state.result?.kills??0}</strong></div><div class="stat-box"><span>Время обороны</span><strong>${Math.floor((state.result?.duration??0)/60)}:${String(Math.floor((state.result?.duration??0)%60)).padStart(2,'0')}</strong></div></div><p class="hint">Временное золото и боевые модули сброшены. Улучшения мастерской остаются с вами.</p><button class="main-button panel-bottom" id="to-workshop">В мастерскую</button>`;
  if(screen==='menu'){
@@ -318,7 +318,7 @@ function renderUI(force=false){
  $('#arena-note').textContent=battle?'Автоогонь · покупайте модули за золото':'Один оплот. Тридцать волн.';
  const boss=run?.enemies.find(e=>e.kind==='boss');$('#boss').classList.toggle('hidden',!boss||!battle);if(boss)$('#boss-fill').style.width=`${boss.hp/boss.maxHp*100}%`;
  $('#shop-title').textContent=battle?'Боевые модули · золото':'Мастерская · детали';$('#shop-note').textContent=battle?'Улучшения действуют сразу':'Усиливают старт будущих забегов';
- if(screen==='menu'&&menuPage==='workshop') for(const key of WORKSHOP_KEYS) {
+ if(screen==='menu'&&menuPage==='workshop') for(const key of visibleWorkshopKeys(state.profile.enhancements)) {
   renderWorkshopCombatUpgrade($<HTMLButtonElement>(`#workshop-${key}`),key,state.profile.enhancements?.[key]??0,state.profile.crystals,fatal||saveBlocked||!writable||!!run,state.profile.scrap??0);
  }
  if(screen==='menu'&&menuPage==='shop') for(const key of SHOP_MODULES) {
