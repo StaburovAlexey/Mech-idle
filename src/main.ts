@@ -52,7 +52,7 @@ function setWorkshop(open:boolean){
 }
 async function showWorkshop(open:boolean,animated=true){
  if(screen!=='menu'||open===workshopOpen||gatesMoving||(open&&state.run))return;
- const focus=()=>$(open?'#workshop-heading':'#open-workshop').focus({preventScroll:true});
+ const focus=()=>$(open?'#screen-heading':'#open-workshop').focus({preventScroll:true});
  if(!animated||!gates.firstElementChild?.animate||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches){
   setWorkshop(open);focus();return;
  }

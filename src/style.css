@@ -433,5 +433,5 @@ body.battle-active{overflow:hidden;overscroll-behavior:none}
 button { text-shadow: var(--type-small); }
 :is(.main-button,.panel h1,.modal h2,.paused-overlay h2,.battle-menu-panel h2) { text-shadow: var(--type-raised); }
 :is(.battle-resource>strong,.upgrade-value,.upgrade-price,.battle-menu-panel .menu-grid strong) {
-  text-shadow: 0 -1px #fff1d340, 0 1px #4a3429, 0 2px 2px #120d16b3;
+  text-shadow: 0 1px #4a3429, 0 2px 2px #120d16b3;
 }
