@@ -24,8 +24,21 @@
 .result-status {text-align:center}
 .result-badge {margin:0 auto 10px;width:clamp(48px,8cqh,66px);aspect-ratio:1;border:1px solid var(--result-edge);border-radius:12px;display:grid;place-items:center;color:var(--result-accent);background:radial-gradient(ellipse at 50% 15%,var(--result-tile),#25202b);box-shadow:inset 0 0 0 3px #1b171e,inset 0 0 0 4px #5d4e4868,0 3px 0 #100e17}
 .result-badge svg {width:52%;height:52%}
-.result-status h1 {margin:0 0 7px;color:var(--result-tone);font-size:clamp(23px,8.08cqw,34px);line-height:1.05;text-shadow:0 3px #160f18;font-weight:800;white-space:nowrap;text-transform:uppercase}
-.result-waves {text-align:center}
+.result-status h1 {
+  position:relative;width:min(100%,280px);margin:0 auto;padding:10px 16px;
+  border-radius:5px;color:var(--result-tone);
+  background:
+    radial-gradient(circle,#1d2328 2px,#636d75 2.5px 3px,transparent 3.5px) left 7px center / 8px 8px no-repeat,
+    radial-gradient(circle,#1d2328 2px,#636d75 2.5px 3px,transparent 3.5px) right 7px center / 8px 8px no-repeat,
+    repeating-linear-gradient(0deg,#10161a26 0 1px,transparent 1px 3px),
+    linear-gradient(170deg,#59636b,#3c464e 36%,#2b343c 66%,#374149);
+  box-shadow:inset 0 0 0 1px #1c2329,inset 0 2px #74808a,inset 0 -3px #20282e,0 3px #101419;
+  font-size:clamp(23px,8.08cqw,34px);line-height:1.05;text-shadow:0 3px #160f18;
+  font-weight:800;white-space:nowrap;text-transform:uppercase;
+}
+/* This heading receives programmatic focus to announce the dialog; it isn't a control. */
+.result-status h1:focus {outline:none}
+.result-waves {margin-top:clamp(16px,3cqh,24px);text-align:center}
 .result-sr-only {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .result-waves p {margin:0;color:#e0d3c8;font-size:12px}
 .result-waves strong {font-variant-numeric:tabular-nums;font-size:14px;color:#fff0da;white-space:nowrap}
