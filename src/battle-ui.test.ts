@@ -144,12 +144,12 @@ describe('battle controls and keyboard target semantics', () => {
 });
 
 describe('battle layout stylesheet contract (static, not a browser layout measurement)', () => {
-  it('reserves intrinsic top and bottom rows around a shrinkable middle scene', () => {
+  it('reserves control rows while the scene spans the transparent gaps', () => {
     expect(combinedRulesFor('.shell.in-battle')).toMatchObject({
       position: 'fixed', inset: '0', display: 'grid', height: '100dvh',
       'grid-template-rows': 'auto minmax(0,1fr) auto', 'min-height': '0', overflow: 'hidden',
     });
-    for (const [selector, row] of [['.shell.in-battle .battle-hud', '1'], ['.shell.in-battle .workspace', '2'], ['.shell.in-battle .upgrades', '3']]) {
+    for (const [selector, row] of [['.shell.in-battle .battle-hud', '1'], ['.shell.in-battle .workspace', '1/-1'], ['.shell.in-battle .upgrades', '3']]) {
       expect(combinedRulesFor(selector)).toMatchObject({ 'grid-row': row, 'grid-column': '1' });
       for (const rule of rulesFor(selector)) {
         if (rule.position) expect(['static', 'relative']).toContain(rule.position);
