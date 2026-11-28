@@ -78,7 +78,7 @@ describe('battle controls and keyboard target semantics', () => {
     const drawer = document.querySelector('[role="dialog"]')!;
     expect(drawer.getAttribute('aria-modal')).toBe('true');
     expect(document.getElementById(drawer.getAttribute('aria-labelledby')!)?.textContent).toBeTruthy();
-    for (const suffix of ['return', 'sound', 'save', 'abandon']) {
+    for (const suffix of ['return', 'settings', 'save', 'abandon']) {
       expect(drawer.querySelector(`#battle-menu-${suffix}`)).not.toBeNull();
     }
     expect(drawer.querySelectorAll('#battle-menu-actions button')).toHaveLength(4);

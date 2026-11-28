@@ -1,5 +1,3 @@
-import { trackVhs } from './vhs';
-
 const MIN_BOOT_MS = 3000;
 const delay = (ms: number) => new Promise<void>(resolve => window.setTimeout(resolve, ms));
 
@@ -35,22 +33,19 @@ export async function waitForBoot(assets: Promise<unknown>) {
   }
 }
 
-export function bootScreen(app: HTMLElement) {
+export function bootScreen(app: HTMLElement, crt = true) {
   const boot = document.querySelector<HTMLElement>('#boot');
   if (!boot) return;
   const display = boot.querySelector<HTMLElement>('#boot-display')!;
   const beam = boot.querySelector<HTMLElement>('#boot-beam')!;
-  const motion = !window.matchMedia('(prefers-reduced-motion: reduce)').matches && !!display.animate;
+  const motion = crt && !window.matchMedia('(prefers-reduced-motion: reduce)').matches && !!display.animate;
   const started = performance.now();
-  let stop = () => {};
+  boot.classList.toggle('crt-disabled',!motion);
   const animate = (element: HTMLElement, keyframes: Keyframe[], duration: number) =>
     element.animate(keyframes, { duration, fill:'both' });
 
-  if (motion) stop = trackVhs(display, 1180, true);
-
   return {
     fail(message: string) {
-      stop();
       display.hidden = false;
       boot.dataset.phase = 'error';
       boot.querySelector('#boot-status')!.textContent = message;
@@ -64,10 +59,10 @@ export function bootScreen(app: HTMLElement) {
       const remaining = MIN_BOOT_MS - (performance.now() - started);
       if (remaining > 0) await delay(remaining);
       if (motion) {
-        stop();
         const darken = animate(display, [
-          { transform:'scale(1)', filter:'brightness(1)' },
-          { transform:'scale(.88,.003)', filter:'brightness(.65)', easing:'ease-in' },
+          { transform:'scale(1)', clipPath:'inset(0 round 0%)', filter:'brightness(1)' },
+          { transform:'perspective(800px) rotateX(9deg) scale(.96,.82)', clipPath:'inset(0 round 10% / 7%)', filter:'brightness(1.09)', offset:.42 },
+          { transform:'scale(.88,.003)', clipPath:'inset(0 round 12%)', filter:'brightness(.65)', easing:'ease-in' },
         ], 300);
         await darken.finished;
         const off = animate(beam, [
@@ -87,12 +82,13 @@ export function bootScreen(app: HTMLElement) {
         const light = animate(beam, [
           { transform:'scaleX(0)', opacity:0 }, { transform:'scaleX(1)', opacity:.8 },
         ], 130);
-        const hold = animate(app, [{ transformOrigin:origin, transform:'scale(.93,.003)', opacity:0 }], 1000);
+        const hold = animate(app, [{ transformOrigin:origin, transform:'scale(.93,.003)', clipPath:'inset(0 round 12%)', opacity:0 }], 1000);
         await light.finished;
         hold.cancel();
         const open = animate(app, [
-          { transformOrigin:origin, transform:'scale(.93,.004)', opacity:.58, easing:'cubic-bezier(.18,.69,.23,1)' },
-          { transformOrigin:origin, transform:'none', opacity:1 },
+          { transformOrigin:origin, transform:'scale(.93,.004)', clipPath:'inset(0 round 12%)', opacity:.58, easing:'cubic-bezier(.18,.69,.23,1)' },
+          { transformOrigin:origin, transform:'perspective(800px) rotateX(-7deg) scale(.97,.86)', clipPath:'inset(0 round 10% / 7%)', opacity:1, offset:.54 },
+          { transformOrigin:origin, transform:'none', clipPath:'inset(0 round 0%)', opacity:1 },
         ], 380);
         const fade = animate(beam, [{ transform:'scaleX(1)', opacity:.8 }, { transform:'scaleX(1)', opacity:0 }], 125);
         light.cancel();
@@ -102,12 +98,6 @@ export function bootScreen(app: HTMLElement) {
       }
       boot.dataset.inputReady = 'true';
       onInteractive();
-      if (motion) {
-        const title = app.querySelector<HTMLElement>('.shell')!;
-        stop = trackVhs(title, 780, false, app.clientHeight);
-        await delay(780);
-        stop();
-      }
       boot.remove();
     },
   };

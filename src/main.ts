@@ -1,3 +1,4 @@
+import { bindGameSettings, gameSettingsMarkup, readGameSettings, saveGameSettings } from './game-settings';
 import { armoredScrollMarkup, bindArmoredScrollbars } from './armored-scroll';
 import { animateChainSheet, openChainPanel } from './chain-panel';
 import { currencyBank, currencyIcon } from './currency-ui';
@@ -22,7 +23,8 @@ import {Sound} from './audio';
 import {BattleMenuController,battleHudMarkup,battleMenuMarkup,bossBarMarkup,battleUpgradeDockMarkup,bindUpgradeTabs,renderCombatUpgrade,STAT_LABELS,isInteractiveTarget,setBattleMenuConfirmation} from './battle-ui';
 const $=<T extends HTMLElement=HTMLElement>(s:string)=>document.querySelector<T>(s)!;
 const root=$('#app');
-const startup=bootScreen(root);
+const settings=readGameSettings();
+const startup=bootScreen(root,settings.crt);
 for (const type of ['contextmenu', 'dragstart']) {
  root.addEventListener(type, event => event.preventDefault());
 }
@@ -63,6 +65,7 @@ let repository:SaveRepository|null=null, writable=false, saveBlocked=false, fata
 let scene:SceneView|null=null;
 let pageExiting=false;
 const pause=new PauseManager(),lock=new TabLock(),platform=new LocalPlatformAdapter(),sound=new Sound();
+sound.enabled=settings.sound;sound.volume=settings.volume/100;
 const battleMenu=new BattleMenuController(pause);
 const announcements=new MenuAnnouncements(TEST_ANNOUNCEMENTS);
 let menuReturnFocus:HTMLElement|null=null;
@@ -132,6 +135,7 @@ function showMenuPage(page: MenuPage,animated=true){
 }
 function enterBattle(newRun:boolean){
  if(screen!=='menu'||menuPage!=='title'||newRun===!!state.run||fatal||saveBlocked||!writable)return;
+ sound.unlock();
  return throughGates(()=>{
   if(newRun){
    state=startRun(state,crypto.getRandomValues(new Uint32Array(1))[0]);
@@ -155,8 +159,15 @@ for (const key of COMBAT_KEYS) $(`#upgrade-${key}`).onclick=()=>{
  if(next===state||!save(next))return;
  state=next;sound.play('upgrade');renderUI();
 };
-function toggleSound(){const enabled=sound.toggle();$('#sound').textContent=enabled?'♫':'♪';$('#sound').setAttribute('aria-label',enabled?'Выключить звук':'Включить звук');$('#sound').setAttribute('aria-pressed',String(enabled));if(pause.paused)sound.suspend();renderUI();}
-$('#sound').onclick=toggleSound;
+function applySettings(){
+ sound.enabled=settings.sound;sound.volume=settings.volume/100;
+ if(settings.sound)sound.unlock();else sound.suspend();
+ $('#sound').textContent=settings.sound?'♫':'♪';
+ $('#sound').setAttribute('aria-label',settings.sound?'Выключить звук':'Включить звук');
+ $('#sound').setAttribute('aria-pressed',String(settings.sound));
+ saveGameSettings(settings);
+}
+$('#sound').onclick=()=>{settings.sound=!settings.sound;applySettings();};
 function showHelp(){modal('Как защитить оплот','Турель прицеливается и стреляет сама. За каждого уничтоженного меха вы получаете золото. Нажмите на выпавшую деталь или обломок, чтобы подобрать. Купленные в бою модули действуют сразу. Здоровье между волнами не заполняется: нужен ремонт. За каждую пройденную волну начисляется 1 деталь. Детали и улучшения мастерской сохраняются после поражения. Штурм бьёт кулаками, Рывок атакует клинками, Стрелок останавливается внутри круга огня и стреляет снарядами. Некоторые волны окружают оплот группами. На волне 30 ждёт Колосс с тяжёлыми ударами. Клавиши 1–4 покупают модули. Пробел или Escape открывают меню боя.',[{label:'Понятно',action:()=>{}}]);}
 $('#help').onclick=showHelp;
 function openBattleMenu(){
@@ -208,7 +219,7 @@ function endBattleRun(){
 }
 $('#battle-menu-toggle').onclick=openBattleMenu;
 $('#battle-menu-return').onclick=()=>closeBattleMenu();
-$('#battle-menu-sound').onclick=toggleSound;
+$('#battle-menu-settings').onclick=()=>openSettings($('#battle-menu-settings'));
 $('#battle-menu-save').onclick=()=>closeBattleMenu(false,openMenu);
 $('#battle-menu-abandon').onclick=()=>switchBattleMenu(true);
 $('#battle-confirmation-cancel').onclick=()=>switchBattleMenu(false);
@@ -249,6 +260,22 @@ function openModuleDetail(key: ShopModule, source: HTMLButtonElement){
   applyCrystalPurchase(buyShopModule(state,key));render();$('#module-detail-close').focus();
  };
  render();
+}
+function openSettings(source: HTMLElement){
+ if(gatesMoving||drawerBusy)return;
+ const area=$('#modal-root'), fromBattle=screen==='combat';
+ if(fromBattle&&(!battleMenu.open||drawerConfirming))return;
+ const panel=openChainPanel(area,$('.shell'),{
+  title:'Настройки',subtitle:'',headingId:'game-settings-title',closeId:'game-settings-close',descriptionId:'crt-help',
+  body:gameSettingsMarkup,
+  returnFocus:()=>{
+   drawerElement.classList.remove('settings-underlay');
+   source.focus({preventScroll:true});
+  },
+ });
+ if(!panel)return;
+ if(fromBattle)drawerElement.classList.add('settings-underlay');
+ bindGameSettings(area,settings,applySettings);
 }
 function openSpecialOffer(){
  if(screen!=='menu'||menuPage!=='title'||gatesMoving)return;
@@ -298,7 +325,7 @@ function drawPanel(){
   else {
    $('#open-module-shop').onclick=()=>showMenuPage('shop');
    $('#start').onclick=()=>enterBattle(true);$('#resume').onclick=()=>enterBattle(false);
-   $('#open-workshop').onclick=()=>showMenuPage('workshop');$('#menu-help').onclick=showHelp;
+   $('#open-workshop').onclick=()=>showMenuPage('workshop');$('#menu-help').onclick=showHelp;$('#menu-settings').onclick=()=>openSettings($('#menu-settings'));
    if(!root.inert&&!document.querySelector('#boot'))mountTitleWidgets();
   }
  }
@@ -344,7 +371,6 @@ function renderUI(force=false){
   for(const key of COMBAT_KEYS)renderCombatUpgrade($<HTMLButtonElement>(`#upgrade-${key}`),key,run.enhancements?.levels[key]??0,run.gold,fatal||saveBlocked||!writable||battleMenu.open,state.profile.enhancements?.[key]??0);
   $('#battle-gold').textContent=coins(run.gold);$('#battle-parts').textContent=coins(state.profile.crystals);$('#battle-scrap').textContent=coins(state.profile.scrap??0);
  }
- $('#battle-menu-sound > span').textContent=`Звук: ${sound.enabled?'включён':'выключен'}`;
  $('#title-render-warning').classList.toggle('hidden',!fatal);
  $('#arena-status').textContent=fatal?'ТРЕБУЕТСЯ WEBGL2':battle?(pause.paused?'ПАУЗА':run?.wave===30?'КОЛОСС ПРИБЛИЖАЕТСЯ':'БОЕВОЙ РЕЖИМ'):'СИСТЕМЫ ГОТОВЫ';
  $('#arena-note').textContent=battle?'Автоогонь · покупайте модули за золото':'Один оплот. Тридцать волн.';
