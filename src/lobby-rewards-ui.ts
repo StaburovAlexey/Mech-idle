@@ -23,7 +23,8 @@ function amounts(row:{parts:number;scrap:number}) {
  return (['parts','scrap'] as const).filter(kind=>row[kind]).map(kind=>
   `<span class="reward-value" aria-label="${label(kind,row[kind])}">${currencyIcon(kind)}+${row[kind]}</span>`).join('');
 }
-const button=(id:LobbyRewardId,text:string,disabled:boolean)=>`<button class="title-button title-primary" type="button" data-lobby-reward="${id}"${disabled?' disabled':''}><span>${text}</span></button>`;
+const claimAttrs=(id:LobbyRewardId,text:string,disabled:boolean)=>`type="button" data-lobby-reward="${id}" aria-label="Забрать: ${text}"${disabled?' disabled':''}`;
+const received='<span class="corner-ribbon">Получено</span>';
 
 export function bindLobbyRewards(root:HTMLElement, refreshLayout:()=>void, claim:(id:LobbyRewardId)=>void) {
  const visits=root.querySelector<HTMLElement>('#rewards-visits')!,quests=root.querySelector<HTMLElement>('#rewards-quests')!;
@@ -52,21 +53,24 @@ export function bindLobbyRewards(root:HTMLElement, refreshLayout:()=>void, claim
     <h3>Семь посещений</h3><p class="reward-copy">Забирай одну награду в день.</p>
     <div class="reward-cells">${VISIT_REWARDS.map((reward,i)=>{
      const today=i===progress.visits&&available,done=i<progress.visits;
-     return steelPlate('div',`reward-day${i===6?' last':''}${today?' today':''}${done?' done':''}`,
-      `<span>День ${i+1}${done?' · ✓':today?' · Сегодня':i===6?' · Бонус':''}</span><div>${amounts(reward)}</div>`);
+     const label=`День ${i+1}`;
+     return steelPlate(today?'button':'div',`reward-day${i===6?' last':''}${today?' is-ready':''}${done?' is-received':''}`,
+      `<span>${label}${today?' · Сегодня':i===6?' · Бонус':''}</span><span class="reward-amounts">${amounts(reward)}</span>${done?received:''}`,
+      today?claimAttrs('visit',label,blocked):'');
     }).join('')}</div>
    </section>
-   ${button('visit',complete?'Все награды получены':available?`Забрать награду дня ${progress.visits+1}`:'Сегодня уже получено',blocked||!available)}
-   <p class="reward-foot">Получено: ${progress.visits} из ${VISIT_REWARDS.length}</p>`;
+   <p class="reward-foot">${complete?'Все награды получены':available?'Нажми на выделенный день':'Сегодня уже получено'} · ${progress.visits} из ${VISIT_REWARDS.length}</p>`;
    let ready=0;
    quests.innerHTML=`<p class="quest-list-note">Задания не сгорают. Забирай награды, когда выполнишь условия.</p>
     <div class="quest-list">${QUESTS.map(q=>{
      const current=questProgress(profile,q.id),done=progress.claimed.includes(q.id),canClaim=!done&&current>=q.target;
      if(canClaim)ready++;
      const fraction=Math.min(100,100*current/q.target);
-     return steelPlate('article',`quest${canClaim?' is-ready':''}`,`<h3>${q.title}</h3><p class="reward-copy">${current} / ${q.target} ${q.unit}</p>
-      <div class="quest-progress" aria-hidden="true"><i style="width:${fraction}%"></i></div>
-      <div class="quest-info"><div class="reward-amounts">${amounts(q)}</div>${canClaim?button(q.id,'Забрать',blocked):`<span class="quest-status">${done?'✓ Получено':'В процессе'}</span>`}</div>`);
+     return steelPlate(canClaim?'button':'article',`quest${canClaim?' is-ready':''}${done?' is-received':''}`,
+      `<span class="quest-title">${q.title}</span><span class="reward-copy">${current} / ${q.target} ${q.unit}</span>
+       <span class="quest-progress" aria-hidden="true"><i style="width:${fraction}%"></i></span>
+       <span class="quest-info"><span class="reward-amounts">${amounts(q)}</span>${canClaim?'<span class="quest-claim">Забрать</span>':''}</span>${done?received:''}`,
+      canClaim?claimAttrs(q.id,q.title,blocked):'');
     }).join('')}</div>`;
    badge.textContent=String(ready);badge.hidden=!ready;
    if(ready)badge.setAttribute('aria-label',`Наград к получению: ${ready}`);
