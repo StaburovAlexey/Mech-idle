@@ -1,6 +1,6 @@
 import { COMBAT_KEYS, COMBAT_UPGRADES, combatValueLabel, workshopCombatPrice, type CombatUpgrade } from './combat-upgrades';
-import { STAT_KEYS, type StatKey } from './game';
-import { STAT_LABELS, statIcon } from './battle-ui';
+import type { StatKey } from './game';
+import { STAT_LABELS, statIcon, UPGRADE_CATEGORIES } from './battle-ui';
 import { screenHeader, titleButton } from './title-ui';
 import { armoredFrame } from './armored-frame';
 
@@ -32,17 +32,15 @@ export const workshopMarkup = `
   <div class="workshop-hero" aria-hidden="true"></div>
   ${armoredFrame('section', 'workshop-rack', `
     <div class="workshop-tabs" role="tablist" aria-label="Улучшения мастерской">
-      <button type="button" role="tab" id="workshop-tab-base" aria-controls="workshop-list-base" aria-selected="true">Основные</button>
-      <button type="button" role="tab" id="workshop-tab-special" aria-controls="workshop-list-special" aria-selected="false" tabindex="-1">Особые</button>
+      ${UPGRADE_CATEGORIES.map(({id,label},i)=>`<button type="button" role="tab" id="workshop-tab-${id}" aria-controls="workshop-list-${id}" aria-selected="${i===0}" tabindex="${i===0?0:-1}">${label}</button>`).join('')}
     </div>
-    <div class="workshop-list" role="tabpanel" id="workshop-list-base" aria-labelledby="workshop-tab-base">
-      ${STAT_KEYS.map(stat=>workshopCard(stat, STAT_LABELS[stat].title, stat, 'data-workshop-stat')).join('')}
-    </div>
-    <div class="workshop-list workshop-special" role="tabpanel" id="workshop-list-special" aria-labelledby="workshop-tab-special" tabindex="0" hidden>
-      ${COMBAT_KEYS.map(key=>{
-        const item=COMBAT_UPGRADES[key];
-        return workshopCard(key,item.title,item.icon,'data-workshop-combat',item.description);
-      }).join('')}
-    </div>
+    ${UPGRADE_CATEGORIES.map(({id,stats},i)=>`
+      <div class="workshop-list" role="tabpanel" id="workshop-list-${id}" aria-labelledby="workshop-tab-${id}" tabindex="0"${i===0?'':' hidden'}>
+        ${stats.map(stat=>workshopCard(stat,STAT_LABELS[stat].title,stat,'data-workshop-stat')).join('')}
+        ${COMBAT_KEYS.filter(key=>COMBAT_UPGRADES[key].category===id).map(key=>{
+          const item=COMBAT_UPGRADES[key];
+          return workshopCard(key,item.title,item.icon,'data-workshop-combat',item.description);
+        }).join('')}
+      </div>`).join('')}
   `, 'Постоянные улучшения')}
   ${titleButton('workshop-back', 'Главное меню')}`;

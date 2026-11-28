@@ -39,7 +39,7 @@ export function renderCombatUpgrade(button: HTMLButtonElement, key: CombatUpgrad
  button.setAttribute('aria-label',`${title}. ${description}. ${owned?current:`Сейчас: ${current}. После покупки: ${next}. Цена: ${coins} золота.`}`);
 }
 
-const upgradeCategories: { id: string; label: string; icon: string; stats: StatKey[] }[] = [
+export const UPGRADE_CATEGORIES: { id: string; label: string; icon: string; stats: StatKey[] }[] = [
  {id:'attack',label:'Атака',icon:statIcon('damage'),stats:['damage','attackSpeed']},
  {id:'defense',label:'Защита',icon:statIcon('maxHp'),stats:['maxHp']},
  {id:'repair',label:'Ремонт',icon:statIcon('regen'),stats:['regen']},
@@ -48,9 +48,9 @@ const upgradeCategories: { id: string; label: string; icon: string; stats: StatK
 
 export const battleUpgradeDockMarkup = `
  <div class="battle-upgrade-tabs" role="tablist" aria-label="Категории улучшений">
-  ${upgradeCategories.map(({id,label,icon},i)=>`<button type="button" class="battle-upgrade-tab" role="tab" id="battle-tab-${id}" aria-controls="battle-upgrades-${id}" aria-selected="${i===0}" tabindex="${i===0?0:-1}"><span aria-hidden="true">${icon}</span>${label}</button>`).join('')}
+  ${UPGRADE_CATEGORIES.map(({id,label,icon},i)=>`<button type="button" class="battle-upgrade-tab" role="tab" id="battle-tab-${id}" aria-controls="battle-upgrades-${id}" aria-selected="${i===0}" tabindex="${i===0?0:-1}"><span aria-hidden="true">${icon}</span>${label}</button>`).join('')}
  </div>
- ${armoredFrame('section','battle-upgrade-rack',upgradeCategories.map(({id,stats},i)=>`
+ ${armoredFrame('section','battle-upgrade-rack',UPGRADE_CATEGORIES.map(({id,stats},i)=>`
   <div class="battle-upgrade-list" role="tabpanel" id="battle-upgrades-${id}" aria-labelledby="battle-tab-${id}" tabindex="0"${i===0?'':' hidden'}>
    ${upgradeButtonsMarkup(stats)}${COMBAT_KEYS.filter(key=>COMBAT_UPGRADES[key].category===id).map(combatUpgradeCard).join('')}
   </div>`).join(''),'Боевые улучшения')}
