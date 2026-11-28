@@ -24,7 +24,7 @@ export const workshopMarkup = `
           <span class="workshop-name">${STAT_LABELS[stat].title}</span>
           <span class="workshop-values"><span class="workshop-current"></span><strong class="workshop-next"></strong></span>
         </span>
-        <span class="workshop-price"></span>
+        <span class="workshop-price"><span class="workshop-currency" aria-hidden="true">◇</span> <span class="workshop-amount"></span></span>
       </button>`).join('')}
   `, 'Постоянные улучшения')}
   ${titleButton('workshop-back', 'Главное меню')}`;

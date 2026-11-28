@@ -48,6 +48,7 @@
   background: linear-gradient(135deg,#494147,#2c292f 52%,#222026);
   box-shadow: inset 0 1px #8c7d7e, inset 0 -2px #19171a, 0 2px 3px #100e13;
   color: #fff0da; text-align: left;
+  transition: transform 90ms ease-out, box-shadow 90ms ease-out;
 }
 .workshop-icon {
   width: clamp(30px,9vw,52px); aspect-ratio: 1; padding: 5px;
@@ -67,19 +68,20 @@
 }
 .workshop-next { color: #bee68a; }
 .workshop-price {
-  display: grid; place-items: center; min-height: 42px; min-width: clamp(52px,17vw,100px);
-  max-width: min(28vw,134px); padding: 3px 6px; border-radius: 7px;
-  color: #fff0da; border: 1px solid #8fb666;
-  background: linear-gradient(#719745,#2c471f);
-  box-shadow: inset 0 1px #d2efa66b, inset 0 -2px #152612, 0 2px 4px #130f16;
-  font: clamp(13px,4.1vw,23px)/1.15 "Oplot Display",sans-serif;
-  white-space: nowrap; font-variant-numeric: tabular-nums;
+  display: flex; align-items: baseline; justify-content: end; gap: 5px;
+  font: clamp(20px,6.3vw,32px)/1 "Oplot Display",sans-serif;
+  color: #c4eb89; white-space: nowrap; font-variant-numeric: tabular-nums;
 }
-.workshop-row:disabled .workshop-price {
-  color: #d4c6be; border-color: #74666c; background: linear-gradient(#51464d,#332b31);
-  box-shadow: inset 0 1px #8e7b826b, inset 0 -2px #271d25, 0 2px 4px #130f16;
+.workshop-currency { font-size: .55em; }
+.workshop-row:disabled .workshop-price { color: #d6c6bc; }
+.workshop-row:not(:disabled):active {
+  transform: translateY(2px) scale(.99);
+  box-shadow: inset 0 3px 6px #100e13, 0 1px #120e13;
 }
-.workshop-row:not(:disabled):active { transform: translateY(1px); }
+@media (prefers-reduced-motion: reduce) {
+  .workshop-row { transition: none; }
+  .workshop-row:not(:disabled):active { transform: none; }
+}
 .workshop-row:focus-visible { outline: 2px solid #fff2d6; outline-offset: 2px; }
 #workshop-back {
   grid-row: 4; grid-column: 1; min-height: 49px;
