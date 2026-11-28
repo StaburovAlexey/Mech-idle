@@ -1,3 +1,4 @@
+import { currencyIcon } from './currency-ui';
 import { armoredFrame } from './armored-frame';
 import { statIcon } from './battle-ui';
 import { COMBAT_UPGRADES, SHOP_MODULES, combatValueLabel, workshopCombatPrice, type ShopModule } from './combat-upgrades';
@@ -7,21 +8,21 @@ function shopCard(key: ShopModule) {
  return `<button class="workshop-row module-shop-card" type="button" id="shop-${key}" aria-haspopup="dialog">
   <span class="workshop-icon" aria-hidden="true">${statIcon(icon)}</span>
   <span class="workshop-data"><span class="workshop-name">${title}</span><span class="module-shop-more">Подробнее</span></span>
-  <span class="workshop-price"><span class="workshop-currency" aria-hidden="true">◇</span> ${workshopCombatPrice(key,0)}</span>
+  <span class="workshop-price"><span class="workshop-currency" aria-hidden="true">${currencyIcon('parts')}</span> ${workshopCombatPrice(key,0)}</span>
   <span class="module-shop-ribbon" aria-hidden="true">Куплено</span>
  </button>`;
 }
 
 export const moduleShopMarkup = `
  ${screenHeader('МАГАЗИН')}
- ${armoredFrame('section','module-shop-rack',SHOP_MODULES.map(shopCard).join(''),'Модули за кристаллы')}
+ ${armoredFrame('section','module-shop-rack',SHOP_MODULES.map(shopCard).join(''),'Модули за детали')}
  ${titleButton('module-shop-back','Главное меню')}
 `;
 
 export function renderShopCard(button: HTMLButtonElement, key: ShopModule, level: number) {
  const purchased=level>0;
  button.classList.toggle('purchased',purchased);
- button.setAttribute('aria-label',`${COMBAT_UPGRADES[key].title}. ${purchased?'Куплено':`Цена: ${workshopCombatPrice(key,0)} кристаллов`}. Подробнее`);
+ button.setAttribute('aria-label',`${COMBAT_UPGRADES[key].title}. ${purchased?'Куплено':`Цена: ${workshopCombatPrice(key,0)} деталей`}. Подробнее`);
 }
 
 const descriptions: Record<ShopModule,string> = {
@@ -53,10 +54,16 @@ export function renderModuleDetail(root: HTMLElement, key: ShopModule, level: nu
  const price=workshopCombatPrice(key,0), bought=level>0;
  const cooldown=root.querySelector('#module-detail-cooldown');
  if(cooldown)cooldown.textContent=combatValueLabel(key,Math.max(1,level));
- const locked=key==='scanner'?'Сканер не требует прокачки.':'Улучшай модуль за кристаллы в мастерской.';
+ const locked=key==='scanner'?'Сканер не требует прокачки.':'Улучшай модуль за детали в мастерской.';
  root.querySelector('#module-detail-note')!.textContent=bought?locked:
-  crystals<price?`Не хватает кристаллов: ${price-crystals}.`:'Действует с начала каждого забега.';
+  crystals<price?`Не хватает деталей: ${price-crystals}.`:'Действует с начала каждого забега.';
  const button=root.querySelector<HTMLButtonElement>('#module-detail-buy')!;
  button.disabled=blocked||bought||crystals<price;
- button.querySelector('span')!.textContent=bought?'Куплено':`Купить за ◇ ${price}`;
+ const caption=bought?'Куплено':`Купить за ${price} деталей`;
+ button.setAttribute('aria-label',caption);
+ const label=button.querySelector('span')!;
+ if(label.dataset.label!==caption) {
+  label.dataset.label=caption;
+  label.innerHTML=bought?'Куплено':`Купить за ${currencyIcon('parts')} ${price}`;
+ }
 }

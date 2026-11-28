@@ -166,7 +166,7 @@ body.battle-active{overflow:hidden;overscroll-behavior:none}
 }
 .battle-resource>strong{color:#3d4253;font-size:18px;font-weight:800;line-height:20px;margin-top:14px;white-space:nowrap}
 .battle-resource.gold>strong{color:#8c602e}
-.battle-resource.crystals>strong{color:#087b9d}
+.battle-resource.parts>strong{color:#087b9d}
 .battle-resource.health>strong{margin-top:12px;font-size:16px;line-height:17px}
 .battle-resource .health-track,.boss-track{
   height:6px;margin:0;border:0;border-radius:0;background:transparent;
@@ -415,7 +415,7 @@ body.battle-active{overflow:hidden;overscroll-behavior:none}
 .battle-resource{padding-top:3px}
 .battle-resource>span,.battle-resource>small{color:var(--dw-muted)}
 .battle-resource>strong{color:var(--dw-text);margin-top:7px}
-.battle-resource.gold>strong,.battle-resource.crystals>strong{color:var(--dw-amber)}
+.battle-resource.gold>strong,.battle-resource.parts>strong{color:var(--dw-amber)}
 .battle-resource.health>strong{margin-top:5px}
 .battle-resource+.battle-resource::before{top:11px;bottom:6px;background:#ffffff27}
 .battle-resource .health-track,.shell.in-battle .boss-track{

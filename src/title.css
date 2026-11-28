@@ -67,11 +67,25 @@
 .title-logo::before { top: 0; }
 .title-logo::after { bottom: 0; transform: rotate(180deg); }
 .title-logo span { display: block; }
-.title-bank {
-  align-self: start; justify-self: end; color: #e9dfc7; background: #191820db; border: 1px solid #a3937b9c;
-  padding: 5px 10px; border-radius: 3px; white-space: nowrap; font-size: 13px; font-variant-numeric: tabular-nums;
+/* Counter styling stays shared beyond the main menu. */
+.title-bank { display: flex; flex: none; gap: 4px; justify-content: flex-end; }
+.title-balance {
+  display: flex; align-items: center; gap: 4px; padding: 4px 6px;
+  color: #fff0da; background: #191820db; border: 1px solid #a3937b9c; border-radius: 4px;
+  font-size: clamp(11px,3.1cqw,14px); font-variant-numeric: tabular-nums; white-space: nowrap;
 }
-.title-bank span { color: #a9e875; }
+.title-bank .currency-label { display: none; }
+.currency-icon { display: inline-block; object-fit: contain; vertical-align: -.17em; flex: none; }
+.workshop-currency .currency-icon { display: block; }
+#module-detail-buy .currency-icon { width: 16px; height: 16px; }
+.topbar .title-bank { order: 1; }
+.topbar:has(.title-bank) .pill { display: none; }
+@container game (max-width: 380px) {
+  .title-balance { gap: 3px; padding-inline: 4px; }
+  .title-balance .currency-icon { width: 16px; height: 16px; }
+  .topbar .top-actions { flex-wrap: wrap; justify-content: flex-end; }
+  .topbar .title-bank { order: -1; }
+}
 
 .armored-frame {
   --rim: 12px;

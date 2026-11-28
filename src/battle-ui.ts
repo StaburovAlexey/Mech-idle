@@ -1,3 +1,4 @@
+import { currencyCounter, currencyIcon } from './currency-ui';
 import { armoredScrollMarkup, bindArmoredScrollbars } from './armored-scroll';
 import { COMBAT_UPGRADES, COMBAT_KEYS, combatValueLabel, combatUpgradePrice, type CombatUpgrade } from './combat-upgrades';
 import { armoredFrame } from './armored-frame';
@@ -15,7 +16,7 @@ export const statIcon = (stat: StatKey) => `<svg viewBox="0 0 24 24" fill="none"
 export const STAT_LABELS:Record<StatKey,{title:string,unit:string}>={damage:{title:'Сила атаки',unit:'урона'},maxHp:{title:'Бронекорпус',unit:'HP'},attackSpeed:{title:'Темп стрельбы',unit:'/с'},regen:{title:'Ремонт',unit:'HP/с'}};
 export const SHORT_STAT_LABELS:Record<StatKey,string>={damage:'Урон',maxHp:'Корпус',attackSpeed:'Темп',regen:'Ремонт'};
 function upgradeCard(id: string, title: string, short: string, icon: StatKey, extra = '') {
- return `<button class="upgrade" aria-label="${title}" type="button" ${extra} id="upgrade-${id}"><span class="battle-card-icon" aria-hidden="true">${statIcon(icon)}</span><div class="upgrade-top"><span class="upgrade-title"><span class="stat-label-full">${title}</span><span class="stat-label-short" aria-hidden="true">${short}</span></span></div><div class="upgrade-data"><span class="upgrade-value"></span><span class="upgrade-price"></span></div><div class="upgrade-sub"></div></button>`;
+ return `<button class="upgrade" aria-label="${title}" type="button" ${extra} id="upgrade-${id}"><span class="battle-card-icon" aria-hidden="true">${statIcon(icon)}</span><div class="upgrade-top"><span class="upgrade-title"><span class="stat-label-full">${title}</span><span class="stat-label-short" aria-hidden="true">${short}</span></span></div><div class="upgrade-data"><span class="upgrade-value"></span><span class="upgrade-price">${currencyIcon('gold')}<span class="upgrade-cost"></span></span></div><div class="upgrade-sub"></div></button>`;
 }
 export function upgradeButtonsMarkup(stats: readonly StatKey[] = STAT_KEYS) {
  return stats.map(stat=>upgradeCard(stat,STAT_LABELS[stat].title,SHORT_STAT_LABELS[stat],stat,`data-stat="${stat}"`)).join('');
@@ -34,7 +35,9 @@ export function renderCombatUpgrade(button: HTMLButtonElement, key: CombatUpgrad
  const value = button.querySelector('.upgrade-value')!;
  const text = owned ? current : !level ? next : `${current} → ${next}`;
  if (value.textContent !== text) value.textContent = text;
- const cost = button.querySelector('.upgrade-price')!, costText = owned ? '' : `◈ ${coins}`;
+ const priceLabel = button.querySelector('.upgrade-price')!;
+ priceLabel.classList.toggle('hidden',owned);
+ const cost = priceLabel.querySelector('.upgrade-cost')!, costText = owned ? '' : coins;
  if (cost.textContent !== costText) cost.textContent = costText;
  button.title = description;
  button.setAttribute('aria-label',`${title}. ${description}. ${owned?current:`Сейчас: ${current}. После покупки: ${next}. Цена: ${coins} золота.`}`);
@@ -95,8 +98,9 @@ export class BattleMenuController {
 
 export const battleHudMarkup = `<div class="battle-resources" aria-label="Ресурсы и состояние турели">
  <div class="battle-resource wave"><span>Волна</span><strong id="battle-wave">1 / 30</strong></div>
- <div class="battle-resource gold" role="group" aria-label="Золото"><i class="battle-currency-icon" aria-hidden="true"></i><span aria-hidden="true">Золото</span><strong id="battle-gold">0</strong></div>
- <div class="battle-resource crystals" role="group" aria-label="Кристаллы"><i class="battle-currency-icon" aria-hidden="true"></i><span aria-hidden="true">Крист.</span><strong id="battle-crystals">0</strong></div>
+ ${currencyCounter('gold','battle-gold','battle-resource gold')}
+ ${currencyCounter('parts','battle-parts','battle-resource parts')}
+ ${currencyCounter('scrap','battle-scrap','battle-resource scrap')}
  <div class="battle-resource health" role="group" aria-label="Здоровье корпуса"><svg class="battle-hp-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 21 3.7 13a5.4 5.4 0 0 1 7.7-7.6l.6.6.6-.6a5.4 5.4 0 0 1 7.7 7.6Z"/></svg><div class="health-track" aria-hidden="true"><div class="health-fill" id="battle-hp-fill"></div></div><strong id="battle-hp">100 / 100</strong></div>
  <button type="button" class="battle-menu-toggle" id="battle-menu-toggle" aria-label="Открыть меню боя" aria-haspopup="dialog" aria-expanded="false" aria-controls="battle-menu-overlay"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="m10 2-.6 2.5-2 .9-2.4-1.1-2 3.4 2 1.7v2.2l-2 1.7 2 3.4 2.4-1.1 2 .9.6 2.5h4l.6-2.5 2-.9 2.4 1.1 2-3.4-2-1.7V9.4l2-1.7-2-3.4-2.4 1.1-2-.9L14 2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" transform="translate(0 1.5)"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button></div><div id="battle-notice" class="battle-notice hidden" role="status"></div>`;
 

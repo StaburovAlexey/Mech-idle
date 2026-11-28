@@ -1,3 +1,4 @@
+import { currencyIcon } from './currency-ui';
 import { armoredScrollMarkup } from './armored-scroll';
 import { COMBAT_KEYS, COMBAT_UPGRADES, combatValueLabel, workshopCombatPrice, isShopModule, type CombatUpgrade } from './combat-upgrades';
 import type { StatKey } from './game';
@@ -13,7 +14,7 @@ function workshopCard(id: string, name: string, icon: StatKey, attribute: string
       ${description ? `<span class="workshop-description">${description}</span>` : ''}
       <span class="workshop-values"><span class="workshop-current"></span><strong class="workshop-next"></strong></span>
     </span>
-    <span class="workshop-price"><span class="workshop-currency" aria-hidden="true">◇</span> <span class="workshop-amount"></span></span>
+    <span class="workshop-price"><span class="workshop-currency" aria-hidden="true">${currencyIcon('parts')}</span> <span class="workshop-amount"></span></span>
   </button>`;
 }
 
@@ -31,7 +32,7 @@ export function renderWorkshopCombatUpgrade(button: HTMLButtonElement, key: Comb
  button.querySelector('.workshop-next')!.textContent=owned||locked?'':`→ ${next}`;
  button.querySelector('.workshop-amount')!.textContent=owned||locked?'':coins;
  button.querySelector('.workshop-currency')!.classList.toggle('hidden',owned||locked);
- button.setAttribute('aria-label',`${title}. ${description}. ${owned||locked?current:`Сейчас: ${current}. После покупки: ${next}. Цена: ${coins} кристаллов.`}`);
+ button.setAttribute('aria-label',`${title}. ${description}. ${owned||locked?current:`Сейчас: ${current}. После покупки: ${next}. Цена: ${coins} деталей.`}`);
 }
 
 export const workshopMarkup = `

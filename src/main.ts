@@ -1,3 +1,4 @@
+import { currencyBank, currencyIcon } from './currency-ui';
 import './style.css';
 import './title.css';
 import './workshop.css';
@@ -23,7 +24,7 @@ const startup=bootScreen(root);
 for (const type of ['contextmenu', 'dragstart']) {
  root.addEventListener(type, event => event.preventDefault());
 }
-root.innerHTML=`<div class="shell"><header class="topbar"><div class="brand"><div class="brand-mark"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M5 27v-6l6-5V6h12v7h6v7h-6v7H5Z" stroke="currentColor" stroke-width="2"/><path d="M14 10h5v5h-5z" fill="currentColor"/></svg></div><div><div class="brand-name">ОПЛОТ</div><div class="brand-sub">Турель и мехи</div></div></div><div class="top-actions"><span class="pill"><span class="live-dot"></span>СЕКТОР 07</span><button class="icon-button" id="sound" aria-label="Включить звук" title="Звук">♪</button><button class="icon-button" id="help" aria-label="Как играть" title="Как играть">?</button></div></header><div id="notice" class="status-warning hidden" role="status"></div><p id="title-render-warning" class="status-warning hidden" role="status">Для запуска боя нужен WebGL2. Откройте игру в браузере с аппаратным ускорением.</p><main class="workspace"><section class="panel" id="panel" aria-label="Панель управления"></section><section class="arena-wrap" aria-label="3D поле боя"><div class="arena" id="arena"></div><div class="arena-top"><div class="arena-label">ПЕРИМЕТР <span>АВТОНОМНАЯ ОБОРОНА</span></div><div class="arena-label" id="arena-status">СИСТЕМЫ ГОТОВЫ</div></div><div class="floating-message" id="toast" role="status" aria-live="polite"></div><div class="arena-bottom"><span class="coordinate">X: 00.0 / Y: 00.0</span><span class="arena-note" id="arena-note">Один оплот. Тридцать волн.</span></div><div class="paused-overlay hidden" id="paused"><h2>Пауза</h2><p>Бой и ремонт остановлены. Ничего не происходит в ваше отсутствие.</p><button class="main-button" id="unpause">Продолжить бой</button></div></section></main><div class="section-head"><strong id="shop-title">Мастерская</strong><span id="shop-note">Улучшения для всех будущих забегов</span></div><section class="upgrades" id="upgrades" aria-label="Улучшения"></section><footer class="foot"><span id="save-status">Локальное сохранение · без офлайн-дохода</span><span>3D / 30 ВОЛН / ФИНАЛЬНЫЙ БОСС</span></footer></div><div id="modal-root"></div>`;
+root.innerHTML=`<div class="shell"><header class="topbar"><div class="brand"><div class="brand-mark"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M5 27v-6l6-5V6h12v7h6v7h-6v7H5Z" stroke="currentColor" stroke-width="2"/><path d="M14 10h5v5h-5z" fill="currentColor"/></svg></div><div><div class="brand-name">ОПЛОТ</div><div class="brand-sub">Турель и мехи</div></div></div><div class="top-actions">${currencyBank('result')}<span class="pill"><span class="live-dot"></span>СЕКТОР 07</span><button class="icon-button" id="sound" aria-label="Включить звук" title="Звук">♪</button><button class="icon-button" id="help" aria-label="Как играть" title="Как играть">?</button></div></header><div id="notice" class="status-warning hidden" role="status"></div><p id="title-render-warning" class="status-warning hidden" role="status">Для запуска боя нужен WebGL2. Откройте игру в браузере с аппаратным ускорением.</p><main class="workspace"><section class="panel" id="panel" aria-label="Панель управления"></section><section class="arena-wrap" aria-label="3D поле боя"><div class="arena" id="arena"></div><div class="arena-top"><div class="arena-label">ПЕРИМЕТР <span>АВТОНОМНАЯ ОБОРОНА</span></div><div class="arena-label" id="arena-status">СИСТЕМЫ ГОТОВЫ</div></div><div class="floating-message" id="toast" role="status" aria-live="polite"></div><div class="arena-bottom"><span class="coordinate">X: 00.0 / Y: 00.0</span><span class="arena-note" id="arena-note">Один оплот. Тридцать волн.</span></div><div class="paused-overlay hidden" id="paused"><h2>Пауза</h2><p>Бой и ремонт остановлены. Ничего не происходит в ваше отсутствие.</p><button class="main-button" id="unpause">Продолжить бой</button></div></section></main><div class="section-head"><strong id="shop-title">Мастерская</strong><span id="shop-note">Улучшения для всех будущих забегов</span></div><section class="upgrades" id="upgrades" aria-label="Улучшения"></section><footer class="foot"><span id="save-status">Локальное сохранение · без офлайн-дохода</span><span>3D / 30 ВОЛН / ФИНАЛЬНЫЙ БОСС</span></footer></div><div id="modal-root"></div>`;
 const gates=document.createElement('div');gates.className='workshop-gates';gates.hidden=true;
 gates.setAttribute('aria-hidden','true');
 gates.innerHTML='<div class="workshop-gate"></div><div class="workshop-gate"></div>';
@@ -58,7 +59,7 @@ function modal(title:string,text:string,actions:{label:string,action:()=>void,se
  area.onkeydown=e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();if(dismissible)close();return;}if(e.key==='Tab'){const buttons=[...area.querySelectorAll<HTMLButtonElement>('button')];const index=buttons.indexOf(document.activeElement as HTMLButtonElement);e.preventDefault();buttons[(index+(e.shiftKey?-1:1)+buttons.length)%buttons.length]?.focus();}};
 }
 function downloadCorrupt(){if(!repository)return;const blob=new Blob([repository.raw()],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='oplot-save-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
-function showSaveRecovery(){modal('Сохранение повреждено','Старые данные оставлены на устройстве. Сначала можно скачать копию. Новый профиль удалит текущее локальное сохранение и его резервную копию.',[{label:'Скачать копию',secondary:true,action:()=>{downloadCorrupt();showSaveRecovery();}},{label:'Новый профиль',action:()=>modal('Начать с нуля?','Кристаллы, постоянные улучшения и незаконченный забег будут удалены на этом устройстве.',[{label:'Отмена',secondary:true,action:showSaveRecovery},{label:'Удалить и начать',action:()=>{repository?.reset();state=createState();saveBlocked=false;$('#notice').classList.add('hidden');save();renderUI(true);}}],false)}],false);}
+function showSaveRecovery(){modal('Сохранение повреждено','Старые данные оставлены на устройстве. Сначала можно скачать копию. Новый профиль удалит текущее локальное сохранение и его резервную копию.',[{label:'Скачать копию',secondary:true,action:()=>{downloadCorrupt();showSaveRecovery();}},{label:'Новый профиль',action:()=>modal('Начать с нуля?','Детали, постоянные улучшения и незаконченный забег будут удалены на этом устройстве.',[{label:'Отмена',secondary:true,action:showSaveRecovery},{label:'Удалить и начать',action:()=>{repository?.reset();state=createState();saveBlocked=false;$('#notice').classList.add('hidden');save();renderUI(true);}}],false)}],false);}
 function openMenu(){battleMenu.close();screen='menu';menuPage='title';pause.add('menu');accumulator=0;save();renderUI(true);$(state.run?'#resume':'#start').focus();}
 function setMenuPage(page: MenuPage){
  menuPage=page;renderUI(true);
@@ -130,7 +131,7 @@ for (const key of COMBAT_KEYS) $(`#upgrade-${key}`).onclick=()=>{
 function toggleSound(){const enabled=sound.toggle();$('#sound').textContent=enabled?'♫':'♪';$('#sound').setAttribute('aria-label',enabled?'Выключить звук':'Включить звук');$('#sound').setAttribute('aria-pressed',String(enabled));if(pause.paused)sound.suspend();renderUI();}
 $('#sound').onclick=toggleSound;
 $('#unpause').onclick=togglePause;
-function showHelp(){modal('Как защитить оплот','Турель прицеливается и стреляет сама. За каждого уничтоженного меха вы получаете золото. Купленные в бою модули действуют сразу. Здоровье между волнами не заполняется: нужен ремонт. За каждую пройденную волну начисляется 1 кристалл. Кристаллы и улучшения мастерской сохраняются после поражения. Штурм бьёт кулаками, Рывок атакует клинками, Стрелок останавливается внутри круга огня и стреляет снарядами. Некоторые волны окружают оплот группами. На волне 30 ждёт Колосс с тяжёлыми ударами. Клавиши 1–4 покупают модули, пробел включает паузу.',[{label:'Понятно',action:()=>{}}]);}
+function showHelp(){modal('Как защитить оплот','Турель прицеливается и стреляет сама. За каждого уничтоженного меха вы получаете золото. Купленные в бою модули действуют сразу. Здоровье между волнами не заполняется: нужен ремонт. За каждую пройденную волну начисляется 1 деталь. Детали и улучшения мастерской сохраняются после поражения. Штурм бьёт кулаками, Рывок атакует клинками, Стрелок останавливается внутри круга огня и стреляет снарядами. Некоторые волны окружают оплот группами. На волне 30 ждёт Колосс с тяжёлыми ударами. Клавиши 1–4 покупают модули, пробел включает паузу.',[{label:'Понятно',action:()=>{}}]);}
 $('#help').onclick=showHelp;
 function openBattleMenu(){
  if(screen!=='combat'||!state.run)return;
@@ -142,7 +143,7 @@ function closeBattleMenu(restoreFocus=true){
  if(restoreFocus){const target=menuReturnFocus?.isConnected&&menuReturnFocus!==document.body?menuReturnFocus:$('#battle-menu-toggle');target.focus();}
 }
 function confirmAbandon(){
- modal('Завершить этот забег?','Золото и боевые модули текущего забега будут потеряны. Кристаллы и улучшения мастерской сохранятся.',[
+ modal('Завершить этот забег?','Золото и боевые модули текущего забега будут потеряны. Детали и улучшения мастерской сохранятся.',[
   {label:'Продолжить забег',secondary:true,action:()=>{}},
   {label:'Завершить',action:()=>{state={...state,run:null,result:null,events:[]};battleMenu.close();pause.remove('user');openMenu();}},
  ]);
@@ -229,7 +230,7 @@ function drawPanel(){
  const panel=$('#panel');panel.className=screen==='menu'?(menuPage==='shop'?'module-shop-panel':menuPage==='workshop'?'workshop-panel':'title-panel'):`panel ${screen}-panel`;
  if(screen==='menu')panel.innerHTML=menuPage==='shop'?moduleShopMarkup:menuPage==='workshop'?workshopMarkup:titleMarkup;
  else if(screen==='combat')panel.innerHTML='';
- else panel.innerHTML=`<div class="result-emblem">${state.result?.outcome==='victory'?'★':'⬡'}</div><div class="eyebrow">${state.result?.outcome==='victory'?'Периметр защищён':'Связь с оплотом потеряна'}</div><h1>${state.result?.outcome==='victory'?'Колосс<br>повержен.':'Забег<br>завершён.'}</h1><p>${state.result?.outcome==='victory'?'Все 30 волн пройдены. Вы удержали сектор.':'Кристаллы сохранены. Усильте стартовые параметры и вернитесь в бой.'}</p><div class="combat-stats"><div class="stat-box"><span>Пройдено волн</span><strong>${state.result?.completedWaves??0} / 30</strong></div><div class="stat-box crystals"><span>Заработано</span><strong>+${state.result?.earnedCrystals??0} ◇</strong></div><div class="stat-box"><span>Уничтожено мехов</span><strong>${state.result?.kills??0}</strong></div><div class="stat-box"><span>Время обороны</span><strong>${Math.floor((state.result?.duration??0)/60)}:${String(Math.floor((state.result?.duration??0)%60)).padStart(2,'0')}</strong></div></div><p class="hint">Временное золото и боевые модули сброшены. Улучшения мастерской остаются с вами.</p><button class="main-button panel-bottom" id="to-workshop">В мастерскую</button>`;
+ else panel.innerHTML=`<div class="result-emblem">${state.result?.outcome==='victory'?'★':'⬡'}</div><div class="eyebrow">${state.result?.outcome==='victory'?'Периметр защищён':'Связь с оплотом потеряна'}</div><h1>${state.result?.outcome==='victory'?'Колосс<br>повержен.':'Забег<br>завершён.'}</h1><p>${state.result?.outcome==='victory'?'Все 30 волн пройдены. Вы удержали сектор.':'Детали сохранены. Усильте стартовые параметры и вернитесь в бой.'}</p><div class="combat-stats"><div class="stat-box"><span>Пройдено волн</span><strong>${state.result?.completedWaves??0} / 30</strong></div><div class="stat-box crystals"><span>Заработано</span><strong>+${state.result?.earnedCrystals??0} ${currencyIcon('parts')}</strong></div><div class="stat-box"><span>Уничтожено мехов</span><strong>${state.result?.kills??0}</strong></div><div class="stat-box"><span>Время обороны</span><strong>${Math.floor((state.result?.duration??0)/60)}:${String(Math.floor((state.result?.duration??0)%60)).padStart(2,'0')}</strong></div></div><p class="hint">Временное золото и боевые модули сброшены. Улучшения мастерской остаются с вами.</p><button class="main-button panel-bottom" id="to-workshop">В мастерскую</button>`;
  if(screen==='menu'){
   if(menuPage==='workshop'){
    $('#workshop-back').onclick=()=>showMenuPage('title');
@@ -264,7 +265,7 @@ function renderUI(force=false){
  if(layoutChanged)drawPanel();
  const stats=getStats(state),run=state.run,battle=screen==='combat';
  if(screen==='menu'){
-  $('#menu-crystals').textContent=coins(state.profile.crystals);
+  $('#menu-parts').textContent=coins(state.profile.crystals);
   if(menuPage==='title'){
    const start=$<HTMLButtonElement>('#start'), resume=$<HTMLButtonElement>('#resume');
    start.disabled=!!run||fatal||saveBlocked||!writable;
@@ -276,6 +277,7 @@ function renderUI(force=false){
    if(run)$('#menu-hint').textContent=`Сохранена волна ${run.wave}. Мастерская откроется после забега.`;
   }
  }
+ $('#result-parts').textContent=coins(state.profile.crystals);
  $('.shell').classList.toggle('at-front-menu',screen==='menu'&&menuPage==='title');
  $('.shell').classList.toggle('at-workshop',screen==='menu'&&menuPage==='workshop');
  $('.shell').classList.toggle('at-module-shop',screen==='menu'&&menuPage==='shop');
@@ -293,7 +295,7 @@ function renderUI(force=false){
   $('#battle-hp-fill').style.width=`${100*run.hp/stats.maxHp}%`;
   $('#battle-hp-fill').classList.toggle('low',run.hp<stats.maxHp*.3);
   for(const key of COMBAT_KEYS)renderCombatUpgrade($<HTMLButtonElement>(`#upgrade-${key}`),key,run.enhancements?.levels[key]??0,run.gold,fatal||saveBlocked||!writable||battleMenu.open,state.profile.enhancements?.[key]??0);
-  $('#battle-gold').textContent=coins(run.gold);$('#battle-crystals').textContent=coins(state.profile.crystals);
+  $('#battle-gold').textContent=coins(run.gold);$('#battle-parts').textContent=coins(state.profile.crystals);
   $('#menu-damage').textContent=fmt(stats.damage);$('#menu-speed').textContent=`${fmt(stats.attackSpeed)} /с`;$('#menu-regen').textContent=`${fmt(stats.regen)} HP/с`;$('#menu-progress').textContent=`${run.lastPaidWave} / 30`;
   $('#battle-menu-status').textContent=pause.reasons.has('user')?'Ручная пауза включена. Закрытие меню не возобновит бой.':'Бой остановлен, пока открыто меню';
   $('#battle-menu-pause').textContent=pause.reasons.has('user')?'Снять ручную паузу':'Оставить на паузе';
@@ -305,7 +307,7 @@ function renderUI(force=false){
  $('#arena-status').textContent=fatal?'ТРЕБУЕТСЯ WEBGL2':battle?(pause.paused?'ПАУЗА':run?.wave===30?'КОЛОСС ПРИБЛИЖАЕТСЯ':'БОЕВОЙ РЕЖИМ'):'СИСТЕМЫ ГОТОВЫ';
  $('#arena-note').textContent=battle?'Автоогонь · покупайте модули за золото':'Один оплот. Тридцать волн.';
  const boss=run?.enemies.find(e=>e.kind==='boss');$('#boss').classList.toggle('hidden',!boss||!battle);if(boss)$('#boss-fill').style.width=`${boss.hp/boss.maxHp*100}%`;
- $('#shop-title').textContent=battle?'Боевые модули · золото':'Мастерская · кристаллы';$('#shop-note').textContent=battle?'Улучшения действуют сразу':'Усиливают старт будущих забегов';
+ $('#shop-title').textContent=battle?'Боевые модули · золото':'Мастерская · детали';$('#shop-note').textContent=battle?'Улучшения действуют сразу':'Усиливают старт будущих забегов';
  if(screen==='menu'&&menuPage==='workshop') for(const key of COMBAT_KEYS) {
   renderWorkshopCombatUpgrade($<HTMLButtonElement>(`#workshop-${key}`),key,state.profile.enhancements?.[key]??0,state.profile.crystals,fatal||saveBlocked||!writable||!!run);
  }
@@ -316,7 +318,7 @@ function renderUI(force=false){
  let nextValue=0,current=battle?stats[stat]:calculateStats(state.profile.meta)[stat];
  if(battle&&run){const nextLevel={...run.levels,[stat]:level+1};nextValue=calculateStats(state.profile.meta,nextLevel)[stat];}else nextValue=calculateStats({...state.profile.meta,[stat]:level+1})[stat];
  btn.disabled=budget<price||(!battle&&!!run)||screen==='result'||fatal||saveBlocked||!writable||battleMenu.open;
- const accessible=`${labels[stat].title}, сейчас ${fmt(current)} ${labels[stat].unit}, следующий: ${fmt(nextValue)} ${labels[stat].unit}, цена: ${price} ${battle?'золота':'кристаллов'}`;
+ const accessible=`${labels[stat].title}, сейчас ${fmt(current)} ${labels[stat].unit}, следующий: ${fmt(nextValue)} ${labels[stat].unit}, цена: ${price} ${battle?'золота':'деталей'}`;
  btn.setAttribute('aria-label',accessible);
  if(inWorkshop){
   btn.querySelector('.workshop-current')!.textContent=`${fmt(current)} ${labels[stat].unit}`;
@@ -326,7 +328,7 @@ function renderUI(force=false){
  }
  btn.classList.toggle('meta',!battle);btn.classList.toggle('affordable',budget>=price&&(battle||!run));
  btn.querySelector('.upgrade-value')!.innerHTML=`${fmt(current)}<small>${labels[stat].unit}</small>`;
- btn.querySelector('.upgrade-price')!.textContent=`${battle?'◈':'◇'} ${coins(price)}`;
+ btn.querySelector('.upgrade-cost')!.textContent=coins(price);
  btn.querySelector('.upgrade-sub')!.textContent=`Следующий: ${fmt(nextValue)} ${labels[stat].unit}`;
  }
  if(layoutChanged)scene?.resize();
@@ -341,7 +343,7 @@ function animate(now:number){
  if(state.run&&screen==='combat'&&!pause.paused&&!fatal&&writable){
   state=setPaused(state,false);accumulator=Math.min(accumulator+delta,.15);
   let ticks=0;while(accumulator>=DT&&ticks<5&&state.run){state=step(state);accumulator-=DT;ticks++;
-   for(const ev of state.events){if(ev.type==='spawn'&&state.run)spawns.push({...ev,time:state.run.time});if(ev.type==='shot')sound.play('shot');if(ev.type==='kill'){sound.play('kill');toast(`+${ev.amount} золота`);}if(ev.type==='waveComplete'){sound.play('wave');toast(`Волна ${ev.wave} пройдена · +1 кристалл`);}if(ev.type==='waveStart'&&ev.wave===30)toast('ВНИМАНИЕ: КОЛОСС · финальный босс');}
+   for(const ev of state.events){if(ev.type==='spawn'&&state.run)spawns.push({...ev,time:state.run.time});if(ev.type==='shot')sound.play('shot');if(ev.type==='kill'){sound.play('kill');toast(`+${ev.amount} золота`);}if(ev.type==='waveComplete'){sound.play('wave');toast(`Волна ${ev.wave} пройдена · +1 деталь`);}if(ev.type==='waveStart'&&ev.wave===30)toast('ВНИМАНИЕ: КОЛОСС · финальный босс');}
    if(state.events.some(e=>e.type==='kill'||e.type==='waveComplete'||e.type==='runEnded'))save();
   }
   if(!state.run&&state.result){battleMenu.close();screen='result';pause.add('menu');save();renderUI(true);}

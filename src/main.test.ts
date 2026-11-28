@@ -250,6 +250,24 @@ describe('main menu', () => {
     expect(document.activeElement).toBe(button('#resume'));
   });
 
+  it('shows only persistent currencies outside combat and retains the previous balance', async () => {
+    const state = createState(); state.profile.crystals = 12;
+    await boot(state);
+    for (const open of [null, '#open-workshop', '#open-module-shop']) {
+      if (open) click(open);
+      const bank = element('.screen-header .title-bank');
+      expect([...bank.querySelectorAll('[role=group]')].map(item=>item.getAttribute('aria-label'))).toEqual(['Детали','Обломки']);
+      expect(element('#menu-parts').textContent).toBe('12');
+      expect(element('#menu-scrap').textContent).toBe('0');
+      if (open) key('Escape');
+    }
+    click('#start');
+    expect(element('#battle-gold').textContent).toBe('0');
+    expect(element('#battle-parts').textContent).toBe('12');
+    expect(element('#battle-scrap').textContent).toBe('0');
+    expect(saved().profile.crystals).toBe(12);
+  });
+
   it('opens the workshop, purchases a permanent upgrade, and returns to the menu', async () => {
     const profile = createState(); profile.profile.crystals = 5;
     await boot(profile);
@@ -260,13 +278,13 @@ describe('main menu', () => {
     expect(element('.shell').classList.contains('at-workshop')).toBe(true);
     expect(document.activeElement).toBe(element('#screen-heading'));
     expect(element('section.armored-frame')).toBe(element('.workshop-rack'));
-    expect(element('#menu-crystals').textContent).toBe('5');
+    expect(element('#menu-parts').textContent).toBe('5');
     expect(element('#workshop-damage .workshop-next').textContent).toBe('→ 11 урона');
     advanceFrames();
     expect(fakes.render.mock.calls.at(-1)?.[0].phase).toBe('workshop');
     expect(fakes.render.mock.calls.at(-1)?.[1]).toBeGreaterThan(0);
     click('#workshop-damage .workshop-name');
-    expect(element('#menu-crystals').textContent).toBe('2');
+    expect(element('#menu-parts').textContent).toBe('2');
     expect(saved().profile.meta.damage).toBe(1);
     key('Escape');
     expect(element('.shell').classList.contains('at-front-menu')).toBe(true);
@@ -299,7 +317,7 @@ describe('main menu', () => {
     await boot(profile);
     click('#open-workshop');
     expect(button('[data-workshop-stat="damage"]').disabled).toBe(true);
-    expect(element('[data-workshop-stat="damage"] .workshop-price').textContent).toBe('◇ 173');
+    expect(element('[data-workshop-stat="damage"] .workshop-price').textContent?.trim()).toBe('173');
     expect(element('[data-workshop-stat="damage"]').getAttribute('aria-label')).toContain('цена: 173');
     expect(element('#workshop-damage .workshop-next').textContent).toBe('→ 21 урона');
     expect(document.querySelector('.workshop-level')).toBeNull();
@@ -308,7 +326,7 @@ describe('main menu', () => {
     for (const [stat, next] of [['maxHp', '→ 110 HP'], ['attackSpeed', '→ 1,1 /с'], ['regen', '→ 0,2 HP/с']]) {
       const purchase = button(`[data-workshop-stat="${stat}"]`);
       expect(purchase.disabled).toBe(true);
-      expect(purchase.querySelector('.workshop-price')?.textContent).toBe('◇ 3');
+      expect(purchase.querySelector('.workshop-price')?.textContent?.trim()).toBe('3');
       expect(element(`#workshop-${stat} .workshop-next`).textContent).toBe(next);
     }
   });
@@ -345,7 +363,7 @@ describe('main menu', () => {
     expect(element('#workshop-critical .workshop-current').textContent).toBe('10%');
     click('#workshop-back'); click('#start');
     expect(saved().run?.enhancements?.levels.critical).toBe(1);
-    expect(element('#upgrade-critical .upgrade-price').textContent).toBe('◈ 26');
+    expect(element('#upgrade-critical .upgrade-price').textContent).toBe('26');
     expect(element('#upgrade-critical .upgrade-value').textContent).toMatch(/^10%/);
   });
 
@@ -359,7 +377,7 @@ describe('main menu', () => {
     expect(element('.module-shop-rack').querySelectorAll('button')).toHaveLength(3);
     advanceFrames(2);expect(fakes.render.mock.calls.at(-1)?.[0].phase).toBe('shop');
     expect(element('#shop-pulse .module-shop-more').textContent).toBe('Подробнее');
-    expect(element('#shop-pulse .workshop-price').textContent).toBe('◇ 8');
+    expect(element('#shop-pulse .workshop-price').textContent?.trim()).toBe('8');
     click('#shop-pulse');
     expect(element('#module-detail-heading').textContent).toBe('Импульс');
     expect(element('.shell').inert).toBe(true);
@@ -375,7 +393,7 @@ describe('main menu', () => {
     expect(element('.module-detail-sheet').textContent).not.toMatch(/выключен|включён/i);
     expect(element('.module-detail-sheet').querySelectorAll('.module-detail-chain')).toHaveLength(2);
     expect(saved().profile.crystals).toBe(30);
-    expect(button('#module-detail-buy').textContent).toBe('Купить за ◇ 8');
+    expect(button('#module-detail-buy').textContent).toBe('Купить за  8');
     click('#module-detail-buy');expect(saved().profile.crystals).toBe(22);
     expect(element('#shop-pulse').classList.contains('purchased')).toBe(true);
     expect(element('#shop-pulse .module-shop-ribbon').textContent).toBe('Куплено');
@@ -453,7 +471,7 @@ describe('fullscreen battle actual UI flows', () => {
     expect(element('#battle-wave').textContent).toBe('1 / 30');
     expect(element('#battle-hp').textContent).toBe('100 / 100');
     expect(element('#battle-gold').textContent).toBe('0');
-    expect(element('#battle-crystals').textContent).toBe('0');
+    expect(element('#battle-parts').textContent).toBe('0');
     expect(saved().profile.runCounter).toBe(1);
   });
 
@@ -464,8 +482,8 @@ describe('fullscreen battle actual UI flows', () => {
     expect(element('.arena-wrap').parentElement).toBe(workspace);
     expect(element('#arena').parentElement).toBe(element('.arena-wrap'));
     expect(element('#arena canvas').parentElement).toBe(element('#arena'));
-    expect(hud.querySelectorAll('.battle-resources > .battle-resource')).toHaveLength(4);
-    for (const selector of ['#battle-wave', '#battle-hp', '#battle-gold', '#battle-crystals', '#battle-menu-toggle', '#boss', '#battle-notice']) {
+    expect(hud.querySelectorAll('.battle-resources > .battle-resource')).toHaveLength(5);
+    for (const selector of ['#battle-wave', '#battle-hp', '#battle-gold', '#battle-parts', '#battle-scrap', '#battle-menu-toggle', '#boss', '#battle-notice']) {
       expect(hud.contains(element(selector)), `${selector} belongs to the reserved status row`).toBe(true);
       expect(workspace.contains(element(selector)), `${selector} must not cover the arena`).toBe(false);
     }
@@ -769,7 +787,7 @@ describe('fullscreen battle actual UI flows', () => {
     expect(button('#start').disabled).toBe(false);
     expect(document.activeElement).toBe(button('#start'));
     expect(button('#resume').disabled).toBe(true);
-    expect(element('#menu-crystals').textContent).toBe('17');
+    expect(element('#menu-parts').textContent).toBe('17');
     expect(fakes.pause?.reasons.has('battleMenu')).toBe(false);
     expect(fakes.pause?.reasons.has('dialog')).toBe(false);
   });

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+ <defs>
+  <linearGradient id="rim" x2="0%" y2="100%" gradientUnits="objectBoundingBox"><stop stop-color="#fff098"/><stop offset=".46" stop-color="#ffbb22"/><stop offset="1" stop-color="#9d5208"/></linearGradient>
+  <linearGradient id="face" x2="0%" y2="100%"><stop stop-color="#e3a016"/><stop offset="1" stop-color="#b66a09"/></linearGradient>
+ </defs>
+ <path fill="#472508" d="M10 1h12l9 9v13l-9 8H10l-9-8V10z"/>
+ <path fill="url(#rim)" d="M10 1h12l8 8v13l-8 8H10l-8-8V9z"/>
+ <path fill="url(#face)" d="M11 4h10l6 6v10l-6 6H11l-6-6V10z"/>
+ <path fill="#804005" d="m16 8 8 8-8 9-8-9z"/>
+ <path fill="#ffe17c" d="m16 7 8 8H8z"/>
+ <path fill="#f5a91d" d="m8 15 8 8 8-8z"/>
+</svg>
