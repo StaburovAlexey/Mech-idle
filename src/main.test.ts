@@ -164,6 +164,7 @@ describe('startup', () => {
     await import('./main');
     expect(element('#app').inert).toBe(true);
     expect(element('#boot-status').textContent).toBe('ИНИЦИАЛИЗАЦИЯ СИСТЕМЫ');
+    expect(document.querySelector('.menu-announcement')).toBeNull();
     expect(fakes.ready).not.toHaveBeenCalled();
     expect(frameCallback).toBeNull();
     now += loadMs;
@@ -183,6 +184,7 @@ describe('startup', () => {
       }
       expect(fakes.ready).toHaveBeenCalledOnce();
       expect(document.querySelector('#boot')).toBeNull();
+      expect(element('.menu-announcement strong').textContent).toBe('Новинка в магазине');
       expect(element('#app').inert).toBe(false);
       expect(frameCallback).not.toBeNull();
     } else {
