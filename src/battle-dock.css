@@ -167,12 +167,18 @@
   .shell.in-battle .upgrades { --dock-row: 44px; }
 }
 
-/* A 44px target around the item also covers the gear's open center. */
+/* Only the blue glyph is visible; its transparent touch target stays 44px. */
 .battle-pickup {
   position: absolute; z-index: 1; transform: translate(-50%, -50%);
-  width: 44px; height: 44px; padding: 0; border-radius: 50%;
-  background: radial-gradient(ellipse at center,transparent 28%,#ffdf8310 53%,transparent 70%);
+  display: grid; place-items: center; width: 44px; height: 44px;
+  padding: 0; border-radius: 6px; background: none; color: #075cbc;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
 }
-.battle-pickup:hover,.battle-pickup:focus-visible {
-  outline: 1px solid #ffe4a7; outline-offset: -5px;
+.battle-pickup svg { width: 22px; height: 18px; pointer-events: none; }
+.battle-pickup:active svg { transform: scale(.88); }
+.battle-pickup-count {
+  position: absolute; z-index: 1; pointer-events: none;
+  transform: translate(5px, 1px); white-space: nowrap;
+  font-size: 12px; font-weight: 800; line-height: 1;
+  color: #fff3d5; paint-order: stroke fill; -webkit-text-stroke: 3px #241a17;
 }

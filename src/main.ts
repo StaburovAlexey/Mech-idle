@@ -13,7 +13,7 @@ import { moduleShopMarkup, moduleDetailContent, renderShopCard, renderModuleDeta
 import { MenuAnnouncements, TEST_ANNOUNCEMENTS } from './menu-announcement';
 import { rotateTitleTips } from './title-tips';
 import { titleMarkup } from './title-ui';
-import {createState,startRun,step,collectPickup,buyRunUpgrade,buyCombatUpgrade,buyMetaUpgrade,buyWorkshopCombatUpgrade,buyShopModule,setPaused,getStats,calculateStats,runPrice,metaPrice,STAT_KEYS,DT,type GameState,type StatKey} from './game';
+import {createState,startRun,step,collectPickups,buyRunUpgrade,buyCombatUpgrade,buyMetaUpgrade,buyWorkshopCombatUpgrade,buyShopModule,setPaused,getStats,calculateStats,runPrice,metaPrice,STAT_KEYS,DT,type GameState,type StatKey} from './game';
 import {SceneView,type SceneFrame, type SceneSpawn} from './scene';
 import {SaveRepository,PauseManager,TabLock} from './persistence';
 import {LocalPlatformAdapter} from './platform';
@@ -49,7 +49,13 @@ let menuReturnFocus:HTMLElement|null=null;
 pause.add('menu');
 function notify(text:string){$('#notice').textContent=text;$('#notice').classList.remove('hidden');}
 function toast(text:string){$('#toast').textContent=text;$('#toast').classList.add('show');toastTimer=3;}
-function save(){if(!repository||!writable||saveBlocked)return;if(!repository.save(state)){notify('Не удалось сохранить прогресс. Освободите место для этого сайта и не закрывайте вкладку.');$('#save-status').textContent='Сохранение не удалось';}else{$('#save-status').textContent='Прогресс сохранён на этом устройстве';}saveTimer=0;}
+function save(snapshot=state){
+ if(!repository||!writable||saveBlocked)return false;
+ const saved=repository.save(snapshot);
+ if(!saved){notify('Не удалось сохранить прогресс. Освободите место для этого сайта и не закрывайте вкладку.');$('#save-status').textContent='Сохранение не удалось';}
+ else $('#save-status').textContent='Прогресс сохранён на этом устройстве';
+ saveTimer=0;return saved;
+}
 function modal(title:string,text:string,actions:{label:string,action:()=>void,secondary?:boolean}[],dismissible=true){
  const before=document.activeElement as HTMLElement|null;pause.add('dialog');$('.shell').inert=true;
  const area=$('#modal-root');area.innerHTML=`<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><h2 id="modal-title"></h2><p id="modal-body"></p><div class="button-row"></div></section></div>`;
@@ -348,15 +354,29 @@ function animate(now:number){
  if(pause.paused)sound.suspend();else sound.resume();
  requestAnimationFrame(animate);
 }
-$('#arena').addEventListener('click',event=>{
- if(screen!=='combat'||pause.paused||!writable||saveBlocked||fatal)return;
- const id=(event.target as HTMLElement).closest<HTMLElement>('[data-pickup-id]')?.dataset.pickupId;
- if(!id)return;
- const collected=collectPickup(state,id);
- if (collected===state)return;
- toast(collected.profile.crystals>state.profile.crystals?'+1 деталь':'+1 обломок');
- state=collected;
- save();renderUI();
+let lootClaimInProgress=false;
+$('#arena').addEventListener('click',async event=>{
+ if(screen!=='combat'||pause.paused||!writable||saveBlocked||fatal||lootClaimInProgress)return;
+ const ids=(event.target as Element).closest<HTMLButtonElement>('[data-pickup-ids]')?.dataset.pickupIds?.split(',');
+ const runId=state.run?.id;
+ if(!ids?.length||!runId)return;
+ lootClaimInProgress=true;
+ try {
+  sound.suspend();
+  // Pages has no ad SDK. The local adapter exercises the reward flow without showing a real ad.
+  if(await platform.mockAd(pause)!=='success'||state.run?.id!==runId||screen!=='combat'||!writable||saveBlocked||fatal)return;
+  const collected=collectPickups(state,ids);
+  if(collected===state)return;
+  const parts=collected.profile.crystals-state.profile.crystals, scrap=(collected.profile.scrap??0)-(state.profile.scrap??0);
+  if(!save(collected)){toast('Не удалось сохранить. Добыча осталась на поле.');return;}
+  state=collected;
+  renderUI();
+  toast([parts&&`Детали +${parts}`,scrap&&`Обломки +${scrap}`].filter(Boolean).join(' · '));
+ } catch {
+  toast('Реклама недоступна. Добыча осталась на поле.');
+ } finally {
+  lootClaimInProgress=false;
+ }
 });
 document.addEventListener('visibilitychange',()=>{if(document.hidden){pause.add('hidden');save();sound.suspend();}else{pause.remove('hidden');accumulator=0;last=performance.now();}});
 window.addEventListener('pagehide',()=>{

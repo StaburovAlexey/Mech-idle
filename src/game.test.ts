@@ -1,9 +1,9 @@
-import { pickupDrop, pickupPose, PICKUP_LAND_SECONDS } from './pickup';
+import { groupPickups, pickupDrops, pickupPose, PICKUP_LAND_SECONDS } from './pickup';
 import { describe, it, expect } from 'vitest';
 import { PORTAL_RISE_SECONDS } from './portalTiming';
 import { SPAWN_RADIUS, WORLD_LIMIT, type SpawnGeometry } from './spawnGeometry';
 import {
-  DT, STAT_KEYS, createState, startRun, step, setPaused, collectPickup, buyRunUpgrade, buyMetaUpgrade,
+  DT, STAT_KEYS, createState, startRun, step, setPaused, collectPickups, buyRunUpgrade, buyMetaUpgrade,
   runPrice, metaPrice, getStats, enemyStats, waveConfig, serializeState, parseState,
   attackConfig, ENEMY_PROJECTILE_SPEED, RANGED_MUZZLE_OFFSET, MAX_ENEMIES, MAX_ENEMY_PROJECTILES, MAX_SPAWN_GROUP, TURRET_RANGE, ESCORT_SPAWN_RADIUS, type GameState, type GameEvent, type Enemy, type StatKey,
 } from './game';
@@ -34,18 +34,19 @@ function clearAtNextTick(s: GameState): GameState {
 
 
 describe('battle pickups', () => {
-  it('makes one reproducible 30% roll split evenly between the two drops', () => {
-    const counts = {parts:0,scrap:0};
+  it('keeps the 30% total while allowing both resources in about 5% of kills', () => {
+    let any=0,both=0;
     for(let seed=1;seed<=10000;seed++){
-      const kind=pickupDrop(seed,'enemy:7');
-      if(kind)counts[kind]++;
+      const kinds=pickupDrops(seed,'enemy:7');
+      if(kinds.length)any++;
+      if(kinds.length===2){expect(new Set(kinds).size).toBe(2);both++;}
     }
-    expect(counts.parts).toBeGreaterThan(1400);expect(counts.parts).toBeLessThan(1600);
-    expect(counts.scrap).toBeGreaterThan(1400);expect(counts.scrap).toBeLessThan(1600);
+    expect(any).toBeGreaterThan(2850);expect(any).toBeLessThan(3150);
+    expect(both).toBeGreaterThan(420);expect(both).toBeLessThan(580);
   });
   it.each(['parts','scrap'] as const)('drops %s at death and awards it once, after landing, across reload', kind => {
     let seed=1;
-    while(pickupDrop(seed,'enemy:1')!==kind)seed++;
+    while(pickupDrops(seed,'enemy:1').join()!==kind)seed++;
     const state=startRun(createState(),seed), run=state.run!;
     const target=enemy(state);
     run.enemies.push(target);run.spawned=1;run.spawnCooldown=2;run.shotCooldown=1;
@@ -55,18 +56,39 @@ describe('battle pickups', () => {
     expect(item).toMatchObject({id:target.id,kind,born:killed.run!.time});
     expect(killed.run!.rngState).toBe(run.rngState);
     expect(killed.profile.crystals).toBe(0);
-    expect(collectPickup(killed,item.id)).toBe(killed);
+    expect(collectPickups(killed,[item.id])).toBe(killed);
     expect(pickupPose(item,item.born+.25).height).toBeGreaterThan(.45);
     expect(pickupPose(item,item.born+PICKUP_LAND_SECONDS).height).toBeCloseTo(0);
     expect(pickupPose(item,item.born+3).yaw).toBeGreaterThan(pickupPose(item,item.born+2).yaw);
     const landed=step(killed,30);
     const loaded=parseState(serializeState(landed))!;
     expect(loaded.run?.pickups).toEqual([item]);
-    expect(collectPickup(setPaused(loaded,true),item.id).profile.crystals).toBe(0);
-    const collected=collectPickup(loaded,item.id);
+    expect(collectPickups(setPaused(loaded,true),[item.id]).profile.crystals).toBe(0);
+    const collected=collectPickups(loaded,[item.id]);
     expect(collected.profile[kind==='parts'?'crystals':'scrap']).toBe(1);
     expect(collected.run?.pickups).toEqual([]);
-    expect(collectPickup(collected,item.id)).toBe(collected);
+    expect(collectPickups(collected,[item.id])).toBe(collected);
+    expect(parseState(serializeState(collected))).toEqual(collected);
+  });
+  it('groups both actual drops and rewards a captured pile once after landing and reload', () => {
+    let seed=1;
+    while(pickupDrops(seed,'enemy:1').length!==2)seed++;
+    const state=startRun(createState(),seed), run=state.run!;
+    const target=enemy(state);
+    run.enemies.push(target);run.spawned=1;run.spawnCooldown=2;run.shotCooldown=1;
+    run.bullets.push({id:`${run.id}:${run.nextEntityId++}`,targetId:target.id,x:target.x,y:target.y,damage:10,speed:16});
+    const killed=step(state), items=killed.run!.pickups!;
+    expect(items).toHaveLength(2);
+    expect(groupPickups(items,killed.run!.time)).toEqual({piles:[],airborne:items});
+    expect(collectPickups(killed,items.map(item=>item.id))).toBe(killed);
+    const loaded=parseState(serializeState(step(killed,30)))!;
+    expect(groupPickups(loaded.run!.pickups!,loaded.run!.time).piles).toEqual([items]);
+    const ids=items.map(item=>item.id);
+    expect(collectPickups(loaded,[...ids,'missing'])).toBe(loaded);
+    const collected=collectPickups(loaded,[...ids,ids[0]]);
+    expect(collected.profile).toMatchObject({crystals:1,scrap:1});
+    expect(collected.run!.pickups).toEqual([]);
+    expect(collectPickups(collected,ids)).toBe(collected);
     expect(parseState(serializeState(collected))).toEqual(collected);
   });
 });
