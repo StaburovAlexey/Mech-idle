@@ -1,3 +1,4 @@
+import { openChainPanel } from './chain-panel';
 import { currencyBank, currencyIcon } from './currency-ui';
 import './style.css';
 import './title.css';
@@ -8,11 +9,11 @@ import './battle-dock.css';
 import { bootScreen, loadInterface, waitForBoot } from './boot';
 import { COMBAT_KEYS, SHOP_MODULES, type ShopModule } from './combat-upgrades';
 import { workshopMarkup, renderWorkshopCombatUpgrade } from './workshop-ui';
-import { moduleShopMarkup, moduleDetailMarkup, renderShopCard, renderModuleDetail } from './module-shop';
+import { moduleShopMarkup, moduleDetailContent, renderShopCard, renderModuleDetail } from './module-shop';
 import { MenuAnnouncements, TEST_ANNOUNCEMENTS } from './menu-announcement';
 import { rotateTitleTips } from './title-tips';
 import { titleMarkup } from './title-ui';
-import {createState,startRun,step,buyRunUpgrade,buyCombatUpgrade,buyMetaUpgrade,buyWorkshopCombatUpgrade,buyShopModule,setPaused,getStats,calculateStats,runPrice,metaPrice,STAT_KEYS,DT,type GameState,type StatKey} from './game';
+import {createState,startRun,step,collectPickup,buyRunUpgrade,buyCombatUpgrade,buyMetaUpgrade,buyWorkshopCombatUpgrade,buyShopModule,setPaused,getStats,calculateStats,runPrice,metaPrice,STAT_KEYS,DT,type GameState,type StatKey} from './game';
 import {SceneView,type SceneFrame, type SceneSpawn} from './scene';
 import {SaveRepository,PauseManager,TabLock} from './persistence';
 import {LocalPlatformAdapter} from './platform';
@@ -131,7 +132,7 @@ for (const key of COMBAT_KEYS) $(`#upgrade-${key}`).onclick=()=>{
 function toggleSound(){const enabled=sound.toggle();$('#sound').textContent=enabled?'♫':'♪';$('#sound').setAttribute('aria-label',enabled?'Выключить звук':'Включить звук');$('#sound').setAttribute('aria-pressed',String(enabled));if(pause.paused)sound.suspend();renderUI();}
 $('#sound').onclick=toggleSound;
 $('#unpause').onclick=togglePause;
-function showHelp(){modal('Как защитить оплот','Турель прицеливается и стреляет сама. За каждого уничтоженного меха вы получаете золото. Купленные в бою модули действуют сразу. Здоровье между волнами не заполняется: нужен ремонт. За каждую пройденную волну начисляется 1 деталь. Детали и улучшения мастерской сохраняются после поражения. Штурм бьёт кулаками, Рывок атакует клинками, Стрелок останавливается внутри круга огня и стреляет снарядами. Некоторые волны окружают оплот группами. На волне 30 ждёт Колосс с тяжёлыми ударами. Клавиши 1–4 покупают модули, пробел включает паузу.',[{label:'Понятно',action:()=>{}}]);}
+function showHelp(){modal('Как защитить оплот','Турель прицеливается и стреляет сама. За каждого уничтоженного меха вы получаете золото. Нажмите на выпавшую деталь или обломок, чтобы подобрать. Купленные в бою модули действуют сразу. Здоровье между волнами не заполняется: нужен ремонт. За каждую пройденную волну начисляется 1 деталь. Детали и улучшения мастерской сохраняются после поражения. Штурм бьёт кулаками, Рывок атакует клинками, Стрелок останавливается внутри круга огня и стреляет снарядами. Некоторые волны окружают оплот группами. На волне 30 ждёт Колосс с тяжёлыми ударами. Клавиши 1–4 покупают модули, пробел включает паузу.',[{label:'Понятно',action:()=>{}}]);}
 $('#help').onclick=showHelp;
 function openBattleMenu(){
  if(screen!=='combat'||!state.run)return;
@@ -177,51 +178,36 @@ function bindCrystalModules(){
  };
 }
 function openModuleDetail(key: ShopModule, source: HTMLButtonElement){
- const area=$('#modal-root'), shell=$('.shell');
- if(screen!=='menu'||menuPage!=='shop'||gatesMoving||area.children.length)return;
- // The shop already pauses gameplay; block input without pausing Stan's idle animation.
- area.innerHTML=moduleDetailMarkup(key);shell.inert=true;
- const layer=$('.module-detail-layer'), sheet=$('.module-detail-sheet');
- const closeButton=$<HTMLButtonElement>('#module-detail-close'), buyButton=$<HTMLButtonElement>('#module-detail-buy');
- const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
- let moving=false, closing=false, closeRequested=false;
- const render=()=>renderModuleDetail(area,key,state.profile.enhancements?.[key]??0,state.profile.crystals,!canSpendCrystals()||moving||closing);
- function animate(frames: Keyframe[], duration: number, done: ()=>void){
-  if(reduced||!sheet.animate){done();return;}
-  moving=true;render();
-  const animation=sheet.animate(frames,{duration,fill:'both'});
-  void animation.finished.then(()=>{animation.cancel();moving=false;done();},()=>{moving=false;done();});
- }
- function close(){
-  if(closing)return;
-  if(moving){closeRequested=true;return;}
-  closing=true;layer.classList.add('closing');render();
-  animate([{transform:'translateY(0)',easing:'ease-out'},{transform:'translateY(10px)',offset:.23,easing:'cubic-bezier(.55,0,.8,.45)'},{transform:'translateY(-100cqh)'}],460,()=>{
-   area.replaceChildren();area.onkeydown=null;shell.inert=false;source.focus({preventScroll:true});
-  });
- }
- closeButton.onclick=close;
- layer.onclick=e=>{if(e.target===layer)close();};
+ const area=$('#modal-root');
+ if(screen!=='menu'||menuPage!=='shop'||gatesMoving)return;
+ // Menu dialogs block taps but leave the background mech animation running.
+ const panel=openChainPanel(area,$('.shell'),{
+  ...moduleDetailContent(key),returnFocus:()=>source.focus({preventScroll:true}),
+ });
+ if(!panel)return;
+ const buyButton=$<HTMLButtonElement>('#module-detail-buy');
+ const render=()=>renderModuleDetail(area,key,state.profile.enhancements?.[key]??0,state.profile.crystals,!canSpendCrystals()||panel.busy);
+ panel.onBusyChange=render;
  buyButton.onclick=()=>{
-  if(moving||closing||!canSpendCrystals()||menuPage!=='shop')return;
-  applyCrystalPurchase(buyShopModule(state,key));render();closeButton.focus();
- };
- area.onkeydown=e=>{
-  if(e.key==='Escape'){e.preventDefault();e.stopPropagation();close();return;}
-  if(e.key!=='Tab')return;
-  const buttons=buyButton.disabled?[closeButton]:[closeButton,buyButton];
-  const index=buttons.indexOf(document.activeElement as HTMLButtonElement);
-  e.preventDefault();buttons[(index+(e.shiftKey?-1:1)+buttons.length)%buttons.length].focus();
+  if(panel.busy||!canSpendCrystals()||menuPage!=='shop')return;
+  applyCrystalPurchase(buyShopModule(state,key));render();$('#module-detail-close').focus();
  };
  render();
- closeButton.focus();
- animate([{transform:'translateY(-100cqh)',easing:'cubic-bezier(.26,.65,.44,1)'},{transform:'translateY(14px)',offset:.76,easing:'ease-out'},{transform:'translateY(0)'}],590,()=>{render();if(closeRequested)close();});
+}
+function openSpecialOffer(){
+ if(screen!=='menu'||menuPage!=='title'||gatesMoving)return;
+ openChainPanel($('#modal-root'),$('.shell'),{
+  title:'Спецпредложение',subtitle:'Снабжение оплота',
+  headingId:'special-offer-heading',closeId:'special-offer-close',descriptionId:'special-offer-description',
+  body:'<p class="chain-panel-description" id="special-offer-description"><strong>Набор снабжения</strong><br>Здесь будут наборы деталей и обломков. Это тестовый показ: покупок пока нет.</p>',
+  returnFocus:()=>$(state.run?'#resume':'#start').focus({preventScroll:true}),
+ });
 }
 let disposeTitleTips: (()=>void) | undefined;
 function mountTitleWidgets(){
  disposeTitleTips=rotateTitleTips($('.title-tip'));
- announcements.mount($('.menu-announcement-slot'),destination=>{void showMenuPage(destination);},
-  ()=>!state.run&&!gatesMoving, ()=>$(state.run?'#resume':'#start').focus({preventScroll:true}));
+ announcements.mount($('.menu-announcement-slot'),destination=>{if(destination==='offer')openSpecialOffer();else void showMenuPage(destination);},
+  destination=>!gatesMoving&&(destination==='offer'||!state.run), ()=>$(state.run?'#resume':'#start').focus({preventScroll:true}));
 }
 let disposeWorkshopTabs: (()=>void) | undefined;
 function drawPanel(){
@@ -266,6 +252,7 @@ function renderUI(force=false){
  const stats=getStats(state),run=state.run,battle=screen==='combat';
  if(screen==='menu'){
   $('#menu-parts').textContent=coins(state.profile.crystals);
+  $('#menu-scrap').textContent=coins(state.profile.scrap??0);
   if(menuPage==='title'){
    const start=$<HTMLButtonElement>('#start'), resume=$<HTMLButtonElement>('#resume');
    start.disabled=!!run||fatal||saveBlocked||!writable;
@@ -278,6 +265,7 @@ function renderUI(force=false){
   }
  }
  $('#result-parts').textContent=coins(state.profile.crystals);
+ $('#result-scrap').textContent=coins(state.profile.scrap??0);
  $('.shell').classList.toggle('at-front-menu',screen==='menu'&&menuPage==='title');
  $('.shell').classList.toggle('at-workshop',screen==='menu'&&menuPage==='workshop');
  $('.shell').classList.toggle('at-module-shop',screen==='menu'&&menuPage==='shop');
@@ -295,7 +283,7 @@ function renderUI(force=false){
   $('#battle-hp-fill').style.width=`${100*run.hp/stats.maxHp}%`;
   $('#battle-hp-fill').classList.toggle('low',run.hp<stats.maxHp*.3);
   for(const key of COMBAT_KEYS)renderCombatUpgrade($<HTMLButtonElement>(`#upgrade-${key}`),key,run.enhancements?.levels[key]??0,run.gold,fatal||saveBlocked||!writable||battleMenu.open,state.profile.enhancements?.[key]??0);
-  $('#battle-gold').textContent=coins(run.gold);$('#battle-parts').textContent=coins(state.profile.crystals);
+  $('#battle-gold').textContent=coins(run.gold);$('#battle-parts').textContent=coins(state.profile.crystals);$('#battle-scrap').textContent=coins(state.profile.scrap??0);
   $('#menu-damage').textContent=fmt(stats.damage);$('#menu-speed').textContent=`${fmt(stats.attackSpeed)} /с`;$('#menu-regen').textContent=`${fmt(stats.regen)} HP/с`;$('#menu-progress').textContent=`${run.lastPaidWave} / 30`;
   $('#battle-menu-status').textContent=pause.reasons.has('user')?'Ручная пауза включена. Закрытие меню не возобновит бой.':'Бой остановлен, пока открыто меню';
   $('#battle-menu-pause').textContent=pause.reasons.has('user')?'Снять ручную паузу':'Оставить на паузе';
@@ -335,7 +323,7 @@ function renderUI(force=false){
 }
 function frameForScene(spawns: SceneSpawn[]):SceneFrame{
  const r=state.run,stats=getStats(state),target=r?.enemies.find(e=>e.id===r.targetId);
- return {range:stats.range,paused:pause.paused,enemies:r?.enemies.map(e=>({...e,kind:e.kind==='ordinary'?'normal':e.kind}))??[],bullets:r?.bullets??[],enemyProjectiles:r?.enemyProjectiles??[],warnings:r?.warnings??[],spawns,target:target??null,turretHPfraction:r?r.hp/stats.maxHp:1,phase:screen==='menu'?menuPage:screen,elapsed:r?.time??0,shooting:state.events.some(e=>e.type==='shot')};
+ return {range:stats.range,paused:pause.paused,pickups:r?.pickups,enemies:r?.enemies.map(e=>({...e,kind:e.kind==='ordinary'?'normal':e.kind}))??[],bullets:r?.bullets??[],enemyProjectiles:r?.enemyProjectiles??[],warnings:r?.warnings??[],spawns,target:target??null,turretHPfraction:r?r.hp/stats.maxHp:1,phase:screen==='menu'?menuPage:screen,elapsed:r?.time??0,shooting:state.events.some(e=>e.type==='shot')};
 }
 function animate(now:number){
  const spawns: SceneSpawn[] = [];
@@ -360,6 +348,16 @@ function animate(now:number){
  if(pause.paused)sound.suspend();else sound.resume();
  requestAnimationFrame(animate);
 }
+$('#arena').addEventListener('click',event=>{
+ if(screen!=='combat'||pause.paused||!writable||saveBlocked||fatal)return;
+ const id=(event.target as HTMLElement).closest<HTMLElement>('[data-pickup-id]')?.dataset.pickupId;
+ if(!id)return;
+ const collected=collectPickup(state,id);
+ if (collected===state)return;
+ toast(collected.profile.crystals>state.profile.crystals?'+1 деталь':'+1 обломок');
+ state=collected;
+ save();renderUI();
+});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){pause.add('hidden');save();sound.suspend();}else{pause.remove('hidden');accumulator=0;last=performance.now();}});
 window.addEventListener('pagehide',()=>{
  save();pageExiting=true;writable=false;lock.release();

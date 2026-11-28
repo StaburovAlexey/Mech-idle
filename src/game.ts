@@ -1,3 +1,4 @@
+import { pickupDrop, pickupLanded, type Pickup } from './pickup';
 import { COMBAT_UPGRADES, combatEffect, combatUpgradePrice, createEnhancements, workshopCombatPrice, isShopModule, type CombatEnhancements, type CombatUpgrade, type CombatUpgradeLevels, type ShopModule } from './combat-upgrades';
 import { PORTAL_RISE_SECONDS } from './portalTiming';
 import { clampToSpawnCircle, onSpawnCircle, SPAWN_RADIUS, spawnPoint, validSpawnGeometry, WORLD_LIMIT, type SpawnGeometry } from './spawnGeometry';
@@ -10,7 +11,7 @@ export type StatKey = typeof STAT_KEYS[number];
 export type Levels = Record<StatKey, number>;
 export type EnemyKind = 'ordinary' | 'fast' | 'ranged' | 'boss';
 export type AttackPhase = 'approach' | 'windup' | 'strike' | 'recovery';
-export interface Profile { crystals: number; meta: Levels; runCounter: number; enhancements?: CombatUpgradeLevels }
+export interface Profile { crystals: number; scrap?: number; meta: Levels; runCounter: number; enhancements?: CombatUpgradeLevels }
 export interface Stats { damage: number; maxHp: number; attackSpeed: number; regen: number; range: number }
 export interface Enemy { id: string; kind: EnemyKind; x: number; y: number; hp: number; maxHp: number; damage: number; speed: number; attackInterval: number; attackCooldown: number; attackPhase: AttackPhase; attackTime: number; attackDuration: number; emergingUntil?: number }
 export interface Bullet { id: string; targetId: string; x: number; y: number; damage: number; speed: number }
@@ -26,6 +27,7 @@ export interface Run {
   lastSector: number; sectorStreak: number; paidKillIds: string[]; lastPaidWave: number;
   kills: number; earnedGold: number; earnedCrystals: number;
   enhancements?: CombatEnhancements;
+  pickups?: Pickup[];
   spawnMode?: 'circle';
   combatMode?: 'telegraphed';
   /** Read only by the one-time migration of old viewport-based saves. */
@@ -365,12 +367,28 @@ function damageEnemy(state: GameState, enemy: Enemy, damage: number): void {
   const reward = BASE_ENEMIES[enemy.kind].reward;
   run.gold += reward; run.earnedGold += reward;
   state.events.push({ type: 'kill', id: enemy.id, kind: enemy.kind, x: enemy.x, y: enemy.y, amount: reward });
+  const kind = pickupDrop(run.seed, enemy.id);
+  if (kind) (run.pickups ??= []).push({ id: enemy.id, kind, x: enemy.x, y: enemy.y, born: run.time });
   const salvage = effect(run, 'salvage');
   if (salvage > 0 && run.enhancements && ++run.enhancements.salvageKills === 5) {
     run.enhancements.salvageKills = 0;
     restoreHull(state, salvage);
     proc(state, 'salvage');
   }
+}
+
+/** Currency is awarded only once, after a landed pickup is explicitly collected. */
+export function collectPickup(state: GameState, id: string): GameState {
+  const run = state.run, pickup = run?.pickups?.find(item => item.id === id);
+  if (!run || run.paused || !pickup || !pickupLanded(pickup, run.time)) return state;
+  const field = pickup.kind === 'parts' ? 'crystals' : 'scrap';
+  const amount = state.profile[field] ?? 0;
+  if (amount >= 1e9) return state;
+  const next = clone(state);
+  next.events = [];
+  next.run!.pickups = run.pickups!.filter(item => item.id !== id);
+  next.profile[field] = amount + 1;
+  return next;
 }
 
 function hitWithBullet(state: GameState, target: Enemy, bullet: Bullet, dx: number, dy: number): void {
@@ -572,7 +590,7 @@ function validStats(v: unknown): v is Stats { return object(v) && keys(v, ['dama
 export function validateState(value: unknown, allowLegacy = false): value is GameState {
   if (!object(value) || !keys(value, ['version','profile','run','result','events']) || value.version !== 1 || !Array.isArray(value.events) || value.events.length !== 0) return false;
   const p = value.profile;
-  if (!object(p) || !keys(p, ['crystals','meta','runCounter', ...(Object.hasOwn(p,'enhancements') ? ['enhancements'] : [])]) || !int(p.crystals) || !validLevels(p.meta) || !int(p.runCounter) || (Object.hasOwn(p,'enhancements') && !validCombatLevels(p.enhancements))) return false;
+  if (!object(p) || !keys(p, ['crystals','meta','runCounter', ...(Object.hasOwn(p,'scrap') ? ['scrap'] : []), ...(Object.hasOwn(p,'enhancements') ? ['enhancements'] : [])]) || !int(p.crystals) || (Object.hasOwn(p,'scrap') && !int(p.scrap)) || !validLevels(p.meta) || !int(p.runCounter) || (Object.hasOwn(p,'enhancements') && !validCombatLevels(p.enhancements))) return false;
   if (value.result !== null) {
     const r = value.result;
     if (!object(r) || !keys(r, ['outcome','runId','wave','completedWaves','kills','earnedGold','earnedCrystals','duration','finalStats']) || !['defeat','victory'].includes(r.outcome) || !str(r.runId) || !int(r.wave,1,30) || !int(r.completedWaves,0,30) || !int(r.kills,0,MAX_RUN_KILLS) || !int(r.earnedGold,0,MAX_RUN_GOLD) || !int(r.earnedCrystals,0,30) || r.earnedCrystals !== r.completedWaves || !num(r.duration,0,1e7) || !validStats(r.finalStats) || (r.outcome === 'victory' && (r.wave !== 30 || r.completedWaves !== 30)) || (r.outcome === 'defeat' && r.completedWaves !== r.wave - 1)) return false;
@@ -580,7 +598,7 @@ export function validateState(value: unknown, allowLegacy = false): value is Gam
   if (value.run === null) return true;
   if (value.result !== null) return false;
   const r = value.run;
-  if (!object(r) || !keys(r, ['id','seed','rngState','wave','phase','paused','time','tick','phaseTime','hp','gold','levels','activeLevels','enemies','bullets','warnings','spawned','spawnCooldown','shotCooldown','targetId','nextEntityId','lastSector','sectorStreak','paidKillIds','lastPaidWave','kills','earnedGold','earnedCrystals', ...(Object.hasOwn(r, 'combatMode') ? ['combatMode','enemyProjectiles'] : []), ...(Object.hasOwn(r, 'spawnMode') ? ['spawnMode'] : []), ...(Object.hasOwn(r, 'enhancements') ? ['enhancements'] : []), ...(Object.hasOwn(r, 'spawnGeometry') ? ['spawnGeometry'] : []), ...(Object.hasOwn(r, 'nextArrival') ? ['nextArrival'] : [])])) return false;
+  if (!object(r) || !keys(r, ['id','seed','rngState','wave','phase','paused','time','tick','phaseTime','hp','gold','levels','activeLevels','enemies','bullets','warnings','spawned','spawnCooldown','shotCooldown','targetId','nextEntityId','lastSector','sectorStreak','paidKillIds','lastPaidWave','kills','earnedGold','earnedCrystals', ...(Object.hasOwn(r, 'combatMode') ? ['combatMode','enemyProjectiles'] : []), ...(Object.hasOwn(r, 'spawnMode') ? ['spawnMode'] : []), ...(Object.hasOwn(r, 'enhancements') ? ['enhancements'] : []), ...(Object.hasOwn(r, 'pickups') ? ['pickups'] : []), ...(Object.hasOwn(r, 'spawnGeometry') ? ['spawnGeometry'] : []), ...(Object.hasOwn(r, 'nextArrival') ? ['nextArrival'] : [])])) return false;
   const telegraphed = Object.hasOwn(r, 'combatMode');
   if (telegraphed && (r.combatMode !== 'telegraphed' || !Array.isArray(r.enemyProjectiles) || r.enemyProjectiles.length > MAX_ENEMY_PROJECTILES)) return false;
   const circle = Object.hasOwn(r, 'spawnMode');
@@ -607,6 +625,15 @@ export function validateState(value: unknown, allowLegacy = false): value is Gam
   const position = (e: Record<string, any>) => num(e.x,-positionLimit,positionLimit) && num(e.y,-positionLimit,positionLimit) && Math.hypot(e.x,e.y)<=positionLimit;
   const validKind = (kind: any) => (telegraphed ? ['ordinary','fast','ranged','boss'] : ['ordinary','fast','boss']).includes(kind) && (r.wave===30 ? kind==='boss' : kind!=='boss') && (kind==='boss'||r.wave>=FIRST_WAVE[kind as keyof typeof FIRST_WAVE]);
   if (!r.paidKillIds.every(validId)) return false;
+  if (Object.hasOwn(r, 'pickups')) {
+    if (!Array.isArray(r.pickups) || r.pickups.length > r.kills) return false;
+    const pending = new Set<string>(), paid = new Set(r.paidKillIds);
+    for (const d of r.pickups) {
+      if (!object(d) || !keys(d, ['id','kind','x','y','born']) || !str(d.id) || !paid.has(d.id) || pending.has(d.id) ||
+          !position(d) || !num(d.born, 0, r.time) || pickupDrop(r.seed, d.id) !== d.kind || d.kind === null) return false;
+      pending.add(d.id);
+    }
+  }
   const ids = new Set<string>(r.paidKillIds);
   for (const e of r.enemies) {
     if (!object(e) || !keys(e,['id','kind','x','y','hp','maxHp','damage','speed','attackInterval','attackCooldown', ...(telegraphed ? ['attackPhase','attackTime','attackDuration'] : []), ...(Object.hasOwn(e,'emergingUntil') ? ['emergingUntil'] : [])]) || !validId(e.id) || ids.has(e.id) || !validKind(e.kind) || !position(e)) return false;
