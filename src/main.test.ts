@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { attackConfig, enemyStats, ENEMY_PROJECTILE_SPEED, createState, getStats, parseState, serializeState, startRun, STAT_KEYS, type GameState } from './game';
 import { SAVE_KEY } from './persistence';
@@ -8,15 +9,22 @@ import type { SceneFrame } from './scene';
 // audio hardware, platform setup, tab ownership and frame scheduling are replaced.
 const fakes = vi.hoisted(() => ({
   render: vi.fn(), ready: vi.fn(), soundToggle: vi.fn(), soundSuspend: vi.fn(), soundResume: vi.fn(),
+  assets: undefined as Promise<boolean> | undefined,
   pause: null as null | { reasons: Set<string>; readonly paused: boolean },
 }));
 vi.mock('./scene', async () => {
   return { SceneView: class {
+    readonly assetsReady = fakes.assets ?? Promise.resolve(true);
+    prepare() {}
     constructor(root: HTMLElement) { root.append(document.createElement('canvas')); }
     render(frame: SceneFrame, delta: number) { fakes.render(frame, delta); }
     resize() {}
   }};
 });
+vi.mock('./boot', async importOriginal => ({
+  ...await importOriginal<typeof import('./boot')>(),
+  loadInterface: async () => {},
+}));
 vi.mock('./audio', () => ({
   Sound: class {
     enabled = false;
@@ -121,7 +129,7 @@ beforeEach(() => {
   document.body.innerHTML = '<div id="app"></div>';
   document.body.className = '';
   localStorage.clear();
-  frameCallback = null; now = 1000; fakes.pause = null;
+  frameCallback = null; now = 1000; fakes.pause = null; fakes.assets = undefined;
   vi.spyOn(performance, 'now').mockImplementation(() => now);
   vi.spyOn(window,'scrollTo').mockImplementation(() => {});
   vi.stubGlobal('requestAnimationFrame', vi.fn((callback: FrameRequestCallback) => {
@@ -137,6 +145,36 @@ beforeEach(() => {
 afterEach(() => {
   removeListeners(); vi.restoreAllMocks(); vi.unstubAllGlobals();
   document.body.innerHTML = ''; localStorage.clear();
+});
+
+describe('startup', () => {
+  it.each([true, false])('does not reveal the menu until model readiness is known (%s)', async ready => {
+    const page = new DOMParser().parseFromString(readFileSync('index.html', 'utf8'), 'text/html');
+    document.body.append(page.querySelector('#boot')!);
+    element('#app').inert = true;
+    vi.stubGlobal('matchMedia', () => ({ matches: true }));
+    let finish!: (ok: boolean) => void;
+    fakes.assets = new Promise(resolve => { finish = resolve; });
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    await import('./main');
+    expect(element('#app').inert).toBe(true);
+    expect(element('#boot-status').textContent).toBe('ИНИЦИАЛИЗАЦИЯ СИСТЕМЫ');
+    expect(fakes.ready).not.toHaveBeenCalled();
+    expect(frameCallback).toBeNull();
+    finish(ready);
+    if (ready) {
+      await vi.waitFor(() => expect(fakes.ready).toHaveBeenCalledOnce());
+      expect(document.querySelector('#boot')).toBeNull();
+      expect(element('#app').inert).toBe(false);
+      expect(frameCallback).not.toBeNull();
+    } else {
+      await vi.waitFor(() => expect(button('#boot-retry').hidden).toBe(false));
+      expect(element('#app').inert).toBe(true);
+      expect(fakes.ready).not.toHaveBeenCalled();
+      expect(frameCallback).toBeNull();
+    }
+    consoleError.mockRestore();
+  });
 });
 
 describe('main menu', () => {

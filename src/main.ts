@@ -4,6 +4,7 @@ import './workshop.css';
 import './workshop-gates.css';
 import './module-shop.css';
 import './battle-dock.css';
+import { bootScreen, loadInterface, waitForBoot } from './boot';
 import { COMBAT_KEYS, SHOP_MODULES, type ShopModule } from './combat-upgrades';
 import { workshopMarkup, renderWorkshopCombatUpgrade } from './workshop-ui';
 import { moduleShopMarkup, moduleDetailMarkup, renderShopCard, renderModuleDetail } from './module-shop';
@@ -17,6 +18,7 @@ import {Sound} from './audio';
 import {BattleMenuController,battleHudMarkup,battleMenuMarkup,bossBarMarkup,battleUpgradeDockMarkup,bindUpgradeTabs,renderCombatUpgrade,STAT_LABELS,isInteractiveTarget} from './battle-ui';
 const $=<T extends HTMLElement=HTMLElement>(s:string)=>document.querySelector<T>(s)!;
 const root=$('#app');
+const startup=bootScreen(root);
 for (const type of ['contextmenu', 'dragstart']) {
  root.addEventListener(type, event => event.preventDefault());
 }
@@ -212,6 +214,10 @@ function openModuleDetail(key: ShopModule, source: HTMLButtonElement){
  closeButton.focus();
  animate([{transform:'translateY(-100dvh)',easing:'cubic-bezier(.26,.65,.44,1)'},{transform:'translateY(14px)',offset:.76,easing:'ease-out'},{transform:'translateY(0)'}],590,()=>{render();if(closeRequested)close();});
 }
+function mountTitleAnnouncements(){
+ announcements.mount($('.menu-announcement-slot'),destination=>{void showMenuPage(destination);},
+  ()=>!state.run&&!gatesMoving, ()=>$(state.run?'#resume':'#start').focus({preventScroll:true}));
+}
 let disposeWorkshopTabs: (()=>void) | undefined;
 function drawPanel(){
  disposeWorkshopTabs?.();disposeWorkshopTabs=undefined;
@@ -242,8 +248,7 @@ function drawPanel(){
    $('#open-module-shop').onclick=()=>showMenuPage('shop');
    $('#start').onclick=()=>enterBattle(true);$('#resume').onclick=()=>enterBattle(false);
    $('#open-workshop').onclick=()=>showMenuPage('workshop');$('#menu-help').onclick=showHelp;
-   announcements.mount($('.menu-announcement-slot'),destination=>{void showMenuPage(destination);},
-    ()=>!state.run&&!gatesMoving, ()=>$(state.run?'#resume':'#start').focus({preventScroll:true}));
+   if(!root.inert)mountTitleAnnouncements();
   }
  }
  if(screen==='result')$('#to-workshop').onclick=()=>{openMenu();void showMenuPage('workshop',false);};
@@ -362,11 +367,30 @@ window.addEventListener('keydown',e=>{
 });
 
 async function init(){
- await platform.init();
- writable=await lock.acquire();
- if(!writable){saveBlocked=true;notify('Игра уже открыта в другой вкладке либо браузер не поддерживает безопасную запись. Закройте другую вкладку и обновите эту страницу.');modal('Защита сохранения','Одновременно можно играть только в одной вкладке. Закройте другую вкладку с игрой, затем обновите страницу. Используйте современный браузер с поддержкой Web Locks.',[{label:'Обновить',action:()=>location.reload()}],false);}
- if(writable){try{repository=new SaveRepository(localStorage);const loaded=repository.load();if(loaded.state)state=loaded.state;if(loaded.warning)notify(loaded.warning);saveBlocked=loaded.blocked;if(saveBlocked)showSaveRecovery();}catch{saveBlocked=true;notify('Браузер запретил локальное сохранение. Разрешите данные сайта и обновите страницу.');}}
- try{scene=new SceneView($('#arena'));platform.gameReady();}catch(e){fatal=true;const el=document.createElement('div');el.className='fatal';el.innerHTML='<strong>⬡</strong><h2>Для 3D-арены нужен WebGL2</h2><p>Откройте игру в актуальном Chrome, Edge, Firefox или Safari с включённым аппаратным ускорением. Ваше сохранение не изменено.</p>';$('#arena').append(el);console.error('Scene initialization failed',e);}
- renderUI(true);requestAnimationFrame(animate);
+ try {
+  await platform.init();
+  writable=await lock.acquire();
+  if(!writable){saveBlocked=true;notify('Игра уже открыта в другой вкладке либо браузер не поддерживает безопасную запись. Закройте другую вкладку и обновите эту страницу.');modal('Защита сохранения','Одновременно можно играть только в одной вкладке. Закройте другую вкладку с игрой, затем обновите страницу. Используйте современный браузер с поддержкой Web Locks.',[{label:'Обновить',action:()=>location.reload()}],false);}
+  if(writable){try{repository=new SaveRepository(localStorage);const loaded=repository.load();if(loaded.state)state=loaded.state;if(loaded.warning)notify(loaded.warning);saveBlocked=loaded.blocked;if(saveBlocked)showSaveRecovery();}catch{saveBlocked=true;notify('Браузер запретил локальное сохранение. Разрешите данные сайта и обновите страницу.');}}
+  try{scene=new SceneView($('#arena'));}catch(e){fatal=true;const el=document.createElement('div');el.className='fatal';el.innerHTML='<strong>⬡</strong><h2>Для 3D-арены нужен WebGL2</h2><p>Откройте игру в актуальном Chrome, Edge, Firefox или Safari с включённым аппаратным ускорением. Ваше сохранение не изменено.</p>';$('#arena').append(el);console.error('Scene initialization failed',e);}
+  renderUI(true);
+  const setup=Promise.all([scene?.assetsReady, startup&&loadInterface()]);
+  await waitForBoot(setup.then(([models])=>{
+   if(models===false)throw new Error('Game models are incomplete');
+  }));
+  scene?.prepare();
+  const show=()=>{
+   if(startup)mountTitleAnnouncements();
+   last=performance.now();
+   requestAnimationFrame(animate);
+  };
+  if(startup)await startup.reveal(show);else show();
+  root.inert=false;
+  $('#modal-root').querySelector('button')?.focus();
+  if(scene)platform.gameReady();
+ } catch(error){
+  console.error('Oplot startup failed',error);
+  startup?.fail('Не удалось загрузить игру');
+ }
 }
 void init();
