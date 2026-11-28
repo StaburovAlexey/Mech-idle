@@ -129,7 +129,15 @@ function drawPanel(){
  if(screen==='menu'){
   if(workshopOpen){
    $('#workshop-back').onclick=()=>showWorkshop(false);
-   for(const stat of STAT_KEYS)$(`[data-workshop-stat="${stat}"]`).onclick=()=>buy(stat);
+   for(const stat of STAT_KEYS){
+    const card=$(`[data-workshop-stat="${stat}"]`);
+    card.onclick=()=>{
+     const before=state;
+     buy(stat);
+     if(state!==before&&!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
+      card.animate?.([{transform:'translateY(2px) scale(.99)'},{transform:'translateY(-.5px)',offset:.72},{transform:'none'}],{duration:180,easing:'ease-out'});
+    };
+   }
   }
   else{$('#start').onclick=launch;$('#resume').onclick=resume;$('#open-workshop').onclick=()=>showWorkshop(true);$('#menu-help').onclick=showHelp;}
  }
@@ -189,7 +197,7 @@ function renderUI(force=false){
  if(inWorkshop){
   btn.querySelector('.workshop-current')!.textContent=`${fmt(current)} ${labels[stat].unit}`;
   btn.querySelector('.workshop-next')!.textContent=`→ ${fmt(nextValue)} ${labels[stat].unit}`;
-  btn.querySelector('.workshop-price')!.textContent=`◇ ${coins(price)}`;
+  btn.querySelector('.workshop-amount')!.textContent=coins(price);
   continue;
  }
  btn.classList.toggle('meta',!battle);btn.classList.toggle('affordable',budget>=price&&(battle||!run));
