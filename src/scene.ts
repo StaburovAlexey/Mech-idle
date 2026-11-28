@@ -10,7 +10,7 @@ import { ImportedMechs, loadOplotModels } from './oplotModels';
 import { TitleMech } from './title-mech';
 import { splitTurretMount } from './turretMount';
 import { createPortalMesh, PORTAL_CLOSE, PORTAL_CAPACITY, spawnRise } from './spawnPortal';
-import { TURRET_RANGE } from './game';
+import { RANGED_MUZZLE_OFFSET, TURRET_RANGE } from './game';
 import { CITY_YAW, sandHeight } from './sandTerrain';
 import { PORTAL_RISE_SECONDS } from './portalTiming';
 
@@ -33,6 +33,13 @@ export interface SceneFrame {
   range?: number;
 }
 type Kind = SceneEnemy['kind'];
+export const battleMechScale = (kind: string) => kind==='ranged'||kind==='boss'?2:1;
+export function rangedBoltVisual(x:number,z:number) {
+ const radius=Math.hypot(x,z);
+ const t=THREE.MathUtils.smoothstep(radius,0,TURRET_RANGE-RANGED_MUZZLE_OFFSET);
+ const offset=radius ? 1-RANGED_MUZZLE_OFFSET*t/radius : 1;
+ return {x:x*offset,y:1.47*(1+t),z:z*offset};
+}
 type Piece = { g: THREE.BufferGeometry; color: THREE.ColorRepresentation; p?: number[]; r?: number[]; s?: number[] };
 type Particle = { x: number; y: number; z: number; vx: number; vy: number; vz: number; life: number; max: number; color: number };
 type UnitPartBatch = { definition: EnemyModelPart; mesh: THREE.InstancedMesh; world: THREE.Matrix4 };
@@ -543,7 +550,8 @@ export class SceneView {
     const cameraFacing = new THREE.Vector3(0, 0, 1).applyQuaternion(this.camera.quaternion);
     for (const enemy of enemies.slice(0, MAX_UNITS)) {
       const b = this.batches[enemy.kind] || this.batches.normal;
-      const index = b.count++;
+      const index = b.count++, scale = playing ? battleMechScale(enemy.kind) : 1;
+      const height = b.model.height * scale;
       const angle = Math.atan2(-enemy.x, -enemy.y);
       const emergeEnd = playing ? enemy.emergingUntil : undefined;
       const emerging = emergeEnd !== undefined;
@@ -554,10 +562,10 @@ export class SceneView {
       const rise = arrival ? spawnRise(t - arrival.time) : 1;
       const idle = menu || emerging;
       const pose = computeEnemyPose(idle ? { ...enemy, attackPhase: 'recovery', attackTime: 1, attackDuration: 1 } : enemy, t);
-      const elevation = .09 - b.model.height * 1.08 * (1 - rise);
-      if (this.importedMechs) this.importedMechs.place(enemy, angle, this.clock, b.model.height, idle, elevation);
+      const elevation = .09 - height * 1.08 * (1 - rise);
+      if (this.importedMechs) this.importedMechs.place(enemy, angle, this.clock, b.model.height, idle, elevation, scale);
       else {
-        mRoot.copy(matrix(enemy.x, elevation, enemy.y, angle));
+        mRoot.copy(matrix(enemy.x, elevation, enemy.y, angle, scale));
         mRoot.multiply(this.poseMatrix([0, 0, 0], pose.root));
         for (const part of b.parts) {
           const def = part.definition, parent = def.parent ? b.byName[def.parent]!.world : mRoot;
@@ -566,13 +574,13 @@ export class SceneView {
         }
       }
       if (pose.impact > 0 && !menu) {
-        const reach = enemy.kind === 'boss' ? .90 : .72, size = (enemy.kind === 'boss' ? 1.15 : .48) * (.5 + pose.impact * .5);
+        const reach = (enemy.kind === 'boss' ? .90 : .72) * scale, size = (enemy.kind === 'boss' ? 1.15 : .48) * scale * (.5 + pose.impact * .5);
         this.impactMesh.setMatrixAt(impactIndex++, matrix(enemy.x + Math.sin(angle) * reach, .08, enemy.y + Math.cos(angle) * reach, 0, size, 1, size));
       }
       if (!menu && rise > .9 && enemy.hp < enemy.maxHp) {
         const fraction = Math.max(.01, enemy.hp / Math.max(1, enemy.maxHp));
-        const width = enemy.kind === 'boss' ? 1.55 : .8;
-        v3.set(enemy.x, b.model.height + .25, enemy.y); sc.set(width, 1, 1); m4.compose(v3, this.camera.quaternion, sc); this.hpBack.setMatrixAt(hpIndex, m4);
+        const width = (enemy.kind === 'boss' ? 1.55 : .8) * scale;
+        v3.set(enemy.x, height + .25, enemy.y); sc.set(width, 1, 1); m4.compose(v3, this.camera.quaternion, sc); this.hpBack.setMatrixAt(hpIndex, m4);
         v3.addScaledVector(cameraRight, -(1 - fraction) * width / 2); v3.addScaledVector(cameraFacing, .012);
         sc.set(width * fraction, 1, 1); m4.compose(v3, this.camera.quaternion, sc); this.hpFront.setMatrixAt(hpIndex++, m4);
       }
@@ -601,7 +609,8 @@ export class SceneView {
     this.lastBulletIds = ids; this.bulletMesh.count = bulletIndex; this.bulletMesh.instanceMatrix.needsUpdate = true;
     let enemyProjectileIndex = 0;
     for (const bullet of (frame.enemyProjectiles ?? []).slice(0, MAX_ENEMY_PROJECTILES)) {
-      this.enemyProjectileMesh.setMatrixAt(enemyProjectileIndex++, matrix(bullet.x, 1.47, bullet.y, Math.atan2(-bullet.x, -bullet.y), 1, 1, 2.6));
+      const {x,y,z}=rangedBoltVisual(bullet.x,bullet.y);
+      this.enemyProjectileMesh.setMatrixAt(enemyProjectileIndex++, matrix(x,y,z,Math.atan2(-x,-z),1,1,2.6));
     }
     this.enemyProjectileMesh.count = enemyProjectileIndex; this.enemyProjectileMesh.instanceMatrix.needsUpdate = true;
     if (frame.shooting && !frame.paused) this.pulse = Math.max(this.pulse, .045);

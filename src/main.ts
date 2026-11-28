@@ -1,5 +1,5 @@
 import { armoredScrollMarkup, bindArmoredScrollbars } from './armored-scroll';
-import { openChainPanel } from './chain-panel';
+import { animateChainSheet, openChainPanel } from './chain-panel';
 import { currencyBank, currencyIcon } from './currency-ui';
 import './style.css';
 import './title.css';
@@ -42,8 +42,17 @@ if(stage?.id==='game-stage'){
 }
 let gatesMoving=false;
 const hud=document.createElement('div');hud.id='battle-hud';hud.className='battle-hud hidden';hud.innerHTML=battleHudMarkup+bossBarMarkup;$('.shell').append(hud);
-const drawerElement=document.createElement('div');drawerElement.id='battle-menu-overlay';drawerElement.className='battle-menu-overlay hidden';drawerElement.innerHTML=battleMenuMarkup;$('.shell').append(drawerElement);
+const drawerElement=document.createElement('div');drawerElement.id='battle-menu-overlay';drawerElement.className='battle-menu-overlay chain-panel-layer hidden';drawerElement.innerHTML=battleMenuMarkup;$('.shell').append(drawerElement);
 const drawerScrollbars=bindArmoredScrollbars(drawerElement);
+const drawerSheet=drawerElement.querySelector<HTMLElement>('.chain-panel-sheet')!;
+let drawerMotion:Animation|undefined, drawerClosing=false;
+function slideBattleMenu(enter:boolean,finish=()=>{}){
+ drawerMotion?.cancel();
+ const motion=animateChainSheet(drawerSheet,enter);
+ drawerMotion=motion;
+ if(!motion){finish();return;}
+ void motion.finished.then(()=>{if(drawerMotion===motion){drawerMotion=undefined;motion.cancel();finish();}},()=>{});
+}
 const labels=STAT_LABELS;
 const fmt=(n:number)=>{const value=Math.round(n*1e6)/1e6;return Number.isInteger(value)?String(value):value.toFixed(1).replace('.',',');};
 const coins=(n:number)=>n.toLocaleString('ru-RU');
@@ -154,13 +163,23 @@ $('#unpause').onclick=togglePause;
 function showHelp(){modal('Как защитить оплот','Турель прицеливается и стреляет сама. За каждого уничтоженного меха вы получаете золото. Нажмите на выпавшую деталь или обломок, чтобы подобрать. Купленные в бою модули действуют сразу. Здоровье между волнами не заполняется: нужен ремонт. За каждую пройденную волну начисляется 1 деталь. Детали и улучшения мастерской сохраняются после поражения. Штурм бьёт кулаками, Рывок атакует клинками, Стрелок останавливается внутри круга огня и стреляет снарядами. Некоторые волны окружают оплот группами. На волне 30 ждёт Колосс с тяжёлыми ударами. Клавиши 1–4 покупают модули, пробел включает паузу.',[{label:'Понятно',action:()=>{}}]);}
 $('#help').onclick=showHelp;
 function openBattleMenu(){
- if(screen!=='combat'||!state.run)return;
+ if(screen!=='combat'||!state.run||battleMenu.open||drawerClosing)return;
  menuReturnFocus=document.activeElement instanceof HTMLElement?document.activeElement:null;
- battleMenu.show();accumulator=0;save();renderUI();drawerScrollbars.refresh();$('#battle-menu-close').focus();
+ battleMenu.show();accumulator=0;save();renderUI();drawerScrollbars.refresh();$('#battle-menu-close').focus();slideBattleMenu(true);
 }
-function closeBattleMenu(restoreFocus=true){
- battleMenu.close();accumulator=0;last=performance.now();renderUI();
- if(restoreFocus){const target=menuReturnFocus?.isConnected&&menuReturnFocus!==document.body?menuReturnFocus:$('#battle-menu-toggle');target.focus();}
+function closeBattleMenu(restoreFocus=true,after=()=>{}){
+ if(!battleMenu.open||drawerClosing)return;
+ if(drawerMotion){
+  void drawerMotion.finished.then(()=>closeBattleMenu(restoreFocus,after),()=>{});
+  return;
+ }
+ drawerClosing=true;drawerElement.inert=true;drawerElement.classList.add('closing');
+ slideBattleMenu(false,()=>{
+  drawerClosing=false;drawerElement.inert=false;drawerElement.classList.remove('closing');
+  battleMenu.close();accumulator=0;last=performance.now();renderUI();
+  if(restoreFocus){const target=menuReturnFocus?.isConnected&&menuReturnFocus!==document.body?menuReturnFocus:$('#battle-menu-toggle');target.focus();}
+  after();
+ });
 }
 function confirmAbandon(){
  modal('Завершить этот забег?','Золото и боевые модули текущего забега будут потеряны. Детали и улучшения мастерской сохранятся.',[
@@ -174,7 +193,7 @@ $('#battle-menu-return').onclick=()=>closeBattleMenu();
 $('#battle-menu-pause').onclick=()=>{togglePause();renderUI();};
 $('#battle-menu-sound').onclick=toggleSound;
 $('#battle-menu-help').onclick=showHelp;
-$('#battle-menu-save').onclick=openMenu;
+$('#battle-menu-save').onclick=()=>closeBattleMenu(false,openMenu);
 $('#battle-menu-abandon').onclick=confirmAbandon;
 drawerElement.addEventListener('click',event=>{if(event.target===drawerElement)closeBattleMenu();});
 drawerElement.addEventListener('keydown',event=>{

@@ -47,7 +47,7 @@ export class ImportedMechs {
 
   begin() { this.used.clear(); }
 
-  place(enemy: EnemyAnimationState & { x: number; y: number }, angle: number, elapsed: number, height: number, preview: boolean, elevation: number) {
+  place(enemy: EnemyAnimationState & { x: number; y: number }, angle: number, elapsed: number, height: number, preview: boolean, elevation: number, visualScale = 1) {
     const {kind} = enemy;
     const index = this.used.get(kind) ?? 0;
     this.used.set(kind, index + 1);
@@ -68,6 +68,7 @@ export class ImportedMechs {
     actor.root.visible = true;
     actor.root.position.set(enemy.x, elevation, enemy.y);
     actor.root.rotation.y = angle;
+    actor.root.scale.setScalar(visualScale);
     const i = kinds.indexOf(kind), phase = enemy.attackPhase ?? 'approach';
     const attack = !preview && phase !== 'approach';
     const action = actor.actions.get(preview ? 'Idle' : attack ? attacks[i] : movement[i])!;
@@ -81,7 +82,7 @@ export class ImportedMechs {
     const t = enemy.attackTime ?? 0;
     const p = Math.min(1, t / Math.max(.001, enemy.attackDuration ?? 1));
     const contact = kind === 'ranged' ? .5 : .52;
-    let sample = preview ? (elapsed + i * .15) % duration : walkClipTime(kind, Math.hypot(enemy.x, enemy.y), height, duration);
+    let sample = preview ? (elapsed + i * .15) % duration : walkClipTime(kind, Math.hypot(enemy.x, enemy.y), height * visualScale, duration);
     if (attack) {
       if (phase === 'windup') sample = duration * contact * p;
       else if (phase === 'strike' && kind === 'boss') {
