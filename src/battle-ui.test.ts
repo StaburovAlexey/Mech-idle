@@ -60,8 +60,8 @@ describe('battle drawer owns only its own pause reason', () => {
 describe('battle controls and keyboard target semantics', () => {
   it('shows only wave, HP and resources plus one menu trigger in the compact HUD', () => {
     document.body.innerHTML = battleHudMarkup;
-    expect([...document.querySelectorAll('.battle-resource')].length).toBe(4);
-    for (const id of ['battle-wave', 'battle-hp', 'battle-hp-fill', 'battle-gold', 'battle-crystals']) {
+    expect([...document.querySelectorAll('.battle-resource')].length).toBe(5);
+    for (const id of ['battle-wave', 'battle-hp', 'battle-hp-fill', 'battle-gold', 'battle-parts','battle-scrap']) {
       expect(document.getElementById(id)).not.toBeNull();
     }
     const buttons = document.querySelectorAll('button');
