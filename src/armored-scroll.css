@@ -20,7 +20,7 @@
 .armored-scroll-rail::before { top: 5px; }
 .armored-scroll-rail::after { bottom: 5px; }
 .armored-scroll-thumb {
-  position: absolute; inset: 0 1px auto; border: 1px solid #a5b37a;
+  position: absolute; z-index: 1; inset: 0 1px auto; border: 1px solid #a5b37a;
   border-radius: 5px; background: linear-gradient(90deg,#819653,#4c6136);
   box-shadow: inset 1px 0 #b8c88b,1px 2px 3px #0e100de0;
 }

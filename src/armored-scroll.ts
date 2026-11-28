@@ -20,8 +20,10 @@ export function bindArmoredScrollbars(root: HTMLElement) {
   area.classList.add('enhanced');
   let travel=0, maxScroll=0, grab=0;
   function sync(){
-   const progress=maxScroll?Math.max(0,Math.min(1,panel.scrollTop/maxScroll)):0;
-   thumb.style.transform=`translateY(${8+travel*progress}px)`;
+   // The native scroll offset can be fractional even when the scroll dimensions are rounded.
+   const offset=Math.max(0,panel.scrollTop);
+   const progress=!maxScroll?0:maxScroll-offset<1?1:offset/maxScroll;
+   thumb.style.transform=`translateY(${travel*progress}px)`;
   }
   function refresh(){
    const scrollTop=panel.scrollTop;
@@ -30,7 +32,7 @@ export function bindArmoredScrollbars(root: HTMLElement) {
    if(!panel.clientHeight||panel.scrollHeight<=panel.clientHeight+1)return;
    rail.hidden=false;
    maxScroll=panel.scrollHeight-panel.clientHeight;
-   const trackHeight=Math.max(0,rail.clientHeight-16);
+   const trackHeight=Math.max(0,rail.getBoundingClientRect().height - 2 * rail.clientTop);
    const thumbHeight=Math.min(trackHeight,Math.max(24,trackHeight*panel.clientHeight/panel.scrollHeight));
    travel=trackHeight-thumbHeight;
    thumb.style.height=`${thumbHeight}px`;
@@ -39,7 +41,7 @@ export function bindArmoredScrollbars(root: HTMLElement) {
   }
   function move(e: PointerEvent){
    if(!travel)return;
-   const y=e.clientY-rail.getBoundingClientRect().top-rail.clientTop-8-grab;
+   const y=e.clientY-rail.getBoundingClientRect().top-rail.clientTop-grab;
    panel.scrollTop=Math.max(0,Math.min(1,y/travel))*maxScroll;
    sync();
   }
