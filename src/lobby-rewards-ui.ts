@@ -1,13 +1,14 @@
 import { bindUpgradeTabs } from './battle-ui';
 import { currencyIcon } from './currency-ui';
 import type { Profile } from './game';
-import { emptyLobbyRewards, QUESTS, questProgress, VISIT_REWARDS, visitAvailable, type LobbyRewardId } from './lobby-rewards';
+import { emptyLobbyRewards, QUESTS, questProgress, questReady, VISIT_REWARDS, visitAvailable, type LobbyRewardId } from './lobby-rewards';
 import { steelPlate } from './steel-plate';
 import './lobby-rewards.css';
 
 const calendar = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4m8-4v4m-7 8 2 2 4-4"/></svg>';
 const checklist = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2h6v2M8 11l1 1 2-3m2 2h3m-8 6 1 1 2-3m2 2h3"/></svg>';
 const tab=(id:string,text:string,icon:string,active:boolean)=>`<button class="battle-upgrade-tab" type="button" role="tab" id="rewards-tab-${id}" aria-controls="rewards-${id}" aria-selected="${active}" tabindex="${active?0:-1}"><span aria-hidden="true">${icon}</span>${text}${active?'':'<b class="reward-count" hidden></b>'}</button>`;
+export type RewardTab = 'visits' | 'quests';
 export const lobbyRewardsMarkup=`<div class="lobby-rewards">
  <div class="reward-tabs" role="tablist" aria-label="Категории наград">${tab('visits','За вход',calendar,true)}${tab('quests','Задания',checklist,false)}</div>
  <div class="reward-panes">
@@ -42,6 +43,7 @@ export function bindLobbyRewards(root:HTMLElement, refreshLayout:()=>void, claim
  let lastProfile:Profile|undefined,lastDay:number|undefined,lastBlocked:boolean|undefined;
  return {
   dispose,
+  selectTab:(tab:RewardTab)=>root.querySelector<HTMLButtonElement>(`#rewards-tab-${tab}`)!.click(),
   report:(message:string)=>{feedback.textContent=message;refreshLayout();},
   focusTab:()=>root.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.focus({preventScroll:true}),
   render(profile:Profile,day:number,blocked:boolean) {
@@ -63,7 +65,7 @@ export function bindLobbyRewards(root:HTMLElement, refreshLayout:()=>void, claim
    let ready=0;
    quests.innerHTML=`<p class="quest-list-note">Задания не сгорают. Забирай награды, когда выполнишь условия.</p>
     <div class="quest-list">${QUESTS.map(q=>{
-     const current=questProgress(profile,q.id),done=progress.claimed.includes(q.id),canClaim=!done&&current>=q.target;
+     const current=questProgress(profile,q.id),done=progress.claimed.includes(q.id),canClaim=questReady(profile,q);
      if(canClaim)ready++;
      const fraction=Math.min(100,100*current/q.target);
      return steelPlate(canClaim?'button':'article',`quest${canClaim?' is-ready':''}${done?' is-received':''}`,

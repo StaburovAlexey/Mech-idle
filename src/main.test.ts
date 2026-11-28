@@ -5,6 +5,7 @@ import { attackConfig, enemyStats, ENEMY_PROJECTILE_SPEED, waveConfig, step, cre
 import { SETTINGS_KEY } from './game-settings';
 import { SAVE_KEY } from './persistence';
 import type { SceneFrame } from './scene';
+import { claimLobbyReward, rewardDay } from './lobby-rewards';
 
 // These tests run the actual UI, game rules and local save repository. Only GPU,
 // audio hardware, platform setup, tab ownership and frame scheduling are replaced.
@@ -196,7 +197,7 @@ describe('startup', () => {
     expect(document.querySelector('#boot')).toBeNull();
     expect(element('.shell').classList.contains('boot-tracking')).toBe(false);
     expect(vi.mocked(app.animate).mock.calls.length).toBe(2);
-    expect(element('.menu-announcement strong').textContent).toBe('Новинка в магазине');
+    expect(element('.menu-announcement strong').textContent).toBe('Награда за вход');
   });
   it.each([
     { ready: true, loadMs: 700 },
@@ -234,7 +235,7 @@ describe('startup', () => {
       }
       expect(fakes.ready).toHaveBeenCalledOnce();
       expect(document.querySelector('#boot')).toBeNull();
-      expect(element('.menu-announcement strong').textContent).toBe('Новинка в магазине');
+      expect(element('.menu-announcement strong').textContent).toBe('Награда за вход');
       expect(element('#app').inert).toBe(false);
       expect(frameCallback).not.toBeNull();
     } else {
@@ -248,41 +249,59 @@ describe('startup', () => {
 });
 
 describe('main menu', () => {
-  it('queues three test announcements, preserves the queue across navigation, and never adds a shop badge', async () => {
-    await boot();
-    expect(element('.menu-announcement strong').textContent).toBe('Новинка в магазине');
-    expect(document.querySelector('#open-module-shop i')).toBeNull();
-    click('.menu-announcement-close');
-    expect(element('.menu-announcement strong').textContent).toBe('Сообщение мастерской');
-    expect(document.activeElement).toBe(button('.menu-announcement-close'));
-    click('.menu-announcement-action');
-    expect(element('#screen-heading').textContent).toBe('МАСТЕРСКАЯ');
-    click('#workshop-back');
-    expect(element('.menu-announcement-slot').hidden).toBe(false);
+  it('keeps the special offer as the sole promo and opens its chained panel', async () => {
+    await boot(claimLobbyReward(createState(),'visit',rewardDay()));
     expect(element('.menu-announcement strong').textContent).toBe('Спецпредложение');
+    expect(document.querySelector('#open-module-shop i')).toBeNull();
     click('.menu-announcement-action');
     expect(element('#special-offer-heading').textContent).toBe('Спецпредложение');
     expect(element('#modal-root .chain-panel-sheet').querySelectorAll('.chain-panel-chain')).toHaveLength(2);
     expect(element('.shell').inert).toBe(true);
     key('Escape',button('#special-offer-close'));
-    expect(document.querySelector('#modal-root .chain-panel-layer')).toBeNull();
     expect(element('.shell').inert).toBe(false);
     expect(document.activeElement).toBe(button('#start'));
+    click('#open-module-shop');click('#module-shop-back');
     expect(element('.menu-announcement-slot').childElementCount).toBe(0);
     expect(element('.title-tip').textContent).toContain('Совет');
   });
 
-  it('leaves notifications dismissible when a saved run prevents opening workshop or shop', async () => {
-    await boot(fundedRun());
-    expect(button('.menu-announcement-action').disabled).toBe(true);
+  it('rechecks on return from workshop and removes daily and quest notices after claiming', async () => {
+    const state=createState();
+    state.profile.crystals=6;
+    await boot(state);
     click('.menu-announcement-close');
-    expect(button('.menu-announcement-action').disabled).toBe(true);
+    expect(element('.menu-announcement strong').textContent).toBe('Спецпредложение');
+    expect(document.activeElement).toBe(button('.menu-announcement-close'));
+    click('#open-workshop');click('#workshop-damage');click('#workshop-back');
+    expect(element('.menu-announcement strong').textContent).toBe('Награда за вход');
+    click('.menu-announcement-action');
+    expect(button('#rewards-tab-visits').getAttribute('aria-selected')).toBe('true');
+    click('[data-lobby-reward=visit]');click('#lobby-rewards-close');
+    expect(element('.menu-announcement strong').textContent).toBe('Награды за задания');
+    click('.menu-announcement-action');
+    expect(button('#rewards-tab-quests').getAttribute('aria-selected')).toBe('true');
+    click('[data-lobby-reward=workshop]');click('#lobby-rewards-close');
+    expect(saved().profile.rewards).toMatchObject({visits:1,claimed:['workshop']});
     click('.menu-announcement-close');
-    expect(button('.menu-announcement-action').disabled).toBe(false);
-    click('.menu-announcement-close');
-    expect(element('.menu-announcement-slot').hidden).toBe(false);
+    click('#open-workshop');click('#workshop-back');
     expect(element('.menu-announcement-slot').childElementCount).toBe(0);
-    expect(document.activeElement).toBe(button('#resume'));
+  });
+
+  it('checks daily rewards again after returning from a battle on a new day', async () => {
+    const today=new Date(2026,10,28,12);
+    vi.setSystemTime(today);
+    const run=fundedRun();
+    run.profile=claimLobbyReward(run,'visit',rewardDay(today)).profile;
+    await boot(run);
+    expect(element('.menu-announcement strong').textContent).toBe('Награды за задания');
+    click('#resume');
+    expect(document.querySelector('.menu-announcement')).toBeNull();
+    vi.setSystemTime(new Date(2026,10,29,12));
+    openDrawer();click('#battle-menu-save');
+    expect(element('.menu-announcement strong').textContent).toBe('Награда за вход');
+    click('#open-rewards');
+    click('[data-lobby-reward=visit]');click('#lobby-rewards-close');
+    expect(element('.menu-announcement strong').textContent).toBe('Награды за задания');
   });
 
   it('shows only persistent currencies outside combat and retains the previous balance', async () => {

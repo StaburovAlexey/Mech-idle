@@ -1,5 +1,5 @@
-import { bindLobbyRewards, lobbyRewardsMarkup } from './lobby-rewards-ui';
-import { claimLobbyReward, rewardDay } from './lobby-rewards';
+import { bindLobbyRewards, lobbyRewardsMarkup, type RewardTab } from './lobby-rewards-ui';
+import { claimLobbyReward, emptyLobbyRewards, QUESTS, questReady, rewardDay, visitAvailable } from './lobby-rewards';
 import { animateRunResult,runResultMarkup } from './run-result-ui';
 import { bindGameSettings, gameSettingsMarkup, readGameSettings, saveGameSettings } from './game-settings';
 import { armoredScrollMarkup, bindArmoredScrollbars } from './armored-scroll';
@@ -15,7 +15,7 @@ import { bootScreen, loadInterface, waitForBoot } from './boot';
 import { COMBAT_KEYS, SHOP_MODULES, type ShopModule } from './combat-upgrades';
 import { workshopMarkup, visibleWorkshopKeys, renderWorkshopCombatUpgrade } from './workshop-ui';
 import { moduleShopMarkup, moduleDetailContent, renderShopCard, renderModuleDetail } from './module-shop';
-import { MenuAnnouncements, TEST_ANNOUNCEMENTS } from './menu-announcement';
+import { MenuAnnouncements, SPECIAL_OFFER, type Announcement } from './menu-announcement';
 import { rotateTitleTips } from './title-tips';
 import { titleMarkup } from './title-ui';
 import {createState,startRun,step,collectPickups,buyRunUpgrade,buyCombatUpgrade,buyMetaUpgrade,buyWorkshopCombatUpgrade,buyShopModule,claimRunReward,runRewards,setPaused,getStats,calculateStats,runPrice,metaPrice,STAT_KEYS,DT,type GameState,type StatKey} from './game';
@@ -70,7 +70,7 @@ let pageExiting=false;
 const pause=new PauseManager(),lock=new TabLock(),platform=new LocalPlatformAdapter(),sound=new Sound();
 sound.enabled=settings.sound;sound.volume=settings.volume/100;
 const battleMenu=new BattleMenuController(pause);
-const announcements=new MenuAnnouncements(TEST_ANNOUNCEMENTS);
+const announcements=new MenuAnnouncements();
 let menuReturnFocus:HTMLElement|null=null;
 pause.add('menu');
 function notify(text:string){$('#notice').textContent=text;$('#notice').classList.remove('hidden');}
@@ -128,6 +128,7 @@ async function throughGates(swap:()=>void,finish:()=>void,animated=true){
   gates.hidden=true;
   for(const animation of [...opening,...closing])animation.cancel();
   shell.inert=false;gatesMoving=false;pause.remove('gates');finish();
+  mountTitleWidgets();
  }
 }
 function showMenuPage(page: MenuPage,animated=true){
@@ -282,13 +283,13 @@ function openSettings(source: HTMLElement){
  bindGameSettings(area,settings,applySettings);
 }
 let renderLobbyRewards:(()=>void)|undefined;
-function openLobbyRewards(source:HTMLElement){
+function openLobbyRewards(source:HTMLElement,tab:RewardTab='visits'){
  if(screen!=='menu'||menuPage!=='title'||gatesMoving)return;
  const area=$('#modal-root');
  const panel=openChainPanel(area,$('.shell'),{
   title:'Награды',subtitle:'Снабжение · Сектор 07',
   headingId:'lobby-rewards-heading',closeId:'lobby-rewards-close',body:lobbyRewardsMarkup,
-  returnFocus:()=>{view.dispose();renderLobbyRewards=undefined;source.focus({preventScroll:true});},
+  returnFocus:()=>{view.dispose();renderLobbyRewards=undefined;refreshMenuAnnouncements?.();source.focus({preventScroll:true});},
  });
  if(!panel)return;
  const refresh=()=>view.render(state.profile,rewardDay(),!writable||saveBlocked||pageExiting||panel.busy);
@@ -300,7 +301,7 @@ function openLobbyRewards(source:HTMLElement){
   state=next;sound.play('upgrade');renderUI();
   view.report('Награда получена.');view.focusTab();
  });
- renderLobbyRewards=refresh;panel.onBusyChange=refresh;refresh();
+ view.selectTab(tab);renderLobbyRewards=refresh;panel.onBusyChange=refresh;refresh();
 }
 function openSpecialOffer(){
  if(screen!=='menu'||menuPage!=='title'||gatesMoving)return;
@@ -312,10 +313,25 @@ function openSpecialOffer(){
  });
 }
 let disposeTitleTips: (()=>void) | undefined;
+let refreshMenuAnnouncements: (()=>void) | undefined;
+function menuAnnouncements():Announcement[]{
+ const items:Announcement[]=[];
+ if(writable&&!saveBlocked&&!pageExiting){
+  const profile=state.profile;
+  if(visitAvailable(profile.rewards??emptyLobbyRewards(),rewardDay()))
+   items.push({title:'Награда за вход',text:'Доступна сегодня',action:'К наградам',destination:'visits'});
+  if(QUESTS.some(quest=>questReady(profile,quest)))
+   items.push({title:'Награды за задания',text:'Есть что забрать',action:'К заданиям',destination:'quests'});
+ }
+ return [...items,SPECIAL_OFFER];
+}
 function mountTitleWidgets(){
+ if(disposeTitleTips||screen!=='menu'||menuPage!=='title'||gatesMoving||root.inert||document.querySelector('#boot'))return;
  disposeTitleTips=rotateTitleTips($('.title-tip'));
- announcements.mount($('.menu-announcement-slot'),destination=>{if(destination==='offer')openSpecialOffer();else void showMenuPage(destination);},
-  destination=>!gatesMoving&&(destination==='offer'||!state.run), ()=>$(state.run?'#resume':'#start').focus({preventScroll:true}));
+ refreshMenuAnnouncements=announcements.mount($('.menu-announcement-slot'),menuAnnouncements,destination=>{
+  if(destination==='offer')openSpecialOffer();
+  else openLobbyRewards($('#open-rewards'),destination);
+ },focusTitleAction);
 }
 let disposeRunResult:(()=>void)|undefined, resultReady=false, resultBusy=false;
 function renderResultActions(){
@@ -349,7 +365,7 @@ let disposeWorkshopTabs: (()=>void) | undefined;
 let disposeShopScrollbars: (()=>void) | undefined;
 function drawPanel(){
  disposeRunResult?.();disposeRunResult=undefined;resultReady=false;
- disposeTitleTips?.();disposeTitleTips=undefined;
+ disposeTitleTips?.();disposeTitleTips=undefined;refreshMenuAnnouncements=undefined;
  disposeWorkshopTabs?.();disposeWorkshopTabs=undefined;
  disposeShopScrollbars?.();disposeShopScrollbars=undefined;
  const panel=$('#panel');panel.className=screen==='menu'?(menuPage==='shop'?'module-shop-panel':menuPage==='workshop'?'workshop-panel':'title-panel') :screen==='result'?'run-result-screen chain-panel-layer':'panel combat-panel';
@@ -381,7 +397,7 @@ function drawPanel(){
    $('#open-rewards').onclick=()=>openLobbyRewards($('#open-rewards'));
    $('#start').onclick=()=>enterBattle(true);$('#resume').onclick=()=>enterBattle(false);
    $('#open-workshop').onclick=()=>showMenuPage('workshop');$('#menu-help').onclick=showHelp;$('#menu-settings').onclick=()=>openSettings($('#menu-settings'));
-   if(!root.inert&&!document.querySelector('#boot'))mountTitleWidgets();
+   mountTitleWidgets();
   }
  }
  if(screen==='result'&&state.result){
@@ -524,7 +540,7 @@ $('#arena').addEventListener('click',async event=>{
   lootClaimInProgress=false;
  }
 });
-document.addEventListener('visibilitychange',()=>{if(document.hidden){pause.add('hidden');save();sound.suspend();}else{pause.remove('hidden');accumulator=0;last=performance.now();}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){pause.add('hidden');save();sound.suspend();}else{pause.remove('hidden');accumulator=0;last=performance.now();refreshMenuAnnouncements?.();}});
 window.addEventListener('pagehide',()=>{
  save();pageExiting=true;writable=false;lock.release();
 });
@@ -550,7 +566,7 @@ async function openSave(){
   const explanation=ownership==='busy'
    ? 'Сохранение пока занято другой сессией игры. Если это был предыдущий запуск, попробуйте снова. Если игра открыта в другом окне, сначала закройте его.'
    : 'Браузер не дал безопасный доступ к сохранению. Откройте игру напрямую в обычном окне актуального браузера и попробуйте снова. Прогресс не изменён.';
-  modal('Защита сохранения',explanation,[{label:'Повторить',action:()=>void openSave().then(()=>renderUI())}],false);
+  modal('Защита сохранения',explanation,[{label:'Повторить',action:()=>void openSave().then(()=>{renderUI();refreshMenuAnnouncements?.();})}],false);
   return;
  }
  try{
@@ -588,7 +604,7 @@ async function init(){
   };
   if(startup){
    await startup.reveal(show,enableInput);
-   if(screen==='menu'&&menuPage==='title')mountTitleWidgets();
+   mountTitleWidgets();
   }else{
    show();enableInput();
   }

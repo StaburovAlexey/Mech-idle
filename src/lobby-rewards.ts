@@ -26,6 +26,9 @@ export function questProgress(profile:Profile,id:QuestId):number {
  if(id==='workshop')return Number(Boolean(progress?.workshop||Object.values(profile.meta).some(level=>level>0)));
  return progress?.[id]??0;
 }
+export function questReady(profile:Profile,quest:typeof QUESTS[number]) {
+ return !profile.rewards?.claimed.includes(quest.id)&&questProgress(profile,quest.id)>=quest.target;
+}
 export function claimLobbyReward(state:GameState,id:LobbyRewardId,day:number):GameState {
  if(state.result?.rewardPending||!Number.isSafeInteger(day)||day<0||day>100_000_000)return state;
  const old=state.profile.rewards??emptyLobbyRewards();
@@ -35,7 +38,7 @@ export function claimLobbyReward(state:GameState,id:LobbyRewardId,day:number):Ga
   reward=VISIT_REWARDS[old.visits];
  }else{
   const quest=QUESTS.find(q=>q.id===id);
-  if(!quest||old.claimed.includes(id)||questProgress(state.profile,id)<quest.target)return state;
+  if(!quest||!questReady(state.profile,quest))return state;
   reward=quest;
  }
  const parts=state.profile.crystals+reward.parts,scrap=(state.profile.scrap??0)+reward.scrap;
