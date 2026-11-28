@@ -33,14 +33,13 @@ export async function waitForBoot(assets: Promise<unknown>) {
   }
 }
 
-export function bootScreen(app: HTMLElement, crt = true) {
+export function bootScreen(app: HTMLElement) {
   const boot = document.querySelector<HTMLElement>('#boot');
   if (!boot) return;
   const display = boot.querySelector<HTMLElement>('#boot-display')!;
   const beam = boot.querySelector<HTMLElement>('#boot-beam')!;
-  const motion = crt && !window.matchMedia('(prefers-reduced-motion: reduce)').matches && !!display.animate;
+  const motion = !window.matchMedia('(prefers-reduced-motion: reduce)').matches && !!display.animate;
   const started = performance.now();
-  boot.classList.toggle('crt-disabled',!motion);
   const animate = (element: HTMLElement, keyframes: Keyframe[], duration: number) =>
     element.animate(keyframes, { duration, fill:'both' });
 

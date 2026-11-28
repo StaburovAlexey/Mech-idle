@@ -1,4 +1,3 @@
-import { bindCrtScreen } from './crt-screen';
 import { bindGameSettings, gameSettingsMarkup, readGameSettings, saveGameSettings } from './game-settings';
 import { armoredScrollMarkup, bindArmoredScrollbars } from './armored-scroll';
 import { animateChainSheet, openChainPanel } from './chain-panel';
@@ -25,10 +24,7 @@ import {BattleMenuController,battleHudMarkup,battleMenuMarkup,bossBarMarkup,batt
 const $=<T extends HTMLElement=HTMLElement>(s:string)=>document.querySelector<T>(s)!;
 const root=$('#app');
 const settings=readGameSettings();
-const startup=bootScreen(root,settings.crt);
-const stageScreen=document.querySelector<HTMLElement>('#game-stage');
-const setCrt=stageScreen?bindCrtScreen(stageScreen):()=>{};
-setCrt(settings.crt);
+const startup=bootScreen(root);
 for (const type of ['contextmenu', 'dragstart']) {
  root.addEventListener(type, event => event.preventDefault());
 }
@@ -165,7 +161,6 @@ for (const key of COMBAT_KEYS) $(`#upgrade-${key}`).onclick=()=>{
  state=next;sound.play('upgrade');renderUI();
 };
 function applySettings(){
- setCrt(settings.crt);
  sound.enabled=settings.sound;sound.volume=settings.volume/100;
  if(settings.sound)sound.unlock();else sound.suspend();
  $('#sound').textContent=settings.sound?'♫':'♪';
@@ -272,7 +267,7 @@ function openSettings(source: HTMLElement){
  const area=$('#modal-root'), fromBattle=screen==='combat';
  if(fromBattle&&(!battleMenu.open||drawerConfirming))return;
  const panel=openChainPanel(area,$('.shell'),{
-  title:'Настройки',subtitle:'',headingId:'game-settings-title',closeId:'game-settings-close',descriptionId:'crt-help',
+  title:'Настройки',subtitle:'',headingId:'game-settings-title',closeId:'game-settings-close',
   body:gameSettingsMarkup,
   returnFocus:()=>{
    drawerElement.classList.remove('settings-underlay');
@@ -294,7 +289,7 @@ function openSpecialOffer(){
 }
 let disposeTitleTips: (()=>void) | undefined;
 function mountTitleWidgets(){
- disposeTitleTips=rotateTitleTips($('.title-tip'),()=>!settings.crt);
+ disposeTitleTips=rotateTitleTips($('.title-tip'));
  announcements.mount($('.menu-announcement-slot'),destination=>{if(destination==='offer')openSpecialOffer();else void showMenuPage(destination);},
   destination=>!gatesMoving&&(destination==='offer'||!state.run), ()=>$(state.run?'#resume':'#start').focus({preventScroll:true}));
 }

@@ -175,7 +175,7 @@ describe('save protection at startup', () => {
 });
 
 describe('startup', () => {
-  it.each([true,false])('starts with the saved CRT choice (%s) and no VHS tracking', async (crt) => {
+  it.each([true,false])('plays the startup television transition regardless of the old CRT preference (%s)', async (crt) => {
     vi.useFakeTimers({toFake:['setTimeout','clearTimeout']});
     const page=new DOMParser().parseFromString(readFileSync('index.html','utf8'),'text/html');
     document.body.append(page.querySelector('.boot-filter')!,page.querySelector('#boot')!);
@@ -191,7 +191,7 @@ describe('startup', () => {
     expect(app.inert).toBe(false);
     expect(document.querySelector('#boot')).toBeNull();
     expect(element('.shell').classList.contains('boot-tracking')).toBe(false);
-    expect(vi.mocked(app.animate).mock.calls.length).toBe(crt?2:0);
+    expect(vi.mocked(app.animate).mock.calls.length).toBe(2);
     expect(element('.menu-announcement strong').textContent).toBe('Новинка в магазине');
   });
   it.each([
@@ -720,15 +720,14 @@ describe('fullscreen battle actual UI flows', () => {
     expect(element('#upgrades').textContent).not.toContain('Заказано');
   });
 
-  it('shares saved sound, volume and CRT settings between title and paused battle', async () => {
+  it('shares saved sound and volume settings between title and paused battle', async () => {
     await boot(); click('#menu-settings');
     const input=(name:string)=>element<HTMLInputElement>(`#game-settings-controls [name=${name}]`);
-    expect(input('crt').checked).toBe(true);
+    expect(document.querySelector('#game-settings-controls [name=crt]')).toBeNull();
     click('#game-settings-controls [name=sound]');
     expect(fakes.soundUnlock).toHaveBeenCalledOnce();
     input('volume').value='37';input('volume').dispatchEvent(new Event('input'));
-    click('#game-settings-controls [name=crt]');
-    expect(JSON.parse(localStorage.getItem(SETTINGS_KEY)!)).toEqual({sound:true,volume:37,crt:false});
+    expect(JSON.parse(localStorage.getItem(SETTINGS_KEY)!)).toEqual({sound:true,volume:37});
     expect(element('#game-settings-controls output').textContent).toBe('37%');
     click('#game-settings-close'); expect(document.activeElement).toBe(button('#menu-settings'));
     click('#start'); advanceFrames(2); openDrawer();
@@ -737,7 +736,7 @@ describe('fullscreen battle actual UI flows', () => {
     expect(element('#battle-menu-overlay').classList.contains('settings-underlay')).toBe(true);
     expect(input('sound').checked).toBe(true);
     expect(input('volume').value).toBe('37');
-    expect(input('crt').checked).toBe(false);
+    expect(document.querySelector('#game-settings-controls [name=crt]')).toBeNull();
     advanceFrames(5); expect(elapsed()).toBe(before);
     key('Escape',document.activeElement!);
     expect(document.activeElement).toBe(button('#battle-menu-settings'));
