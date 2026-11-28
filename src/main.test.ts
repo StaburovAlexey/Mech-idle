@@ -140,7 +140,8 @@ describe('main menu', () => {
     click('.menu-announcement-action');
     expect(element('#screen-heading').textContent).toBe('МАСТЕРСКАЯ');
     click('#workshop-back');
-    expect(element('.menu-announcement-slot').hidden).toBe(true);
+    expect(element('.menu-announcement-slot').hidden).toBe(false);
+    expect(element('.menu-announcement-slot').childElementCount).toBe(0);
     expect(element('.title-tip').textContent).toContain('Совет');
   });
 
@@ -150,7 +151,8 @@ describe('main menu', () => {
     click('.menu-announcement-close');
     expect(button('.menu-announcement-action').disabled).toBe(true);
     click('.menu-announcement-close');
-    expect(element('.menu-announcement-slot').hidden).toBe(true);
+    expect(element('.menu-announcement-slot').hidden).toBe(false);
+    expect(element('.menu-announcement-slot').childElementCount).toBe(0);
     expect(document.activeElement).toBe(button('#resume'));
   });
 
