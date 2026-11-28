@@ -91,12 +91,27 @@ describe('stat and economy rules', () => {
     s.run!.gold = 100; s = buyRunUpgrade(s, 'damage');
     expect(getStats(s).damage).toBeCloseTo(13.2);
   });
-  it('enforces independent level caps and insufficient crystal checks', () => {
-    let s = funded(100000); s.run!.levels.damage = 15;
-    expect(buyRunUpgrade(s, 'damage')).toBe(s);
-    const hangar = createState(); expect(buyMetaUpgrade(hangar, 'regen')).toBe(hangar);
-    hangar.profile.crystals = 100000; hangar.profile.meta.damage = 10;
-    expect(buyMetaUpgrade(hangar, 'damage')).toBe(hangar);
+  it('buys beyond both former limits, preserves prices, and round-trips the higher levels', () => {
+    const oldWorkshop = createState();
+    const cost = metaPrice('damage', 10);
+    oldWorkshop.profile.meta.damage = 10;
+    oldWorkshop.profile.crystals = cost - 1;
+    expect(buyMetaUpgrade(oldWorkshop, 'damage')).toBe(oldWorkshop);
+    oldWorkshop.profile.crystals++;
+    const workshop = buyMetaUpgrade(parseState(serializeState(oldWorkshop))!, 'damage');
+    expect(workshop.profile.crystals).toBe(0);
+    expect(parseState(serializeState(workshop))!.profile.meta.damage).toBe(11);
+
+    let run = funded(runPrice('damage', 15));
+    run.profile.meta.damage = 11;
+    run.run!.levels.damage = run.run!.activeLevels.damage = 15;
+    const next = buyRunUpgrade(parseState(serializeState(run))!, 'damage');
+    expect(next.run!.gold).toBe(0);
+    expect(parseState(serializeState(next))!.run!.activeLevels.damage).toBe(16);
+    expect(getStats(next).damage).toBeCloseTo(88.2);
+    next.run!.hp = 0;
+    const defeated = step(next);
+    expect(parseState(serializeState(defeated))!.result!.finalStats.damage).toBeCloseTo(88.2);
   });
 });
 
@@ -499,9 +514,9 @@ describe('boundaries, outcomes, and persistence', () => {
     const fixture = startRun(createState(), 66); fixture.run!.enemies = [enemy(fixture, 'ordinary', 7)];
     const valid = JSON.parse(serializeState(step(fixture)));
     const reject = (mutate: (s: any) => void) => { const s = structuredClone(valid); mutate(s); expect(parseState(JSON.stringify(s))).toBeNull(); };
-    reject(s => s.profile.crystals = -1); reject(s => s.profile.meta.damage = 11);
+    reject(s => s.profile.crystals = -1); reject(s => s.profile.meta.damage = Number.MAX_SAFE_INTEGER + 1);
     reject(s => s.run.hp = Infinity); reject(s => s.run.rngState = 0); reject(s => s.run.wave = 31);
-    reject(s => s.run.levels.damage = 16); reject(s => s.run.extra = true); reject(s => s.run.enemies.push(s.run.enemies[0]));
+    reject(s => s.run.levels.damage = 1.5); reject(s => s.run.extra = true); reject(s => s.run.enemies.push(s.run.enemies[0]));
     reject(s => s.run.enemies[0].kind = 'boss'); reject(s => s.run.enemies[0].x = WORLD_LIMIT + 1); reject(s => s.run.bullets[0].targetId = 'missing');
     reject(s => { s.run.kills = 2; s.run.paidKillIds = ['same', 'same']; });
   });

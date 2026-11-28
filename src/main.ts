@@ -4,7 +4,7 @@ import './workshop.css';
 import './workshop-gates.css';
 import { workshopMarkup } from './workshop-ui';
 import { titleMarkup } from './title-ui';
-import {createState,startRun,step,buyRunUpgrade,buyMetaUpgrade,setPaused,getStats,calculateStats,runPrice,metaPrice,STAT_KEYS,RUN_CAP,META_CAP,DT,type GameState,type StatKey} from './game';
+import {createState,startRun,step,buyRunUpgrade,buyMetaUpgrade,setPaused,getStats,calculateStats,runPrice,metaPrice,STAT_KEYS,DT,type GameState,type StatKey} from './game';
 import {SceneView,type SceneFrame, type SceneSpawn} from './scene';
 import {SaveRepository,PauseManager,TabLock} from './persistence';
 import {LocalPlatformAdapter} from './platform';
@@ -180,26 +180,25 @@ function renderUI(force=false){
  $('#arena-note').textContent=battle?'Автоогонь · покупайте модули за золото':'Один оплот. Тридцать волн.';
  const boss=run?.enemies.find(e=>e.kind==='boss');$('#boss').classList.toggle('hidden',!boss||!battle);if(boss)$('#boss-fill').style.width=`${boss.hp/boss.maxHp*100}%`;
  $('#shop-title').textContent=battle?'Боевые модули · золото':'Мастерская · кристаллы';$('#shop-note').textContent=battle?'Улучшения действуют сразу':'Усиливают старт будущих забегов';
- for(const stat of STAT_KEYS){const inWorkshop=screen==='menu'&&workshopOpen,btn=$<HTMLButtonElement>(inWorkshop?`[data-workshop-stat="${stat}"]`:`#upgrade-${stat}`),level=battle?run?.levels[stat]??0:state.profile.meta[stat],cap=battle?RUN_CAP:META_CAP,price=battle?runPrice(stat,level):metaPrice(stat,level),budget=battle?run?.gold??0:state.profile.crystals;
+ for(const stat of STAT_KEYS){const inWorkshop=screen==='menu'&&workshopOpen,btn=$<HTMLButtonElement>(inWorkshop?`[data-workshop-stat="${stat}"]`:`#upgrade-${stat}`),level=battle?run?.levels[stat]??0:state.profile.meta[stat],price=battle?runPrice(stat,level):metaPrice(stat,level),budget=battle?run?.gold??0:state.profile.crystals;
  let nextValue=0,current=battle?stats[stat]:calculateStats(state.profile.meta)[stat];
  if(battle&&run){const nextLevel={...run.levels,[stat]:level+1};nextValue=calculateStats(state.profile.meta,nextLevel)[stat];}else nextValue=calculateStats({...state.profile.meta,[stat]:level+1})[stat];
- const maxed=level>=cap;
- btn.disabled=maxed||budget<price||(!battle&&!!run)||screen==='result'||fatal||saveBlocked||!writable||battleMenu.open;
- const accessible=`${labels[stat].title}, уровень ${level} из ${cap}, сейчас ${fmt(current)} ${labels[stat].unit}, ${maxed?'максимальный уровень':`следующий: ${fmt(nextValue)} ${labels[stat].unit}, цена: ${price} ${battle?'золота':'кристаллов'}`}`;
+ btn.disabled=budget<price||(!battle&&!!run)||screen==='result'||fatal||saveBlocked||!writable||battleMenu.open;
+ const accessible=`${labels[stat].title}, уровень ${level}, сейчас ${fmt(current)} ${labels[stat].unit}, следующий: ${fmt(nextValue)} ${labels[stat].unit}, цена: ${price} ${battle?'золота':'кристаллов'}`;
  btn.setAttribute('aria-label',accessible);
  if(inWorkshop){
   const row=$(`#workshop-${stat}`);
   row.querySelector('.workshop-current')!.textContent=`${fmt(current)} ${labels[stat].unit}`;
-  row.querySelector('.workshop-next')!.textContent=maxed?'':`→ ${fmt(nextValue)} ${labels[stat].unit}`;
-  row.querySelector('.workshop-level')!.textContent=`${level}/${cap}`;
-  btn.querySelector('span')!.textContent=maxed?'МАКС':`◇ ${coins(price)}`;
+  row.querySelector('.workshop-next')!.textContent=`→ ${fmt(nextValue)} ${labels[stat].unit}`;
+  row.querySelector('.workshop-level')!.textContent=String(level);
+  btn.querySelector('span')!.textContent=`◇ ${coins(price)}`;
   continue;
  }
- btn.classList.toggle('meta',!battle);btn.classList.toggle('affordable',budget>=price&&!maxed&&(battle||!run));
- btn.querySelector('.upgrade-level')!.textContent=`${level}/${cap}`;
+ btn.classList.toggle('meta',!battle);btn.classList.toggle('affordable',budget>=price&&(battle||!run));
+ btn.querySelector('.upgrade-level')!.textContent=String(level);
  btn.querySelector('.upgrade-value')!.innerHTML=`${fmt(current)}<small>${labels[stat].unit}</small>`;
- btn.querySelector('.upgrade-price')!.textContent=level>=cap?'МАКС':`${battle?'◈':'◇'} ${coins(price)}`;
- btn.querySelector('.upgrade-sub')!.textContent=level>=cap?'Максимальный уровень':`Следующий: ${fmt(nextValue)} ${labels[stat].unit}`;
+ btn.querySelector('.upgrade-price')!.textContent=`${battle?'◈':'◇'} ${coins(price)}`;
+ btn.querySelector('.upgrade-sub')!.textContent=`Следующий: ${fmt(nextValue)} ${labels[stat].unit}`;
  }
  if(layoutChanged)scene?.resize();
 }

@@ -42,8 +42,6 @@ export type GameEvent =
   | { type: 'runEnded'; outcome: 'defeat' | 'victory' };
 export interface GameState { version: 1; profile: Profile; run: Run | null; result: RunResult | null; events: GameEvent[] }
 export const emptyLevels = (): Levels => ({ damage: 0, maxHp: 0, attackSpeed: 0, regen: 0 });
-export const RUN_CAP = 15;
-export const META_CAP = 10;
 const START_PRICE: Record<StatKey, number> = { damage: 10, maxHp: 10, attackSpeed: 15, regen: 12 };
 const FIRST_WAVE = { ordinary: 1, fast: 4, ranged: 6 } as const;
 // Keep the original HP values for validating saves from before the rebalance.
@@ -130,7 +128,7 @@ function applyRunLevels(state: GameState): void {
 /** Gold and all resulting stat changes are committed together, in any run phase. */
 export function buyRunUpgrade(state: GameState, stat: StatKey): GameState {
   const run = state.run;
-  if (!run || !STAT_KEYS.includes(stat) || run.levels[stat] >= RUN_CAP || run.gold < runPrice(stat, run.levels[stat])) return state;
+  if (!run || !STAT_KEYS.includes(stat) || run.gold < runPrice(stat, run.levels[stat])) return state;
   const next = clone(state), r = next.run!;
   r.gold -= runPrice(stat, r.levels[stat]);
   r.levels[stat]++;
@@ -139,7 +137,7 @@ export function buyRunUpgrade(state: GameState, stat: StatKey): GameState {
 }
 /** Permanent workshop purchases are available only between runs, so run base stats cannot change mid-combat. */
 export function buyMetaUpgrade(state: GameState, stat: StatKey): GameState {
-  if (state.run || !STAT_KEYS.includes(stat) || state.profile.meta[stat] >= META_CAP || state.profile.crystals < metaPrice(stat, state.profile.meta[stat])) return state;
+  if (state.run || !STAT_KEYS.includes(stat) || state.profile.crystals < metaPrice(stat, state.profile.meta[stat])) return state;
   const next = clone(state);
   next.profile.crystals -= metaPrice(stat, next.profile.meta[stat]);
   next.profile.meta[stat]++;
@@ -324,7 +322,7 @@ function advanceTick(state: GameState): void {
   if (!target || !inRange(target)) r.shotCooldown = Math.max(0, r.shotCooldown);
   else if (r.shotCooldown <= 1e-9) {
     const bullet: Bullet = { id: newId(r), targetId: target.id, x: 0, y: 0, damage: stats.damage, speed: 16 };
-    r.bullets.push(bullet); r.shotCooldown += 1 / stats.attackSpeed;
+    r.bullets.push(bullet); r.shotCooldown = Math.max(0, r.shotCooldown + 1 / stats.attackSpeed);
     state.events.push({ type: 'shot', id: bullet.id, targetId: target.id, x: 0, y: 0, targetX: target.x, targetY: target.y });
   }
   const surviving: Bullet[] = [];
@@ -442,12 +440,12 @@ const num = (v: unknown, min = 0, max = 1e9): v is number => typeof v === 'numbe
 const int = (v: unknown, min = 0, max = 1e9): v is number => num(v, min, max) && Number.isInteger(v);
 const str = (v: unknown): v is string => typeof v === 'string' && v.length > 0 && v.length < 100;
 const keys = (v: Record<string, any>, names: string[]) => Object.keys(v).length === names.length && names.every(n => Object.hasOwn(v, n));
-function validLevels(v: unknown, cap: number): v is Levels { return object(v) && keys(v, [...STAT_KEYS]) && STAT_KEYS.every(k => int(v[k], 0, cap)); }
-function validStats(v: unknown): v is Stats { return object(v) && keys(v, ['damage','maxHp','attackSpeed','regen','range']) && num(v.damage, 10, 80) && num(v.maxHp, 100, 800) && num(v.attackSpeed, 1, 5) && num(v.regen, 0, 9.5) && (v.range === TURRET_RANGE || v.range === 10); }
+function validLevels(v: unknown): v is Levels { return object(v) && keys(v, [...STAT_KEYS]) && STAT_KEYS.every(k => Number.isSafeInteger(v[k]) && v[k] >= 0); }
+function validStats(v: unknown): v is Stats { return object(v) && keys(v, ['damage','maxHp','attackSpeed','regen','range']) && num(v.damage, 10, Number.MAX_VALUE) && num(v.maxHp, 100, Number.MAX_VALUE) && num(v.attackSpeed, 1, Number.MAX_VALUE) && num(v.regen, 0, Number.MAX_VALUE) && (v.range === TURRET_RANGE || v.range === 10); }
 export function validateState(value: unknown, allowLegacy = false): value is GameState {
   if (!object(value) || !keys(value, ['version','profile','run','result','events']) || value.version !== 1 || !Array.isArray(value.events) || value.events.length !== 0) return false;
   const p = value.profile;
-  if (!object(p) || !keys(p, ['crystals','meta','runCounter']) || !int(p.crystals) || !validLevels(p.meta, META_CAP) || !int(p.runCounter)) return false;
+  if (!object(p) || !keys(p, ['crystals','meta','runCounter']) || !int(p.crystals) || !validLevels(p.meta) || !int(p.runCounter)) return false;
   if (value.result !== null) {
     const r = value.result;
     if (!object(r) || !keys(r, ['outcome','runId','wave','completedWaves','kills','earnedGold','earnedCrystals','duration','finalStats']) || !['defeat','victory'].includes(r.outcome) || !str(r.runId) || !int(r.wave,1,30) || !int(r.completedWaves,0,30) || !int(r.kills,0,MAX_RUN_KILLS) || !int(r.earnedGold,0,MAX_RUN_GOLD) || !int(r.earnedCrystals,0,30) || r.earnedCrystals !== r.completedWaves || !num(r.duration,0,1e7) || !validStats(r.finalStats) || (r.outcome === 'victory' && (r.wave !== 30 || r.completedWaves !== 30)) || (r.outcome === 'defeat' && r.completedWaves !== r.wave - 1)) return false;
@@ -462,7 +460,7 @@ export function validateState(value: unknown, allowLegacy = false): value is Gam
   if (circle && (r.spawnMode !== 'circle' || Object.hasOwn(r, 'spawnGeometry') || Object.hasOwn(r, 'nextArrival'))) return false;
   if (Object.hasOwn(r, 'spawnGeometry') !== Object.hasOwn(r, 'nextArrival')) return false;
   if (Object.hasOwn(r, 'spawnGeometry') && !validSpawnGeometry(r.spawnGeometry) || Object.hasOwn(r, 'nextArrival') && !num(r.nextArrival, 0, 1e7)) return false;
-  if (!str(r.id) || r.id !== `run-${p.runCounter}-${r.seed}` || !int(r.seed,1,0xffffffff) || !int(r.rngState,1,0xffffffff) || !int(r.wave,1,30) || !['combat','interwave'].includes(r.phase) || typeof r.paused !== 'boolean' || !num(r.time,0,1e7) || !int(r.tick,0,3e8) || Math.abs(r.time-r.tick*DT)>1e-6 || !num(r.phaseTime,0,1e7) || !validLevels(r.levels,RUN_CAP) || !validLevels(r.activeLevels,RUN_CAP) || STAT_KEYS.some(k=>r.activeLevels[k]>r.levels[k])) return false;
+  if (!str(r.id) || r.id !== `run-${p.runCounter}-${r.seed}` || !int(r.seed,1,0xffffffff) || !int(r.rngState,1,0xffffffff) || !int(r.wave,1,30) || !['combat','interwave'].includes(r.phase) || typeof r.paused !== 'boolean' || !num(r.time,0,1e7) || !int(r.tick,0,3e8) || Math.abs(r.time-r.tick*DT)>1e-6 || !num(r.phaseTime,0,1e7) || !validLevels(r.levels) || !validLevels(r.activeLevels) || STAT_KEYS.some(k=>r.activeLevels[k]>r.levels[k])) return false;
   const stats = calculateStats(p.meta,r.activeLevels);
   if (!num(r.hp,Number.MIN_VALUE,stats.maxHp + 1e-6) || !int(r.gold,0,MAX_RUN_GOLD) || !int(r.spawned,0,waveConfig(r.wave).count) || !num(r.spawnCooldown,-1e7,telegraphed ? 7.71 : 1.71) || !num(r.shotCooldown,0,1.01) || !int(r.nextEntityId,1,100000) || !int(r.lastSector,-1,11) || !int(r.sectorStreak,0,2) || !int(r.lastPaidWave,0,29) || !int(r.kills,0,MAX_RUN_KILLS) || !int(r.earnedGold,0,MAX_RUN_GOLD) || !int(r.earnedCrystals,0,29) || r.lastPaidWave!==r.earnedCrystals || r.gold>r.earnedGold || r.lastPaidWave !== (r.phase === 'combat' ? r.wave-1 : r.wave) || (r.phase === 'interwave' && (r.wave===30 || r.phaseTime>=2.000001))) return false;
   if (!Array.isArray(r.enemies) || r.enemies.length>30 || !Array.isArray(r.warnings) || r.warnings.length>(circle ? telegraphed ? MAX_SPAWN_GROUP : 1 : 30) || r.warnings.length>r.spawned || !Array.isArray(r.bullets) || r.bullets.length>100 || !Array.isArray(r.paidKillIds) || r.paidKillIds.length!==r.kills || new Set(r.paidKillIds).size!==r.paidKillIds.length) return false;

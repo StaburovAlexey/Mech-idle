@@ -180,14 +180,15 @@ describe('main menu', () => {
     expect(element('.shell').inert).toBe(false);
     expect(document.activeElement).toBe(element('#workshop-heading'));
   });
-  it('shows unchanged live workshop prices and disables unaffordable or capped upgrades', async () => {
+  it('shows current levels and the next price even at the former workshop cap', async () => {
     const profile = createState(); profile.profile.crystals = 0; profile.profile.meta.damage = 10;
     await boot(profile);
     click('#open-workshop');
     expect(button('[data-workshop-stat="damage"]').disabled).toBe(true);
-    expect(element('[data-workshop-stat="damage"]').textContent).toBe('МАКС');
-    expect(element('[data-workshop-stat="damage"]').getAttribute('aria-label')).not.toContain('цена');
-    expect(element('#workshop-damage .workshop-next').textContent).toBe('');
+    expect(element('[data-workshop-stat="damage"]').textContent).toBe('◇ 173');
+    expect(element('[data-workshop-stat="damage"]').getAttribute('aria-label')).toContain('цена: 173');
+    expect(element('#workshop-damage .workshop-next').textContent).toBe('→ 21 урона');
+    expect(element('#workshop-damage .workshop-level').textContent).toBe('10');
     for (const [stat, next] of [['maxHp', '→ 110 HP'], ['attackSpeed', '→ 1,1 /с'], ['regen', '→ 0,2 HP/с']]) {
       const purchase = button(`[data-workshop-stat="${stat}"]`);
       expect(purchase.disabled).toBe(true);
@@ -416,7 +417,7 @@ describe('fullscreen battle actual UI flows', () => {
     for (const stat of STAT_KEYS) {
       expect(stats[stat]).toBeGreaterThan(oldStats[stat]);
       expect(after.run!.activeLevels[stat]).toBe(1);
-      expect(element(`#upgrade-${stat} .upgrade-level`).textContent).toBe('1/15');
+      expect(element(`#upgrade-${stat} .upgrade-level`).textContent).toBe('1');
       expect(element(`#upgrade-${stat} .upgrade-value`).textContent).toContain(
         Number.isInteger(stats[stat]) ? String(stats[stat]) : stats[stat].toFixed(1).replace('.', ','),
       );
