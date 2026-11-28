@@ -70,6 +70,20 @@ describe('real enemy instance rendering', () => {
     view.dispose();
   });
 
+  it('doubles the ranged and boss rigs and raises their health bars without affecting lighter enemies', () => {
+    const view=cpuScene(), current=frame(), mat=new THREE.Matrix4();
+    for(const e of current.enemies){e.hp=8;e.attackPhase='approach';}
+    view.render(current,0);
+    current.enemies.forEach((enemy,i)=>{
+      const scale=enemy.kind==='ranged'||enemy.kind==='boss'?2:1;
+      view.batches[enemy.kind].parts[0].mesh.getMatrixAt(0,mat);
+      expect(new THREE.Vector3().setFromMatrixScale(mat).x).toBeCloseTo(scale);
+      view.hpBack.getMatrixAt(i,mat);
+      expect(new THREE.Vector3().setFromMatrixPosition(mat).y).toBeCloseTo(view.batches[enemy.kind].model.height*scale+.25);
+    });
+    view.dispose();
+  });
+
   it('freezes actual instance matrices, particles and firing effects when paused', () => {
     const view = cpuScene(), current = frame(); view.render(current, .016);
     view.particles.push({ x: 0, y: 1, z: 0, vx: 1, vy: 1, vz: 1, life: 1, max: 1, color: 0xffffff });
@@ -90,7 +104,7 @@ describe('real enemy instance rendering', () => {
     view.render({ ...current, enemies: [enemy], paused: true, elapsed: 20.3 }, .016);
     expect(view.portals.mesh.count).toBe(1);
     expect(view.portals.timing.getX(0)).toBeCloseTo(.3);
-    expect(place).toHaveBeenCalledWith(enemy, expect.any(Number), expect.any(Number), expect.any(Number), true, expect.any(Number));
+    expect(place).toHaveBeenCalledWith(enemy, expect.any(Number), expect.any(Number), expect.any(Number), true, expect.any(Number), 1);
     view.dispose();
   });
 

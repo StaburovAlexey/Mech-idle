@@ -1,3 +1,4 @@
+import { chainPanelSheet } from './chain-panel';
 import { currencyCounter, currencyIcon } from './currency-ui';
 import { armoredScrollMarkup, bindArmoredScrollbars } from './armored-scroll';
 import { COMBAT_UPGRADES, COMBAT_KEYS, combatValueLabel, combatUpgradePrice, type CombatUpgrade } from './combat-upgrades';
@@ -104,7 +105,7 @@ export const battleHudMarkup = `<div class="battle-resources" aria-label="Рес
  <div class="battle-resource health" role="group" aria-label="Здоровье корпуса"><svg class="battle-hp-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 21 3.7 13a5.4 5.4 0 0 1 7.7-7.6l.6.6.6-.6a5.4 5.4 0 0 1 7.7 7.6Z"/></svg><div class="health-track" aria-hidden="true"><div class="health-fill" id="battle-hp-fill"></div></div><strong id="battle-hp">100 / 100</strong></div>
  <button type="button" class="battle-menu-toggle" id="battle-menu-toggle" aria-label="Открыть меню боя" aria-haspopup="dialog" aria-expanded="false" aria-controls="battle-menu-overlay"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="m10 2-.6 2.5-2 .9-2.4-1.1-2 3.4 2 1.7v2.2l-2 1.7 2 3.4 2.4-1.1 2 .9.6 2.5h4l.6-2.5 2-.9 2.4 1.1 2-3.4-2-1.7V9.4l2-1.7-2-3.4-2.4 1.1-2-.9L14 2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" transform="translate(0 1.5)"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button></div><div id="battle-notice" class="battle-notice hidden" role="status"></div>`;
 
-export const battleMenuMarkup = armoredScrollMarkup(`<section class="battle-menu-panel" role="dialog" aria-modal="true" aria-labelledby="battle-menu-title" tabindex="-1">
+export const battleMenuMarkup = chainPanelSheet(`<section class="battle-menu-panel chain-panel-content" role="dialog" aria-modal="true" aria-labelledby="battle-menu-title" tabindex="-1">
  <div class="battle-menu-head"><h2 id="battle-menu-title">Меню боя</h2><div class="eyebrow">Управление оплотом</div><button class="battle-menu-close" id="battle-menu-close" aria-label="Закрыть меню боя"><span class="battle-close-icon" aria-hidden="true"></span></button></div>
  <p class="battle-menu-status" id="battle-menu-status">Бой остановлен, пока открыто меню</p>
  <div class="menu-grid"><div><span>Урон</span><strong id="menu-damage"></strong></div><div><span>Темп</span><strong id="menu-speed"></strong></div><div><span>Ремонт</span><strong id="menu-regen"></strong></div><div><span>Пройдено</span><strong id="menu-progress"></strong></div></div>

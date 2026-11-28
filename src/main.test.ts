@@ -261,10 +261,10 @@ describe('main menu', () => {
     expect(element('.menu-announcement strong').textContent).toBe('Спецпредложение');
     click('.menu-announcement-action');
     expect(element('#special-offer-heading').textContent).toBe('Спецпредложение');
-    expect(element('.chain-panel-sheet').querySelectorAll('.chain-panel-chain')).toHaveLength(2);
+    expect(element('#modal-root .chain-panel-sheet').querySelectorAll('.chain-panel-chain')).toHaveLength(2);
     expect(element('.shell').inert).toBe(true);
     key('Escape',button('#special-offer-close'));
-    expect(document.querySelector('.chain-panel-layer')).toBeNull();
+    expect(document.querySelector('#modal-root .chain-panel-layer')).toBeNull();
     expect(element('.shell').inert).toBe(false);
     expect(document.activeElement).toBe(button('#start'));
     expect(element('.menu-announcement-slot').childElementCount).toBe(0);
@@ -425,8 +425,8 @@ describe('main menu', () => {
     expect(fakes.render.mock.calls.at(-1)![1]).toBe(0);
     window.dispatchEvent(new Event('focus'));
     expect(element('#module-detail-cooldown').textContent).toBe('10 с');
-    expect(element('.chain-panel-sheet').textContent).not.toMatch(/выключен|включён/i);
-    expect(element('.chain-panel-sheet').querySelectorAll('.chain-panel-chain')).toHaveLength(2);
+    expect(element('#modal-root .chain-panel-sheet').textContent).not.toMatch(/выключен|включён/i);
+    expect(element('#modal-root .chain-panel-sheet').querySelectorAll('.chain-panel-chain')).toHaveLength(2);
     expect(saved().profile.crystals).toBe(30);
     expect(button('#module-detail-buy').textContent).toBe('Купить за  8');
     click('#module-detail-buy');expect(saved().profile.crystals).toBe(22);
@@ -665,6 +665,8 @@ describe('fullscreen battle actual UI flows', () => {
 
   it('traps Tab and Shift+Tab, closes only on the backdrop, and supports repeated menu cycles', async () => {
     await boot(); click('#start'); openDrawer();
+    expect(element('#battle-menu-overlay').querySelectorAll('.chain-panel-chain')).toHaveLength(2);
+    expect(element('#battle-menu-overlay .armored-scroll-rail')).not.toBeNull();
     const first = button('#battle-menu-close'), last = button('#battle-menu-abandon');
     first.focus();
     expect(key('Tab', first, { shiftKey: true }).defaultPrevented).toBe(true);
