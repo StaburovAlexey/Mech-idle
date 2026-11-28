@@ -8,7 +8,8 @@ import { createHash } from 'node:crypto';
 const css = readFileSync(`${process.cwd()}/src/style.css`, 'utf8');
 // Inspect authored rules, including every responsive override. This deliberately
 // does not claim CSS layout, rendered pixels, or actual browser asset loading.
-const rules = [...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]+)\}/g)].map(match => ({
+const chainCss = readFileSync(`${process.cwd()}/src/chain-panel.css`, 'utf8');
+const rules = [...(css + '\n' + chainCss).replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]+)\}/g)].map(match => ({
   selectors: match[1].split(',').map(selector => selector.trim().replace(/\s+/g, ' ')),
   declarations: Object.fromEntries(match[2].split(';').filter(value => value.trim()).map(value => {
     const colon = value.indexOf(':');
@@ -77,10 +78,10 @@ describe('battle controls and keyboard target semantics', () => {
     const drawer = document.querySelector('[role="dialog"]')!;
     expect(drawer.getAttribute('aria-modal')).toBe('true');
     expect(document.getElementById(drawer.getAttribute('aria-labelledby')!)?.textContent).toBeTruthy();
-    for (const suffix of ['close', 'return', 'pause', 'sound', 'help', 'save', 'abandon']) {
+    for (const suffix of ['close', 'return', 'sound', 'save', 'abandon']) {
       expect(drawer.querySelector(`#battle-menu-${suffix}`)).not.toBeNull();
     }
-    expect(document.querySelectorAll('button').length).toBe(7);
+    expect(document.querySelectorAll('button')).toHaveLength(5);
   });
 
   it('exports the same four complete upgrade controls used by the game and review fixture', () => {
@@ -191,8 +192,6 @@ describe('battle layout stylesheet contract (static, not a browser layout measur
 describe('DRIFTWORKS skin and asset provenance', () => {
   it('keeps the resource row compact and uses the pack plate as a nine-slice surface', () => {
     expect(combinedRulesFor('.battle-resources')).toMatchObject({height:'64px','border-image':'var(--dw-plate) 14 fill / 7px stretch'});
-    expect(combinedRulesFor('.battle-menu-panel')['border-image']).toBe('var(--dw-plate) 14 fill / 14px stretch');
-    expect(combinedRulesFor('.battle-menu-panel').overflow).toBe('auto');
     expect(combinedRulesFor('.battle-resources::before').display).toBe('none');
   });
 
@@ -204,17 +203,13 @@ describe('DRIFTWORKS skin and asset provenance', () => {
     }
   });
 
-  it('keeps a compact two-column menu, a pack cross icon and 44px touch targets', () => {
+  it('reuses title controls and keeps the chained sheet scrollable with 44px touch targets', () => {
     document.body.innerHTML=battleMenuMarkup;
-    expect(document.querySelector('#battle-menu-close .battle-close-icon')?.getAttribute('aria-hidden')).toBe('true');
-    expect(document.querySelector('.battle-menu-panel > .hint')).toBeNull();
-    expect(document.querySelector('#battle-menu-save')?.getAttribute('aria-label')).toContain('Сохранить забег');
-    expect(combinedRulesFor('.battle-menu-panel .menu-actions')).toMatchObject({display:'grid','grid-template-columns':'repeat(2,minmax(0,1fr))'});
-    expect(combinedRulesFor('.battle-menu-panel .menu-actions button')['min-height']).toBe('44px');
-    expect(combinedRulesFor('.battle-menu-close')).toMatchObject({'min-width':'44px','min-height':'44px'});
-    expect(combinedRulesFor('.battle-menu-panel #battle-menu-return')['grid-column']).toBe('1/-1');
-    expect(combinedRulesFor('.battle-close-icon').background).toContain('/driftworks/close.svg');
-    expect(combinedRulesFor('.battle-close-icon')).toMatchObject({width:'18px',height:'18px'});
+    expect(document.querySelector('#battle-menu-close')?.getAttribute('aria-label')).toBe('Закрыть меню боя');
+    expect(document.querySelector('#battle-menu-return')?.classList.contains('title-primary')).toBe(true);
+    expect(document.querySelectorAll('.chain-panel-sheet .chain-panel-content button.title-button > span')).toHaveLength(5);
+    expect(combinedRulesFor('.chain-panel-content').overflow).toBe('auto');
+    expect(combinedRulesFor('.battle-menu-panel .title-button')['min-height']).toBe('44px');
   });
 
   it('has every CSS-referenced sprite present, licensed and byte-identical to its provenance hash', () => {

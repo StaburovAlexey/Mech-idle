@@ -618,35 +618,25 @@ describe('fullscreen battle actual UI flows', () => {
     advanceFrames(3); expect(elapsed()).toBeGreaterThan(before);
   });
 
-  it('closing via Escape from a focused menu button preserves an existing user pause', async () => {
+  it('Space opens the same chain menu, and Escape resumes without a separate pause screen', async () => {
     await boot(); click('#start'); advanceFrames(2);
-    key(' '); expect(fakes.pause?.reasons.has('user')).toBe(true);
     const before = elapsed();
-    openDrawer();
+    expect(key(' ').defaultPrevented).toBe(true);
+    expect(hidden('#battle-menu-overlay')).toBe(false);
+    expect(fakes.pause?.reasons.has('battleMenu')).toBe(true);
+    expect(fakes.pause?.reasons.has('user')).toBe(false);
+    const overlay = element('#battle-menu-overlay');
+    expect([...overlay.querySelectorAll('button')].map(button => button.id)).toEqual([
+      'battle-menu-close', 'battle-menu-return', 'battle-menu-sound', 'battle-menu-save', 'battle-menu-abandon',
+    ]);
+    expect(overlay.querySelectorAll('button.title-button')).toHaveLength(5);
+    expect(overlay.textContent).not.toMatch(/Управление оплотом|Бой остановлен|Урон|Пауза|Как играть/);
+    advanceFrames(8); expect(elapsed()).toBe(before);
     button('#battle-menu-sound').focus();
     expect(key('Escape', document.activeElement!).defaultPrevented).toBe(true);
     expect(hidden('#battle-menu-overlay')).toBe(true);
-    expect(fakes.pause?.reasons.has('user')).toBe(true);
-    expect(hidden('#paused')).toBe(false);
-    advanceFrames(8); expect(elapsed()).toBe(before);
-    click('#unpause'); advanceFrames(3);
-    expect(elapsed()).toBeGreaterThan(before);
-  });
-
-  it('manual pause controls never resume while the drawer remains open', async () => {
-    await boot(); click('#start'); advanceFrames(2); openDrawer();
-    const before = elapsed();
-    click('#battle-menu-pause');
-    expect(fakes.pause?.reasons.has('user')).toBe(true);
-    expect(element('#battle-menu-return').textContent).toBe('Закрыть меню');
-    click('#battle-menu-return'); advanceFrames(3);
-    expect(elapsed()).toBe(before);
-    openDrawer(); click('#battle-menu-pause');
-    expect(fakes.pause?.reasons.has('user')).toBe(false);
-    expect(fakes.pause?.reasons.has('battleMenu')).toBe(true);
-    advanceFrames(3); expect(elapsed()).toBe(before);
-    click('#battle-menu-return'); advanceFrames(3);
-    expect(elapsed()).toBeGreaterThan(before);
+    expect(document.querySelector('#paused')).toBeNull();
+    advanceFrames(3); expect(elapsed()).toBeGreaterThan(before);
   });
 
   it('Escape opens the menu from a focused upgrade and repeat/modified hotkeys do not fire', async () => {
@@ -733,13 +723,13 @@ describe('fullscreen battle actual UI flows', () => {
     expect(element('#upgrades').textContent).not.toContain('Заказано');
   });
 
-  it('toggles sound and handles nested help without losing the menu pause or inert background', async () => {
+  it('toggles sound and handles the nested abandon confirmation without losing the menu pause or inert background', async () => {
     await boot(fundedRun()); click('#resume'); advanceFrames(2); openDrawer();
     click('#battle-menu-sound');
     expect(fakes.soundToggle).toHaveBeenCalledOnce();
     expect(element('#battle-menu-sound').textContent).toContain('включён');
     expect(fakes.soundSuspend).toHaveBeenCalled();
-    button('#battle-menu-help').focus(); click('#battle-menu-help');
+    button('#battle-menu-abandon').focus(); click('#battle-menu-abandon');
     expect(element('.shell').inert).toBe(true);
     expect(fakes.pause?.reasons.has('dialog')).toBe(true);
     const before = elapsed();
@@ -754,9 +744,9 @@ describe('fullscreen battle actual UI flows', () => {
     expect(element('#upgrades').inert).toBe(true);
     expect(fakes.pause?.reasons.has('dialog')).toBe(false);
     expect(fakes.pause?.reasons.has('battleMenu')).toBe(true);
-    expect(document.activeElement).toBe(button('#battle-menu-help'));
+    expect(document.activeElement).toBe(button('#battle-menu-abandon'));
     advanceFrames(3); expect(elapsed()).toBe(before);
-    click('#battle-menu-help'); key('Escape', document.activeElement!);
+    click('#battle-menu-abandon'); key('Escape', document.activeElement!);
     expect(element('#modal-root').children.length).toBe(0);
     expect(hidden('#battle-menu-overlay')).toBe(false);
     expect(element('.shell').inert).toBe(false);
@@ -806,18 +796,6 @@ describe('fullscreen battle actual UI flows', () => {
     expect(element('#battle-gold').textContent).toBe('200');
     expect(fakes.pause?.paused).toBe(false);
     expect(saved().run!.id).toBe(initial.run!.id);
-  });
-
-  it('save and exit does not erase a manual pause when the saved run is resumed', async () => {
-    await boot(); click('#start'); advanceFrames(2); openDrawer();
-    click('#battle-menu-pause'); click('#battle-menu-save');
-    expect(fakes.pause?.reasons.has('user')).toBe(true);
-    click('#resume');
-    expect(hidden('#paused')).toBe(false);
-    expect(document.activeElement).toBe(button('#unpause'));
-    const before = elapsed();
-    advanceFrames(4); expect(elapsed()).toBe(before);
-    click('#unpause'); advanceFrames(3); expect(elapsed()).toBeGreaterThan(before);
   });
 
   it('abandon cancel retains the run and confirm removes only run progress, preserving crystals and meta', async () => {

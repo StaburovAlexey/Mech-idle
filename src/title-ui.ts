@@ -3,8 +3,8 @@ import { TITLE_TIPS } from './title-tips';
 import { armoredFrame } from './armored-frame';
 
 // Native controls stay separate from the decorative art and retain normal focus/disabled behavior.
-export const titleButton = (id: string, label: string, primary = false) =>
-  `<button type="button" class="title-button${primary ? ' title-primary' : ''}" id="${id}"><span>${label}</span></button>`;
+export const titleButton = (id: string, label: string, primary = false, ariaLabel?: string) =>
+  `<button type="button" class="title-button${primary ? ' title-primary' : ''}" id="${id}"${ariaLabel ? ` aria-label="${ariaLabel}"` : ''}><span>${label}</span></button>`;
 
 export const screenHeader = (title: string) => `
   <header class="screen-header">
