@@ -2,6 +2,7 @@
 export type PickupKind = 'parts' | 'scrap';
 export interface Pickup { id: string; kind: PickupKind; x: number; y: number; born: number }
 export const PICKUP_LAND_SECONDS = .65;
+export const PICKUP_LIFETIME_SECONDS = 10;
 
 export const PICKUP_KINDS = ['parts', 'scrap'] as const;
 
@@ -18,6 +19,9 @@ export function pickupDrops(seed: number, id: string): PickupKind[] {
 }
 
 export const pickupLanded = (pickup: Pickup, time: number) => time >= pickup.born + PICKUP_LAND_SECONDS - 1e-8;
+
+export const pickupExpired = (pickup: Pickup, time: number) =>
+ time >= pickup.born + PICKUP_LAND_SECONDS + PICKUP_LIFETIME_SECONDS - 1e-8;
 
 export function pickupPose(pickup: Pickup, time: number, reduced = false) {
  const age = Math.max(0, time - pickup.born);
@@ -37,6 +41,7 @@ export function groupPickups(items: readonly Pickup[], time: number) {
  const piles: Pickup[][] = [];
  const airborne: Pickup[] = [];
  for (const item of items) {
+  if (pickupExpired(item,time)) continue;
   if (!pickupLanded(item,time)) {airborne.push(item);continue;}
   const pile = piles.find(([anchor]) => Math.hypot(anchor.x-item.x,anchor.y-item.y) <= 2.6);
   if (pile) pile.push(item);

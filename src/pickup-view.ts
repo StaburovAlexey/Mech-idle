@@ -3,9 +3,9 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { currencyLabels } from './currency-ui';
 import { groupPickups, PICKUP_KINDS, pickupPose, type Pickup, type PickupKind } from './pickup';
 import { sandHeight } from './sandTerrain';
-import type { GameplayViewport } from './viewport';
+import { FIELD_HALF_WIDTH, type GameplayViewport } from './viewport';
 
-const adGlyph = '<svg viewBox="0 0 24 18" fill="none" aria-hidden="true"><rect x="1" y="1" width="22" height="16" rx="1.5" stroke="currentColor" stroke-width="2"/><path d="M5 1v16M19 1v16M1 6h4M1 12h4M19 6h4M19 12h4" stroke="currentColor" stroke-width="1.5"/><path d="m9 5 7 4-7 4Z" fill="currentColor"/></svg>';
+const adGlyph = '<svg viewBox="0 0 24 18" fill="none" aria-hidden="true"><rect x="1" y="1" width="22" height="16" rx="1.5" fill="white" stroke="currentColor" stroke-width="2"/><path d="M5 1v16M19 1v16M1 6h4M1 12h4M19 6h4M19 12h4" stroke="currentColor" stroke-width="1.5"/><path d="m9 5 7 4-7 4Z" fill="currentColor"/></svg>';
 type Primitive = { mesh: THREE.Mesh; matrix: THREE.Matrix4 };
 type Batch = { source: Primitive[]; meshes: THREE.InstancedMesh[]; capacity: number };
 
@@ -90,7 +90,11 @@ export class PickupView {
     button.title = 'Подобрать: ' + reward + ' (тестовый режим, без рекламы)';
     button.setAttribute('aria-label',button.title);
    }
-   place(button,{left:Math.max(field.x+22,Math.min(field.x+field.width-22,pos.left)),top:Math.max(22,pos.top-32)});
+   const top = Math.max(0,pos.top-54);
+   const pixelsPerUnit = field.width / (2*FIELD_HALF_WIDTH);
+   button.style.width = Math.max(44,2*(spread+.75)*pixelsPerUnit+16) + 'px';
+   button.style.height = Math.max(44,pos.top-top+Math.max(16,.7*pixelsPerUnit+10)) + 'px';
+   place(button,{left:Math.max(field.x+22,Math.min(field.x+field.width-22,pos.left)),top});
   }
   for (const [kind,batch] of this.batches) {
    const group = models.filter(model => model.item.kind === kind);
