@@ -246,7 +246,7 @@ export class SceneView {
     city.rotation.y = CITY_YAW;
     this.scene.add(city);
     const concrete = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .96 });
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshStandardMaterial({ color: 0x99752b, roughness: 1 }));
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshStandardMaterial({ color: 0x9c6b27, roughness: 1 }));
     ground.name = 'city-continuous-ground';
     ground.rotation.x = -Math.PI / 2; ground.position.y = CITY_FLOOR; ground.receiveShadow = true;
     city.add(ground);
@@ -254,19 +254,37 @@ export class SceneView {
     // Dunes lap against the wrecks while the central playfield stays flat.
     const sand = new THREE.PlaneGeometry(43, 55, 70, 84).rotateX(-Math.PI / 2);
     const positions = sand.getAttribute('position'), shades = new Float32Array(positions.count * 3);
-    const dark = new THREE.Color(0x886823), sunlit = new THREE.Color(0xab8430), color = new THREE.Color();
+    const dark = new THREE.Color(0x654019), sunlit = new THREE.Color(0xbb8434), outer = new THREE.Color(0x9c6b27), color = new THREE.Color();
     for (let i = 0; i < positions.count; i++) {
       const x = positions.getX(i), z = positions.getZ(i);
       positions.setY(i, sandHeight(x, z));
-      const bands = Math.sin(x * .54 + z * 1.18 + Math.sin(x * .42) * .72);
-      const ripple = Math.sin(x * 2.85 - z * 1.35 + Math.sin(z * .45));
-      const tint = .57 + .13 * bands + .05 * ripple + .09 * Math.sin(z * .35 - x * .25);
-      color.copy(dark).lerp(sunlit, tint);
+      const slope = (sandHeight(x+.28,z+.4) - sandHeight(x-.28,z-.4)) / .8;
+      const broad = Math.sin(x*.23+z*.3+Math.sin(x*.24));
+      const tint = THREE.MathUtils.clamp(.74 + .075*broad+1.22*slope, .06, 1);
+      const fringe = Math.max(THREE.MathUtils.smoothstep(Math.abs(x),18,21.5),THREE.MathUtils.smoothstep(Math.abs(z),23,27.5));
+      color.copy(dark).lerp(sunlit,tint).lerp(outer,fringe);
       color.toArray(shades, i * 3);
     }
     sand.setAttribute('color', new THREE.BufferAttribute(shades, 3));
     sand.computeVertexNormals();
-    const sandMesh = this.addGeometry(sand, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }), city);
+    const sandMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
+    // Wind ripples use local terrain coordinates; anti-alias at small rendered scales.
+    sandMaterial.onBeforeCompile = shader => {
+      shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 duneXZ;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nduneXZ = position.xz;');
+      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 duneXZ;')
+        .replace('#include <color_fragment>', `#include <color_fragment>
+          float phase = dot(duneXZ, vec2(8.3, -9.5))
+            + 1.9*sin(duneXZ.y*.85+duneXZ.x*.16)
+            + .72*sin(duneXZ.x*1.66+duneXZ.y*.42);
+          float ripple = sin(phase+.36*sin(phase));
+          float edge = smoothstep(4.0, 15.0, length(duneXZ));
+          float fringe = max(smoothstep(18.0, 21.5, abs(duneXZ.x)),smoothstep(23.0, 27.5, abs(duneXZ.y)));
+          float contrast = mix(.038, .25, edge) * (1.0-fringe) * (1.0 - smoothstep(.6, 2.7, fwidth(phase)));
+          diffuseColor.rgb *= 1.0 + contrast * ripple;
+        `);
+    };
+    const sandMesh = this.addGeometry(sand,sandMaterial,city);
     sandMesh.name = 'city-sand-and-drifts'; sandMesh.receiveShadow = true;
 
     const debris: Piece[] = [], shells: Piece[] = [];

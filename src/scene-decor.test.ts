@@ -51,6 +51,18 @@ describe('complete ruined-city environment', () => {
     }
   });
 
+  it('raises the peripheral dune crests without raising the portal ring', () => {
+    const scene=buildCity(), city=scene.getObjectByName('ruined-city')!;
+    const dune=scene.getObjectByName('city-sand-and-drifts') as THREE.Mesh;
+    const ray=new THREE.Raycaster();
+    const height=(x:number,z:number)=>{
+      ray.set(city.localToWorld(new THREE.Vector3(x,4,z)),new THREE.Vector3(0,-1,0));
+      return ray.intersectObject(dune)[0].point.y;
+    };
+    expect(height(-5.5,-16.2)).toBeGreaterThan(1.5);
+    expect(height(-12.9,0)).toBeLessThan(.067);
+  });
+
   it('puts sand banks over the bases of the buses and the ruined facade', () => {
     const scene = buildCity();
     const city = scene.getObjectByName('ruined-city')!;
