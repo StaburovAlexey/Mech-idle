@@ -191,7 +191,9 @@ function openModuleDetail(key: ShopModule, source: HTMLButtonElement){
  closeButton.focus();
  animate([{transform:'translateY(-100dvh)',easing:'cubic-bezier(.26,.65,.44,1)'},{transform:'translateY(14px)',offset:.76,easing:'ease-out'},{transform:'translateY(0)'}],590,()=>{render();if(closeRequested)close();});
 }
+let disposeWorkshopTabs: (()=>void) | undefined;
 function drawPanel(){
+ disposeWorkshopTabs?.();disposeWorkshopTabs=undefined;
  const panel=$('#panel');panel.className=screen==='menu'?(menuPage==='shop'?'module-shop-panel':menuPage==='workshop'?'workshop-panel':'title-panel'):`panel ${screen}-panel`;
  if(screen==='menu')panel.innerHTML=menuPage==='shop'?moduleShopMarkup:menuPage==='workshop'?workshopMarkup:titleMarkup;
  else if(screen==='combat')panel.innerHTML='';
@@ -199,7 +201,7 @@ function drawPanel(){
  if(screen==='menu'){
   if(menuPage==='workshop'){
    $('#workshop-back').onclick=()=>showMenuPage('title');
-   bindUpgradeTabs($('.workshop-rack'));
+   disposeWorkshopTabs=bindUpgradeTabs($('.workshop-rack'));
    bindCrystalModules();
    for(const stat of STAT_KEYS){
     const card=$(`[data-workshop-stat="${stat}"]`);

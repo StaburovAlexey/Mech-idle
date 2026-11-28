@@ -1,3 +1,4 @@
+import { armoredScrollMarkup } from './armored-scroll';
 import { COMBAT_KEYS, COMBAT_UPGRADES, combatValueLabel, workshopCombatPrice, isShopModule, type CombatUpgrade } from './combat-upgrades';
 import type { StatKey } from './game';
 import { STAT_LABELS, statIcon, UPGRADE_CATEGORIES } from './battle-ui';
@@ -40,10 +41,10 @@ export const workshopMarkup = `
     <div class="workshop-tabs" role="tablist" aria-label="Улучшения мастерской">
       ${UPGRADE_CATEGORIES.map(({id,label},i)=>`<button type="button" role="tab" id="workshop-tab-${id}" aria-controls="workshop-list-${id}" aria-selected="${i===0}" tabindex="${i===0?0:-1}">${label}</button>`).join('')}
     </div>
-    ${UPGRADE_CATEGORIES.map(({id,stats},i)=>`
+    ${UPGRADE_CATEGORIES.map(({id,stats},i)=>armoredScrollMarkup(`
       <div class="workshop-list" role="tabpanel" id="workshop-list-${id}" aria-labelledby="workshop-tab-${id}" tabindex="0"${i===0?'':' hidden'}>
         ${stats.map(stat=>workshopCard(stat,STAT_LABELS[stat].title,stat,'data-workshop-stat')).join('')}
         ${COMBAT_KEYS.filter(key=>COMBAT_UPGRADES[key].category===id).map(key=>workshopCombatCard(key)).join('')}
-      </div>`).join('')}
+      </div>`)).join('')}
   `, 'Постоянные улучшения')}
   ${titleButton('workshop-back', 'Главное меню')}`;

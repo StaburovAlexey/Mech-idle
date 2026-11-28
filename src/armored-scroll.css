@@ -1,0 +1,31 @@
+.armored-scroll-area { min-width: 0; }
+.armored-scroll-area:has(> .armored-scroll-rail:not([hidden])) {
+  display: grid; grid-template-columns: minmax(0,1fr) auto; column-gap: 4px;
+}
+.armored-scroll-area:has(> [hidden][role="tabpanel"]) { display: none; }
+.armored-scroll-area.enhanced > [role="tabpanel"] { scrollbar-width: none; }
+.armored-scroll-area.enhanced > [role="tabpanel"]::-webkit-scrollbar { display: none; }
+.armored-scroll-rail {
+  position: relative; width: 13px; margin-block: 2px;
+  border: 1px solid #171217; border-radius: 8px;
+  background: linear-gradient(90deg,#110f13,#28222a);
+  box-shadow: inset 1px 0 2px #0d0a11,0 1px #6a5562;
+  pointer-events: auto; touch-action: none; cursor: ns-resize;
+}
+.armored-scroll-rail[hidden] { display: none; }
+.armored-scroll-rail::before,.armored-scroll-rail::after {
+  content: ''; position: absolute; left: 4px; right: 4px; height: 2px;
+  border-radius: 1px; background: #82766b; box-shadow: 0 1px #100e15; pointer-events: none;
+}
+.armored-scroll-rail::before { top: 5px; }
+.armored-scroll-rail::after { bottom: 5px; }
+.armored-scroll-thumb {
+  position: absolute; inset: 0 1px auto; border: 1px solid #a5b37a;
+  border-radius: 5px; background: linear-gradient(90deg,#819653,#4c6136);
+  box-shadow: inset 1px 0 #b8c88b,1px 2px 3px #0e100de0;
+}
+.armored-scroll-thumb::before {
+  content: ''; position: absolute; left: 2px; right: 2px; top: 50%; height: 8px; transform: translateY(-50%);
+  background: repeating-linear-gradient(180deg,#243420 0 1px,#a3b778 1px 2px,transparent 2px 3px);
+  pointer-events: none;
+}
