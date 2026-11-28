@@ -216,6 +216,11 @@
   .title-tip strong,.title-tip p { font-size: 13px; }
 }
 
+/* Fit the buttons, announcement slot and tip in the scaled desktop frame. */
+@container game-viewport (aspect-ratio >= 1 / 1) {
+  .title-console { margin-bottom: 32px; }
+}
+
 /* Keep the tip and controls in view together on short portrait screens. */
 @container game (height < 780px) and (orientation: portrait) {
   .title-panel { --title-space: 12px; gap: 12px 7px; }
