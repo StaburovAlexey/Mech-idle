@@ -41,11 +41,20 @@ body:has(.chain-panel-layer:not(.hidden)) { overflow: hidden; }
 }
 .shell.in-battle .battle-menu-overlay.chain-panel-layer.closing { background: transparent; }
 .battle-menu-overlay .chain-panel-sheet { width: min(100%,400px); }
-.battle-menu-panel {
-  display: grid; gap: 10px; padding: 3px;
-}
-.battle-menu-head { display: grid; grid-template-columns: minmax(0,1fr) 44px; align-items: center; gap: 8px; }
-.battle-menu-head h2 { margin: 0; font-size: clamp(19px,5.8cqw,25px); text-transform: uppercase; }
+.battle-menu-panel { padding: 3px; }
+#battle-menu-actions,.battle-confirmation { display: grid; gap: 10px; }
+.battle-menu-panel h2 { margin: 0; text-align: center; font-size: clamp(19px,5.8cqw,25px); text-transform: uppercase; }
 .battle-menu-panel .menu-actions { display: grid; gap: 8px; }
 .battle-menu-panel .title-button { min-height: 44px; font-size: clamp(13px,4cqw,18px); }
-.battle-menu-head .title-button { font-size: 22px; }
+
+.battle-menu-overlay .chain-panel-sheet:has(.battle-confirmation:not(.hidden)) { width: min(100%,350px); }
+.battle-confirmation { gap: 12px; padding: 6px 1px 2px; }
+.battle-confirmation h2 { font-size: clamp(17px,5.65cqw,22px); line-height: 1.16; }
+.battle-confirmation-icon {
+  width: 34px; height: 34px; margin: 1px auto 0; filter: drop-shadow(0 2px 1px #09080c);
+}
+.battle-confirmation-copy { font-size: 13px; line-height: 1.46; text-align: center; padding: 0 6px; color: #eee0ce; }
+.battle-confirmation-copy p { margin: 0; }
+.battle-confirmation-copy p + p { margin-top: 7px; color: #c2b9b4; }
+.battle-confirmation .menu-actions { gap: 9px; margin-top: 4px; }
+.battle-confirmation .title-button { min-height: 45px; font-size: 15px; }

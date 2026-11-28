@@ -78,10 +78,10 @@ describe('battle controls and keyboard target semantics', () => {
     const drawer = document.querySelector('[role="dialog"]')!;
     expect(drawer.getAttribute('aria-modal')).toBe('true');
     expect(document.getElementById(drawer.getAttribute('aria-labelledby')!)?.textContent).toBeTruthy();
-    for (const suffix of ['close', 'return', 'sound', 'save', 'abandon']) {
+    for (const suffix of ['return', 'sound', 'save', 'abandon']) {
       expect(drawer.querySelector(`#battle-menu-${suffix}`)).not.toBeNull();
     }
-    expect(document.querySelectorAll('button')).toHaveLength(5);
+    expect(drawer.querySelectorAll('#battle-menu-actions button')).toHaveLength(4);
   });
 
   it('exports the same four complete upgrade controls used by the game and review fixture', () => {
@@ -205,9 +205,10 @@ describe('DRIFTWORKS skin and asset provenance', () => {
 
   it('reuses title controls and keeps the chained sheet scrollable with 44px touch targets', () => {
     document.body.innerHTML=battleMenuMarkup;
-    expect(document.querySelector('#battle-menu-close')?.getAttribute('aria-label')).toBe('Закрыть меню боя');
+    expect(document.querySelector('#battle-menu-close')).toBeNull();
+    expect(combinedRulesFor('.battle-menu-panel h2')['text-align']).toBe('center');
     expect(document.querySelector('#battle-menu-return')?.classList.contains('title-primary')).toBe(true);
-    expect(document.querySelectorAll('.chain-panel-sheet .chain-panel-content button.title-button > span')).toHaveLength(5);
+    expect(document.querySelectorAll('.chain-panel-sheet .chain-panel-content button.title-button > span')).toHaveLength(6);
     expect(combinedRulesFor('.chain-panel-content').overflow).toBe('auto');
     expect(combinedRulesFor('.battle-menu-panel .title-button')['min-height']).toBe('44px');
   });

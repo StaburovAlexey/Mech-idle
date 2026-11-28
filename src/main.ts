@@ -19,7 +19,7 @@ import {SceneView,type SceneFrame, type SceneSpawn} from './scene';
 import {SaveRepository,PauseManager,TabLock} from './persistence';
 import {LocalPlatformAdapter} from './platform';
 import {Sound} from './audio';
-import {BattleMenuController,battleHudMarkup,battleMenuMarkup,bossBarMarkup,battleUpgradeDockMarkup,bindUpgradeTabs,renderCombatUpgrade,STAT_LABELS,isInteractiveTarget} from './battle-ui';
+import {BattleMenuController,battleHudMarkup,battleMenuMarkup,bossBarMarkup,battleUpgradeDockMarkup,bindUpgradeTabs,renderCombatUpgrade,STAT_LABELS,isInteractiveTarget,setBattleMenuConfirmation} from './battle-ui';
 const $=<T extends HTMLElement=HTMLElement>(s:string)=>document.querySelector<T>(s)!;
 const root=$('#app');
 const startup=bootScreen(root);
@@ -45,7 +45,7 @@ const hud=document.createElement('div');hud.id='battle-hud';hud.className='battl
 const drawerElement=document.createElement('div');drawerElement.id='battle-menu-overlay';drawerElement.className='battle-menu-overlay chain-panel-layer hidden';drawerElement.innerHTML=battleMenuMarkup;$('.shell').append(drawerElement);
 const drawerScrollbars=bindArmoredScrollbars(drawerElement);
 const drawerSheet=drawerElement.querySelector<HTMLElement>('.chain-panel-sheet')!;
-let drawerMotion:Animation|undefined, drawerClosing=false;
+let drawerMotion:Animation|undefined, drawerBusy=false, drawerConfirming=false;
 function slideBattleMenu(enter:boolean,finish=()=>{}){
  drawerMotion?.cancel();
  const motion=animateChainSheet(drawerSheet,enter);
@@ -160,40 +160,63 @@ $('#sound').onclick=toggleSound;
 function showHelp(){modal('Как защитить оплот','Турель прицеливается и стреляет сама. За каждого уничтоженного меха вы получаете золото. Нажмите на выпавшую деталь или обломок, чтобы подобрать. Купленные в бою модули действуют сразу. Здоровье между волнами не заполняется: нужен ремонт. За каждую пройденную волну начисляется 1 деталь. Детали и улучшения мастерской сохраняются после поражения. Штурм бьёт кулаками, Рывок атакует клинками, Стрелок останавливается внутри круга огня и стреляет снарядами. Некоторые волны окружают оплот группами. На волне 30 ждёт Колосс с тяжёлыми ударами. Клавиши 1–4 покупают модули. Пробел или Escape открывают меню боя.',[{label:'Понятно',action:()=>{}}]);}
 $('#help').onclick=showHelp;
 function openBattleMenu(){
- if(screen!=='combat'||!state.run||battleMenu.open||drawerClosing)return;
+ if(screen!=='combat'||!state.run||battleMenu.open||drawerBusy)return;
  menuReturnFocus=document.activeElement instanceof HTMLElement?document.activeElement:null;
- battleMenu.show();accumulator=0;save();renderUI();drawerScrollbars.refresh();$('#battle-menu-close').focus();slideBattleMenu(true);
+ battleMenu.show();accumulator=0;save();renderUI();drawerScrollbars.refresh();$('#battle-menu-return').focus({preventScroll:true});slideBattleMenu(true);
 }
 function closeBattleMenu(restoreFocus=true,after=()=>{}){
- if(!battleMenu.open||drawerClosing)return;
+ if(!battleMenu.open||drawerBusy)return;
  if(drawerMotion){
   void drawerMotion.finished.then(()=>closeBattleMenu(restoreFocus,after),()=>{});
   return;
  }
- drawerClosing=true;drawerElement.inert=true;drawerElement.classList.add('closing');
+ drawerBusy=true;drawerElement.inert=true;drawerElement.classList.add('closing');
  slideBattleMenu(false,()=>{
-  drawerClosing=false;drawerElement.inert=false;drawerElement.classList.remove('closing');
-  battleMenu.close();accumulator=0;last=performance.now();renderUI();
+  drawerBusy=false;drawerElement.inert=false;drawerElement.classList.remove('closing');
+  battleMenu.close();
+  if(drawerConfirming){drawerConfirming=false;setBattleMenuConfirmation(drawerElement,false);}
+  accumulator=0;last=performance.now();renderUI();
   if(restoreFocus){const target=menuReturnFocus?.isConnected&&menuReturnFocus!==document.body?menuReturnFocus:$('#battle-menu-toggle');target.focus();}
   after();
  });
 }
-function confirmAbandon(){
- modal('Завершить этот забег?','Золото и боевые модули текущего забега будут потеряны. Детали и улучшения мастерской сохранятся.',[
-  {label:'Продолжить забег',secondary:true,action:()=>{}},
-  {label:'Завершить',action:()=>{state={...state,run:null,result:null,events:[]};battleMenu.close();openMenu();}},
- ]);
+function switchBattleMenu(confirming:boolean){
+ if(!battleMenu.open||drawerBusy||drawerConfirming===confirming)return;
+ if(drawerMotion){
+  void drawerMotion.finished.then(()=>switchBattleMenu(confirming),()=>{});
+  return;
+ }
+ drawerBusy=true;drawerElement.inert=true;
+ slideBattleMenu(false,()=>{
+  drawerConfirming=confirming;setBattleMenuConfirmation(drawerElement,confirming);drawerScrollbars.refresh();
+  slideBattleMenu(true,()=>{
+   drawerBusy=false;drawerElement.inert=false;
+   $(confirming?'#battle-confirmation-cancel':'#battle-menu-abandon').focus({preventScroll:true});
+  });
+ });
+}
+function dismissBattleMenu(){
+ if(drawerConfirming)switchBattleMenu(false);
+ else closeBattleMenu();
+}
+function endBattleRun(){
+ if(!drawerConfirming||drawerBusy||!state.run)return;
+ closeBattleMenu(false,()=>{
+  state={...state,run:null,result:null,events:[]};
+  openMenu();
+ });
 }
 $('#battle-menu-toggle').onclick=openBattleMenu;
-$('#battle-menu-close').onclick=()=>closeBattleMenu();
 $('#battle-menu-return').onclick=()=>closeBattleMenu();
 $('#battle-menu-sound').onclick=toggleSound;
 $('#battle-menu-save').onclick=()=>closeBattleMenu(false,openMenu);
-$('#battle-menu-abandon').onclick=confirmAbandon;
-drawerElement.addEventListener('click',event=>{if(event.target===drawerElement)closeBattleMenu();});
+$('#battle-menu-abandon').onclick=()=>switchBattleMenu(true);
+$('#battle-confirmation-cancel').onclick=()=>switchBattleMenu(false);
+$('#battle-confirmation-end').onclick=endBattleRun;
+drawerElement.addEventListener('click',event=>{if(event.target===drawerElement)dismissBattleMenu();});
 drawerElement.addEventListener('keydown',event=>{
  if(event.key!=='Tab')return;
- const buttons=[...drawerElement.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')];
+ const buttons=[...drawerElement.querySelectorAll<HTMLButtonElement>(`${drawerConfirming?'#battle-confirmation':'#battle-menu-actions'} button:not(:disabled)`)];
  const i=buttons.indexOf(document.activeElement as HTMLButtonElement);
  event.preventDefault();buttons[(i+(event.shiftKey?-1:1)+buttons.length)%buttons.length]?.focus();
 });
@@ -414,7 +437,7 @@ window.addEventListener('focus',()=>{pause.remove('focus');accumulator=0;last=pe
 window.addEventListener('keydown',e=>{
  if(gatesMoving||e.repeat||$('#modal-root').children.length||e.ctrlKey||e.metaKey||e.altKey)return;
  if(e.key==='Escape'&&screen==='menu'&&menuPage!=='title'){e.preventDefault();showMenuPage('title');return;}
- if(e.key==='Escape'&&screen==='combat'){e.preventDefault();battleMenu.open?closeBattleMenu():openBattleMenu();return;}
+ if(e.key==='Escape'&&screen==='combat'){e.preventDefault();battleMenu.open?dismissBattleMenu():openBattleMenu();return;}
  if(battleMenu.open||isInteractiveTarget(e.target))return;
  if(e.key===' '&&screen==='combat'){e.preventDefault();openBattleMenu();}
  if(['1','2','3','4'].includes(e.key))buy(STAT_KEYS[Number(e.key)-1]);
