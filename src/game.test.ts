@@ -1,4 +1,4 @@
-import { groupPickups, pickupDrops, pickupPose, PICKUP_LAND_SECONDS } from './pickup';
+import { groupPickups, pickupDrops, pickupPose, pickupVisibility, PICKUP_LAND_SECONDS } from './pickup';
 import { describe, it, expect } from 'vitest';
 import { PORTAL_RISE_SECONDS } from './portalTiming';
 import { SPAWN_RADIUS, WORLD_LIMIT, type SpawnGeometry } from './spawnGeometry';
@@ -90,6 +90,13 @@ describe('battle pickups', () => {
     expect(collected.run!.pickups).toEqual([]);
     expect(collectPickups(collected,ids)).toBe(collected);
     expect(parseState(serializeState(collected))).toEqual(collected);
+  });
+  it('fades settled loot over the last fraction of its allotted lifetime', () => {
+    const item = {id:'enemy:1',kind:'parts' as const,x:0,y:0,born:1};
+    const end = item.born + PICKUP_LAND_SECONDS + 10;
+    expect(pickupVisibility(item,end-.8)).toBe(1);
+    expect(pickupVisibility(item,end-.35)).toBeCloseTo(.5);
+    expect(pickupVisibility(item,end)).toBe(0);
   });
   it('expires unclaimed loot after ten seconds on the ground, independent of the pause and reload', () => {
     let seed=1;

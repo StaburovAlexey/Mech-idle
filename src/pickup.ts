@@ -3,6 +3,8 @@ export type PickupKind = 'parts' | 'scrap';
 export interface Pickup { id: string; kind: PickupKind; x: number; y: number; born: number }
 export const PICKUP_LAND_SECONDS = .65;
 export const PICKUP_LIFETIME_SECONDS = 10;
+const PICKUP_FADE_SECONDS = .7;
+const pickupExpiresAt = (pickup: Pickup) => pickup.born + PICKUP_LAND_SECONDS + PICKUP_LIFETIME_SECONDS;
 
 export const PICKUP_KINDS = ['parts', 'scrap'] as const;
 
@@ -21,7 +23,12 @@ export function pickupDrops(seed: number, id: string): PickupKind[] {
 export const pickupLanded = (pickup: Pickup, time: number) => time >= pickup.born + PICKUP_LAND_SECONDS - 1e-8;
 
 export const pickupExpired = (pickup: Pickup, time: number) =>
- time >= pickup.born + PICKUP_LAND_SECONDS + PICKUP_LIFETIME_SECONDS - 1e-8;
+ time >= pickupExpiresAt(pickup) - 1e-8;
+
+export function pickupVisibility(pickup: Pickup, time: number) {
+ const remaining = Math.min(1,Math.max(0,(pickupExpiresAt(pickup)-time)/PICKUP_FADE_SECONDS));
+ return remaining * remaining * (3-2*remaining);
+}
 
 export function pickupPose(pickup: Pickup, time: number, reduced = false) {
  const age = Math.max(0, time - pickup.born);

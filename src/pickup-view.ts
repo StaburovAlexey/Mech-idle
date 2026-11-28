@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { currencyLabels } from './currency-ui';
-import { groupPickups, PICKUP_KINDS, pickupPose, type Pickup, type PickupKind } from './pickup';
+import { groupPickups, PICKUP_KINDS, pickupPose, pickupVisibility, type Pickup, type PickupKind } from './pickup';
 import { sandHeight } from './sandTerrain';
 import { FIELD_HALF_WIDTH, type GameplayViewport } from './viewport';
 
@@ -53,7 +53,7 @@ export class PickupView {
 
  render(items: readonly Pickup[], time: number, camera: THREE.Camera, field: GameplayViewport, interactive: boolean) {
   const {piles,airborne} = groupPickups(items,time);
-  const models = airborne.map(item => ({item, shift:0, count:0}));
+  const models = airborne.map(item => ({item, shift:0, count:0, visibility:1}));
   const activeButtons = new Set<string>(), activeCounts = new Set<string>();
   const height = this.container.clientHeight;
   const project = (x:number,y:number,z:number) => {
@@ -67,10 +67,18 @@ export class PickupView {
   };
   const right = camera.matrixWorld.elements;
   for (const pile of piles) {
-   const anchor = pile[0], parts = pile.filter(item => item.kind === 'parts').length;
+   const anchor = pile[0];
+   const parts = pile.filter(item => item.kind === 'parts').length;
    const scrap = pile.length - parts, spread = parts && scrap ? .84 : 0;
-   if (parts) models.push({item:{...anchor,kind:'parts'},shift:-spread,count:parts});
-   if (scrap) models.push({item:{...anchor,kind:'scrap'},shift:spread,count:scrap});
+   let partsVisibility = 0, scrapVisibility = 0;
+   for (const item of pile) {
+    const visibility = pickupVisibility(item,time);
+    if (item.kind === 'parts') partsVisibility = Math.max(partsVisibility,visibility);
+    else scrapVisibility = Math.max(scrapVisibility,visibility);
+   }
+   // Don't fade a type's model (or the shared icon) until its last piece is expiring.
+   if (parts) models.push({item:{...anchor,kind:'parts'},shift:-spread,count:parts,visibility:partsVisibility});
+   if (scrap) models.push({item:{...anchor,kind:'scrap'},shift:spread,count:scrap,visibility:scrapVisibility});
    if (!interactive || !this.batches.size) continue;
    const pose = pickupPose(anchor,time,this.reduced);
    const pos = project(pose.x,Math.max(.048,sandHeight(pose.x,pose.z)) + .16,pose.z);
@@ -90,6 +98,8 @@ export class PickupView {
     button.title = 'Подобрать: ' + reward + ' (тестовый режим, без рекламы)';
     button.setAttribute('aria-label',button.title);
    }
+   const visibility = Math.max(partsVisibility,scrapVisibility);
+   button.style.setProperty('--loot-visibility',visibility.toFixed(3));
    const top = Math.max(0,pos.top-54);
    const pixelsPerUnit = field.width / (2*FIELD_HALF_WIDTH);
    button.style.width = Math.max(44,2*(spread+.75)*pixelsPerUnit+16) + 'px';
@@ -100,13 +110,13 @@ export class PickupView {
    const group = models.filter(model => model.item.kind === kind);
    this.ensure(batch,group.length);
    batch.meshes.forEach(mesh => {mesh.count = group.length;});
-   group.forEach(({item,shift,count},index) => {
+   group.forEach(({item,shift,count,visibility},index) => {
     const pose = pickupPose(item,time,this.reduced);
     const x = pose.x + right[0] * shift, z = pose.z + right[2] * shift;
     const ground = Math.max(.048,sandHeight(x,z));
     const t = this.transform;
-    t.position.set(x,ground + .025 + pose.height,z);
-    t.rotation.set(pose.tilt,pose.yaw,0); t.scale.setScalar(1.25); t.updateMatrix();
+    t.position.set(x,ground + .025 + pose.height - (this.reduced ? 0 : .12*(1-visibility)),z);
+    t.rotation.set(pose.tilt,pose.yaw,0); t.scale.setScalar(1.25*visibility); t.updateMatrix();
     batch.meshes.forEach((mesh,i) => mesh.setMatrixAt(index,this.matrix.multiplyMatrices(t.matrix,batch.source[i].matrix)));
     if (!count) return;
     const pos = project(x,ground + .10,z);
@@ -120,6 +130,7 @@ export class PickupView {
     }
     const text = '×' + count;
     if (label.textContent !== text) label.textContent = text;
+    label.style.opacity = visibility.toFixed(3);
     place(label,pos);
    });
    for (const mesh of batch.meshes) mesh.instanceMatrix.needsUpdate = true;
