@@ -262,7 +262,7 @@ function drawPanel(){
    $('#open-module-shop').onclick=()=>showMenuPage('shop');
    $('#start').onclick=()=>enterBattle(true);$('#resume').onclick=()=>enterBattle(false);
    $('#open-workshop').onclick=()=>showMenuPage('workshop');$('#menu-help').onclick=showHelp;
-   if(!root.inert)mountTitleWidgets();
+   if(!root.inert&&!document.querySelector('#boot'))mountTitleWidgets();
   }
  }
  if(screen==='result')$('#to-workshop').onclick=()=>{openMenu();void showMenuPage('workshop',false);};
@@ -450,10 +450,16 @@ async function init(){
    last=performance.now();
    requestAnimationFrame(animate);
   };
-  if(startup)await startup.reveal(show);else show();
-  root.inert=false;
-  if(startup)mountTitleWidgets();
-  $('#modal-root').querySelector('button')?.focus();
+  const enableInput=()=>{
+   root.inert=false;
+   $('#modal-root').querySelector('button')?.focus();
+  };
+  if(startup){
+   await startup.reveal(show,enableInput);
+   if(screen==='menu'&&menuPage==='title')mountTitleWidgets();
+  }else{
+   show();enableInput();
+  }
   if(scene)platform.gameReady();
  } catch(error){
   console.error('Oplot startup failed',error);

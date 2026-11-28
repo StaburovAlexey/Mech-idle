@@ -174,6 +174,29 @@ describe('save protection at startup', () => {
 });
 
 describe('startup', () => {
+  it('unlocks the menu while the VHS sweep is active without advancing the notification', async () => {
+    vi.useFakeTimers({toFake:['setTimeout','clearTimeout']});
+    const page=new DOMParser().parseFromString(readFileSync('index.html','utf8'),'text/html');
+    document.body.append(page.querySelector('.boot-filter')!,page.querySelector('#boot')!);
+    const app=element('#app');
+    app.inert=true;
+    vi.stubGlobal('matchMedia',()=>({matches:false}));
+    for(const target of [app,element('#boot-display'),element('#boot-beam')])
+      target.animate=vi.fn().mockReturnValue({finished:Promise.resolve(),cancel:vi.fn()});
+    await import('./main');
+    await vi.advanceTimersByTimeAsync(0);
+    now+=3105;
+    await vi.advanceTimersByTimeAsync(3105);
+    expect(app.inert).toBe(false);
+    expect(element('#boot').dataset.inputReady).toBe('true');
+    expect(element('.shell').classList.contains('boot-tracking')).toBe(true);
+    expect(document.querySelector('.menu-announcement')).toBeNull();
+    click('#menu-help');
+    expect(element('#modal-title').textContent).toBe('Как защитить оплот');
+    await vi.advanceTimersByTimeAsync(780);
+    expect(document.querySelector('#boot')).toBeNull();
+    expect(element('.menu-announcement strong').textContent).toBe('Новинка в магазине');
+  });
   it.each([
     { ready: true, loadMs: 700 },
     { ready: true, loadMs: 4200 },

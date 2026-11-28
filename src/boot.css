@@ -3,6 +3,7 @@ body:has(#boot:not([data-phase="menu"])) #app { visibility:hidden; }
 #boot { position:fixed; inset:0; z-index:50; overflow:hidden; background:#050605; box-sizing:border-box; }
 #boot *, #boot *::before, #boot *::after { box-sizing:inherit; }
 #boot[data-phase="menu"] { background:transparent; }
+#boot[data-input-ready="true"] { pointer-events:none; }
 #boot-display {
   position:absolute; inset:0; display:grid; place-items:center; isolation:isolate;
   background:#151615; color:#eee4d3; font-family:"JetBrains Mono",ui-monospace,monospace; text-shadow:none;

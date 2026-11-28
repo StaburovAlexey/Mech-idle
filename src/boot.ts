@@ -59,7 +59,7 @@ export function bootScreen(app: HTMLElement) {
       retry.onclick = () => location.reload();
       retry.focus();
     },
-    async reveal(onShow: () => void) {
+    async reveal(onShow: () => void, onInteractive: () => void) {
       // Assets may take longer; only wait out the remainder on a fast load.
       const remaining = MIN_BOOT_MS - (performance.now() - started);
       if (remaining > 0) await delay(remaining);
@@ -99,6 +99,10 @@ export function bootScreen(app: HTMLElement) {
         await open.finished;
         open.cancel();
         fade.cancel();
+      }
+      boot.dataset.inputReady = 'true';
+      onInteractive();
+      if (motion) {
         const title = app.querySelector<HTMLElement>('.shell')!;
         stop = trackVhs(title, 780, false, app.clientHeight);
         await delay(780);
