@@ -14,7 +14,7 @@ const bulb = '<svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M
 
 export const titleMarkup = `
   ${screenHeader('ОПЛОТ')}
-  <div class="menu-announcement-slot" hidden></div>
+  <div class="menu-announcement-slot"></div>
   ${armoredFrame('nav', 'title-console', `
     ${titleButton('start', 'Начать бой', true)}
     ${titleButton('resume', 'Продолжить', true)}

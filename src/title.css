@@ -40,7 +40,8 @@
 .title-panel {
   position: relative; z-index: 2;
   display: grid; grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: var(--screen-header-reserve) minmax(min-content, 1fr) auto;
+  grid-template-rows: var(--screen-header-reserve) auto minmax(min-content, 1fr) auto;
+  overflow-x: clip;
   gap: clamp(19px, 3svh, 50px) 7px; min-height: inherit;
   padding: max(var(--title-space), env(safe-area-inset-top)) max(var(--title-space), env(safe-area-inset-right))
     max(var(--title-space), env(safe-area-inset-bottom)) max(var(--title-space), env(safe-area-inset-left));
@@ -94,7 +95,7 @@
 }
 
 .title-console {
-  grid-row: 2;
+  grid-row: 3;
   grid-column: 1 / -1; width: min(63%,433px); align-self: center; margin-bottom: min(7svh,54px);
   padding: clamp(24px,5vw,34px) calc(var(--rim) + 4px) clamp(21px,4.5vw,29px);
   display: grid; gap: clamp(7px,1.25svh,13px);
@@ -154,7 +155,7 @@
 .title-button:focus-visible { outline: 2px solid #fff2d6; outline-offset: 2px; }
 
 .title-tip {
-  grid-row: 3;
+  grid-row: 4;
   display: flex; grid-column: 1 / -1; align-items: center; gap: clamp(10px,2.5vw,24px);
   align-self: end; color: #f8eddb; padding: calc(var(--rim) + 3px) calc(var(--rim) + 5px);
   max-width: 760px;

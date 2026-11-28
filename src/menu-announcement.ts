@@ -21,11 +21,11 @@ export class MenuAnnouncements {
   const play=(card: HTMLElement,frames: Keyframe[],duration: number,done: ()=>void)=>{
    if(!card.animate||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches){done();return;}
    const animation=card.animate(frames,{duration,easing:'cubic-bezier(.22,.72,.25,1)',fill:'both'});
-   void animation.finished.then(()=>{animation.cancel();done();},()=>done());
+   void animation.finished.then(()=>{animation.cancel();done();},()=>{});
+   return animation;
   };
   const show=(from: 'right'|'bottom', returnFocus=false)=>{
    const item=this.queue[this.index];
-   host.hidden=!item;
    if(!item){host.replaceChildren();if(returnFocus)fallbackFocus();return;}
    host.innerHTML=`<aside class="menu-announcement" aria-label="Оповещение">
     <span class="menu-announcement-icon" aria-hidden="true">${icon}</span>
@@ -40,13 +40,17 @@ export class MenuAnnouncements {
    const close=card.querySelector<HTMLButtonElement>('.menu-announcement-close')!;
    action.querySelector('span')!.textContent=item.action;
    action.disabled=!canOpen();
+   const entering=play(card,[{transform:from==='right'?'translateX(102%)':'translateY(18px)',opacity:0},
+    {transform:'none',opacity:1}],from==='right'?360:280,()=>{});
    let leaving=false;
    const dismiss=(navigate: boolean)=>{
     if(leaving||this.host!==host||(navigate&&!canOpen()))return;
     leaving=true;
     this.index++;
     card.inert=true;
-    play(card,[{transform:'translateY(0)',opacity:1},{transform:'translateY(-110%)',opacity:0}],220,()=>{
+    const { transform,opacity }=getComputedStyle(card);
+    entering?.cancel();
+    play(card,[{transform,opacity},{transform:'translateY(-18px)',opacity:0}],240,()=>{
      if(this.host!==host||!host.isConnected)return;
      if(navigate){open(item.destination);return;}
      show('bottom',true);
@@ -55,8 +59,6 @@ export class MenuAnnouncements {
    action.onclick=()=>dismiss(true);
    close.onclick=()=>dismiss(false);
    if(returnFocus)close.focus({preventScroll:true});
-   play(card,[{transform:from==='right'?'translateX(102%)':'translateY(110%)',opacity:from==='right'?1:0},
-    {transform:'translate(0,0)',opacity:1}],from==='right'?360:260,()=>{});
   };
   show(this.index===0?'right':'bottom');
  }
