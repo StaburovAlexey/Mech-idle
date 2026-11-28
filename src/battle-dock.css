@@ -16,7 +16,6 @@
   border: 0; padding: 0; background: none;
 }
 .shell.in-battle .battle-resource,
-.shell.in-battle .battle-upgrade-tab,
 .shell.in-battle .battle-upgrade-list .upgrade {
   min-width: 0; color: #fff0da; border: 1px solid #141116; border-radius: 8px;
   background: linear-gradient(150deg,#494147,#29262c 62%,#242126);
@@ -70,18 +69,21 @@
 .shell.in-battle .battle-upgrade-tabs {
   display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 3px; padding: 0 12px;
 }
-.shell.in-battle .battle-upgrade-tab {
+.battle-upgrade-tab {
+  min-width: 0; color: #fff0da; border: 1px solid #141116;
+  background: linear-gradient(150deg,#494147,#29262c 62%,#242126);
+  box-shadow: inset 0 1px #82747a, inset 0 -2px #18161b, 0 2px 3px #110e14;
   display: flex; gap: 5px; align-items: center; justify-content: center;
   min-height: 44px; padding: 0 2px; border-radius: 8px 8px 3px 3px;
   text-transform: uppercase; font-size: clamp(9px,2.8cqw,14px); font-weight: 750;
 }
-.shell.in-battle .battle-upgrade-tab > span { display: block; width: clamp(12px,4.1cqw,22px); flex: none; color: #e9dcc6; }
+.battle-upgrade-tab > span { display: block; width: clamp(12px,4.1cqw,22px); flex: none; color: #e9dcc6; }
 .battle-upgrade-tab svg { display: block; width: 100%; }
-.shell.in-battle .battle-upgrade-tab[aria-selected="true"] {
+.battle-upgrade-tab[aria-selected="true"] {
   background: linear-gradient(#627b39,#344823);
   box-shadow: inset 0 1px #a8be70, inset 0 -2px #25351d, 0 2px 3px #110e14;
 }
-.shell.in-battle .battle-upgrade-tab[aria-selected="true"] > span { color: #d9ee9d; }
+.battle-upgrade-tab[aria-selected="true"] > span { color: #d9ee9d; }
 .shell.in-battle .battle-upgrade-rack {
   padding: calc(var(--rim) + 2px) calc(var(--rim) + 3px);
 }
@@ -126,7 +128,7 @@
 .shell.in-battle .battle-upgrade-list .upgrade:disabled .battle-card-icon { opacity: .8; }
 .shell.in-battle .battle-upgrade-list .upgrade:active:not(:disabled) { transform: translateY(1px); box-shadow: inset 0 2px 5px #0d0b10; }
 .shell.in-battle .battle-upgrade-list .upgrade:focus-visible,
-.shell.in-battle .battle-upgrade-tab:focus-visible,
+.battle-upgrade-tab:focus-visible,
 .shell.in-battle .battle-menu-toggle:focus-visible { outline: 2px solid #fff2d6; outline-offset: -3px; }
 .shell.in-battle .battle-upgrade-list [data-combat-upgrade] .upgrade-value { font-size: clamp(9px,2.35cqw,13px); }
 .shell.in-battle .battle-upgrade-list .upgrade-price {

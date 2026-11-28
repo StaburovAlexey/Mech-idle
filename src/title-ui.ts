@@ -13,6 +13,8 @@ export const screenHeader = (title: string) => `
   </header>`;
 const bulb = '<svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M12 23c0-5-5-6-5-12a9 9 0 0 1 18 0c0 6-5 7-5 12M12 25h8m-7 3h6m-3-5v-7m-4-3 4 3 4-3" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.1"/></svg>';
 
+const rewardsIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18v13H3zM3 10h18M8 6v13m8-13v13M8 6l1.5-3h5L16 6"/></svg>';
+
 export const titleMarkup = `
   ${screenHeader('ОПЛОТ')}
   <div class="menu-announcement-slot"></div>
@@ -21,6 +23,7 @@ export const titleMarkup = `
     ${titleButton('resume', 'Продолжить', true)}
     ${titleButton('open-workshop', 'Мастерская')}
     ${titleButton('open-module-shop', 'Магазин')}
+    ${titleButton('open-rewards', rewardsIcon+'Награды')}
     ${titleButton('menu-settings', 'Настройки')}
     ${titleButton('menu-help', 'Как играть')}
     <div class="title-vents" aria-hidden="true"><i></i><i></i><i></i></div>

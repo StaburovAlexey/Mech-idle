@@ -1,3 +1,5 @@
+import { bindLobbyRewards, lobbyRewardsMarkup } from './lobby-rewards-ui';
+import { claimLobbyReward, rewardDay } from './lobby-rewards';
 import { animateRunResult,runResultMarkup } from './run-result-ui';
 import { bindGameSettings, gameSettingsMarkup, readGameSettings, saveGameSettings } from './game-settings';
 import { armoredScrollMarkup, bindArmoredScrollbars } from './armored-scroll';
@@ -279,6 +281,27 @@ function openSettings(source: HTMLElement){
  if(fromBattle)drawerElement.classList.add('settings-underlay');
  bindGameSettings(area,settings,applySettings);
 }
+let renderLobbyRewards:(()=>void)|undefined;
+function openLobbyRewards(source:HTMLElement){
+ if(screen!=='menu'||menuPage!=='title'||gatesMoving)return;
+ const area=$('#modal-root');
+ const panel=openChainPanel(area,$('.shell'),{
+  title:'Награды',subtitle:'Снабжение · Сектор 07',
+  headingId:'lobby-rewards-heading',closeId:'lobby-rewards-close',body:lobbyRewardsMarkup,
+  returnFocus:()=>{view.dispose();renderLobbyRewards=undefined;source.focus({preventScroll:true});},
+ });
+ if(!panel)return;
+ const refresh=()=>view.render(state.profile,rewardDay(),!writable||saveBlocked||pageExiting||panel.busy);
+ const view=bindLobbyRewards(area.querySelector<HTMLElement>('.lobby-rewards')!,panel.refreshLayout,id=>{
+  if(panel.busy||!writable||saveBlocked||pageExiting||screen!=='menu'||menuPage!=='title')return;
+  const next=claimLobbyReward(state,id,rewardDay());
+  if(next===state){view.report('Не удалось получить награду. Проверь доступность или освободи место для ресурсов.');refresh();return;}
+  if(!save(next)){view.report('Не удалось сохранить награду. Попробуй ещё раз.');return;}
+  state=next;sound.play('upgrade');renderUI();
+  view.report('Награда получена.');view.focusTab();
+ });
+ renderLobbyRewards=refresh;panel.onBusyChange=refresh;refresh();
+}
 function openSpecialOffer(){
  if(screen!=='menu'||menuPage!=='title'||gatesMoving)return;
  openChainPanel($('#modal-root'),$('.shell'),{
@@ -355,6 +378,7 @@ function drawPanel(){
   }
   else {
    $('#open-module-shop').onclick=()=>showMenuPage('shop');
+   $('#open-rewards').onclick=()=>openLobbyRewards($('#open-rewards'));
    $('#start').onclick=()=>enterBattle(true);$('#resume').onclick=()=>enterBattle(false);
    $('#open-workshop').onclick=()=>showMenuPage('workshop');$('#menu-help').onclick=showHelp;$('#menu-settings').onclick=()=>openSettings($('#menu-settings'));
    if(!root.inert&&!document.querySelector('#boot'))mountTitleWidgets();
@@ -377,6 +401,7 @@ function renderUI(force=false){
  const layoutChanged=force||renderedScreen!==screen;
  if(layoutChanged)drawPanel();
  const stats=getStats(state),run=state.run,battle=screen==='combat';
+ renderLobbyRewards?.();
  if(screen==='menu'){
   $('#menu-parts').textContent=coins(state.profile.crystals);
   $('#menu-scrap').textContent=coins(state.profile.scrap??0);
