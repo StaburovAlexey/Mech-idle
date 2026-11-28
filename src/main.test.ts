@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { attackConfig, enemyStats, ENEMY_PROJECTILE_SPEED, createState, getStats, parseState, serializeState, startRun, STAT_KEYS, type GameState } from './game';
+import { attackConfig, enemyStats, ENEMY_PROJECTILE_SPEED, waveConfig, step, createState, getStats, parseState, serializeState, startRun, STAT_KEYS, type GameState } from './game';
 import { SETTINGS_KEY } from './game-settings';
 import { SAVE_KEY } from './persistence';
 import type { SceneFrame } from './scene';
@@ -10,6 +10,7 @@ import type { SceneFrame } from './scene';
 // audio hardware, platform setup, tab ownership and frame scheduling are replaced.
 const fakes = vi.hoisted(() => ({
   render: vi.fn(), ready: vi.fn(), soundUnlock: vi.fn(), soundSuspend: vi.fn(), soundResume: vi.fn(),
+  resultAd: vi.fn<() => Promise<'success'|'cancel'>>(), resultAdAvailable: false,
   assets: undefined as Promise<boolean> | undefined,
   acquire: vi.fn<() => Promise<'acquired'|'busy'|'unavailable'>>(), release: vi.fn(),
   pause: null as null | { reasons: Set<string>; readonly paused: boolean },
@@ -40,6 +41,8 @@ vi.mock('./platform', () => ({
   LocalPlatformAdapter: class {
     async init() {}
     gameReady() { fakes.ready(); }
+    get resultAdAvailable(){return fakes.resultAdAvailable;}
+    showResultAd(){return fakes.resultAd();}
   },
 }));
 vi.mock('./persistence', async importOriginal => {
@@ -127,6 +130,7 @@ function closeModal(index = 0) {
 }
 
 beforeEach(() => {
+  fakes.resultAdAvailable=false;fakes.resultAd.mockReset();
   vi.resetModules(); vi.clearAllMocks(); fakes.acquire.mockReset().mockResolvedValue('acquired');
   document.body.innerHTML = '<div id="app"></div>';
   document.body.className = '';
@@ -474,6 +478,47 @@ describe('main menu', () => {
     expect(button('#start').disabled).toBe(true);
     expect(button('#resume').disabled).toBe(false);
     expect(button('#open-workshop').disabled).toBe(true);
+  });
+});
+
+describe('run result rewards', () => {
+  function pendingVictory() {
+    const initial=fundedRun(),run=initial.run!;
+    run.wave=30;run.lastPaidWave=29;run.earnedCrystals=29;run.spawned=waveConfig(30).count;
+    run.collectedLoot={parts:12,scrap:15};
+    initial.profile.crystals=41;initial.profile.scrap=15;
+    return step(initial);
+  }
+  async function restorePendingResult(){
+    vi.stubGlobal('matchMedia',()=>({matches:true}));
+    localStorage.setItem(SAVE_KEY,serializeState(pendingVictory()));
+    await import('./main');
+    await vi.waitFor(()=>expect(button('#result-claim').disabled).toBe(false));
+  }
+  it('restores an unclaimed result, shows both totals and allows normal claim without ads', async () => {
+    await restorePendingResult();
+    expect(element('#run-result-title').textContent).toBe('Победа');
+    expect(element('#result-earned-parts').textContent).toBe('+42');
+    expect(element('#result-earned-scrap').textContent).toBe('+15');
+    expect(button('#result-claim-ad').getAttribute('aria-label')).toContain('детали 84, обломки 30');
+    expect(button('#result-claim-ad').disabled).toBe(true);
+    click('#result-claim');
+    expect(saved().result).toBeNull();
+    expect(saved().profile).toMatchObject({crystals:42,scrap:15});
+    expect(document.activeElement).toBe(button('#start'));
+  });
+  it('leaves base claim available on cancellation and consumes a successful ad once', async () => {
+    fakes.resultAdAvailable=true;
+    fakes.resultAd.mockResolvedValueOnce('cancel').mockResolvedValueOnce('success');
+    await restorePendingResult();
+    click('#result-claim-ad');click('#result-claim');
+    await vi.waitFor(()=>expect(button('#result-claim').disabled).toBe(false));
+    expect(saved().result?.rewardPending).toBe(true);
+    expect(saved().profile).toMatchObject({crystals:42,scrap:15});
+    click('#result-claim-ad');click('#result-claim-ad');
+    await vi.waitFor(()=>expect(saved().result).toBeNull());
+    expect(saved().profile).toMatchObject({crystals:84,scrap:30});
+    expect(fakes.resultAd).toHaveBeenCalledTimes(2);
   });
 });
 

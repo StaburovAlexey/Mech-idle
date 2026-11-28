@@ -1,0 +1,48 @@
+.shell.at-run-result {
+  --result-accent:#ffc679;--result-edge:#9a6041;--result-tile:#402926;--result-tone:#ffb3a0;--result-shade:#311c29d9;
+  width:100%;max-width:none;min-height:100cqh;padding:0;gap:0;
+  background:linear-gradient(180deg,#171521ad 0%,#20192528 28%,var(--result-shade) 86%,#1b141ddd),url('/assets/ui/workshop/outdoor-workshop.webp') center 46% / cover;
+}
+.shell.at-run-result.result-victory {
+  --result-accent:#c5ef8c;--result-edge:#779848;--result-tile:#2f3e2b;--result-tone:#d7f5a9;--result-shade:#1b271edb;
+}
+.at-run-result > :is(.topbar,.foot,.section-head,.upgrades),.at-run-result .arena-wrap {display:none}
+.shell.at-run-result .workspace {display:block;min-height:0;width:100%}
+.run-result-screen {
+  width:min(100%,440px);min-height:100cqh;margin-inline:auto;padding:clamp(16px,3.7cqh,31px) clamp(11px,4.9cqw,19px) clamp(14px,3cqh,26px);
+  display:grid;grid-template-rows:auto 1fr auto;gap:clamp(9px,2.3cqh,19px);
+  color:#fff0da;font:500 13px/1.4 var(--oplot-font);
+}
+.result-mast {display:flex;justify-content:space-between;align-items:center;font-size:10px;letter-spacing:.11em;color:#f3dfc6;text-transform:uppercase}
+.result-mast strong {font-size:19px;letter-spacing:.15em;text-shadow:var(--type-raised)}
+.result-mast span::before {content:'';display:inline-block;width:6px;height:6px;background:var(--result-accent);vertical-align:1px;margin-right:6px;box-shadow:0 0 10px var(--result-accent)}
+.result-report {align-self:center;padding:clamp(21px,3.5cqh,29px) clamp(13px,5cqw,20px) 20px}
+.result-report > .title-seam {display:none}
+.result-tag {position:absolute;top:5px;left:50%;transform:translate(-50%,-50%);white-space:nowrap;padding:4px 12px;border:1px solid #695e64;background:linear-gradient(#51494e,#25212a);border-radius:4px;color:#f2e0c8;font-size:9px;font-weight:800;letter-spacing:.17em;text-transform:uppercase;box-shadow:0 2px #120e15}
+.result-status {text-align:center}
+.result-badge {margin:0 auto 10px;width:clamp(48px,8cqh,66px);aspect-ratio:1;border:1px solid var(--result-edge);border-radius:12px;display:grid;place-items:center;color:var(--result-accent);background:radial-gradient(ellipse at 50% 15%,var(--result-tile),#25202b);box-shadow:inset 0 0 0 3px #1b171e,inset 0 0 0 4px #5d4e4868,0 3px 0 #100e17}
+.result-badge svg {width:52%;height:52%}
+.result-status h1 {margin:0 0 7px;color:var(--result-tone);font-size:clamp(23px,8.08cqw,34px);line-height:1.05;text-shadow:0 3px #160f18;font-weight:800;white-space:nowrap;text-transform:uppercase}
+.result-status p {margin:0;color:#e0d3c8;font-size:12px}
+.result-status strong {font-size:14px;color:#fff0da;white-space:nowrap}
+.result-wave-bar {height:8px;margin:13px auto clamp(13px,3cqh,24px);width:76%;border:1px solid #504858;border-radius:3px;background:#14121a;overflow:hidden}
+.result-wave-bar span {display:block;height:100%;background:repeating-linear-gradient(130deg,#ffffff14 0 5px,transparent 5px 9px),linear-gradient(var(--result-accent),var(--result-edge));box-shadow:inset 0 1px #ffffff38}
+.result-earned {font-size:10px;color:#d6c8d2;font-weight:800;letter-spacing:.12em;text-transform:uppercase;margin:0 0 9px}
+.result-loot,.result-claim-row {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.result-loot > div {min-width:0;text-align:center;padding:8px 0 9px}
+.result-loot .currency-icon {width:35px;height:35px;display:block;margin:0 auto 4px}
+.result-loot span {display:block;font-size:11px;color:#efe3d7}
+.result-loot strong {display:block;font-size:clamp(22px,8cqw,31px);line-height:1.08;font-weight:800;letter-spacing:-.055em;color:#a4ebdc;text-shadow:0 2px #1e1924;margin-bottom:5px;font-variant-numeric:tabular-nums}
+.result-loot div:last-child strong {color:#ffc484}
+.result-claim-row {margin-top:16px;transition:opacity .22s,transform .22s}
+.result-claim-row[aria-hidden=true] {visibility:hidden;opacity:0;transform:translateY(7px)}
+.result-claim-row .title-button {min-height:61px;font-size:clamp(10px,3.1cqw,12px);align-content:center;gap:5px;padding:6px 2px;line-height:1.1}
+.result-ad-button {--light:#a5d7ff;--edge:#478ccb;--fill-top:#2c6096;--fill-bottom:#223954;--depth:#182739}
+.result-claim-label {display:flex;align-items:center;justify-content:center;gap:4px}
+.result-claim-label svg {width:14px;height:14px;flex:none}
+.result-claim-values {display:flex;justify-content:center;align-items:center;gap:clamp(4px,2cqw,9px);white-space:nowrap;font-size:clamp(10px,3cqw,12px);font-weight:800}
+.result-claim-values b {display:flex;align-items:center;gap:3px}
+.result-claim-values .currency-icon {width:15px;height:15px;object-fit:contain}
+.result-message {color:#ead9c9;font-size:10px;text-align:center;margin:8px 0 0;min-height:1.4em}
+.result-foot {font-size:9px;color:#ddc8c0;letter-spacing:.16em;text-align:center;text-transform:uppercase}
+@media (prefers-reduced-motion:reduce) {.result-claim-row{transition:none}}

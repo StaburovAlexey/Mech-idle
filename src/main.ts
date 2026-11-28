@@ -1,7 +1,8 @@
+import { animateRunRewards,runResultMarkup } from './run-result-ui';
 import { bindGameSettings, gameSettingsMarkup, readGameSettings, saveGameSettings } from './game-settings';
 import { armoredScrollMarkup, bindArmoredScrollbars } from './armored-scroll';
 import { animateChainSheet, openChainPanel } from './chain-panel';
-import { currencyBank, currencyIcon } from './currency-ui';
+import { currencyBank } from './currency-ui';
 import './style.css';
 import './title.css';
 import './workshop.css';
@@ -15,7 +16,7 @@ import { moduleShopMarkup, moduleDetailContent, renderShopCard, renderModuleDeta
 import { MenuAnnouncements, TEST_ANNOUNCEMENTS } from './menu-announcement';
 import { rotateTitleTips } from './title-tips';
 import { titleMarkup } from './title-ui';
-import {createState,startRun,step,collectPickups,buyRunUpgrade,buyCombatUpgrade,buyMetaUpgrade,buyWorkshopCombatUpgrade,buyShopModule,setPaused,getStats,calculateStats,runPrice,metaPrice,STAT_KEYS,DT,type GameState,type StatKey} from './game';
+import {createState,startRun,step,collectPickups,buyRunUpgrade,buyCombatUpgrade,buyMetaUpgrade,buyWorkshopCombatUpgrade,buyShopModule,claimRunReward,runRewards,setPaused,getStats,calculateStats,runPrice,metaPrice,STAT_KEYS,DT,type GameState,type StatKey} from './game';
 import {SceneView,type SceneFrame, type SceneSpawn} from './scene';
 import {SaveRepository,PauseManager,TabLock} from './persistence';
 import {LocalPlatformAdapter} from './platform';
@@ -293,16 +294,45 @@ function mountTitleWidgets(){
  announcements.mount($('.menu-announcement-slot'),destination=>{if(destination==='offer')openSpecialOffer();else void showMenuPage(destination);},
   destination=>!gatesMoving&&(destination==='offer'||!state.run), ()=>$(state.run?'#resume':'#start').focus({preventScroll:true}));
 }
+let disposeRunResult:(()=>void)|undefined, resultReady=false, resultBusy=false;
+function renderResultActions(){
+ const claim=$<HTMLButtonElement>('#result-claim'),ad=$<HTMLButtonElement>('#result-claim-ad');
+ const result=state.result;
+ if(!claim||!ad||!result)return;
+ const payout=runRewards(result);
+ claim.disabled=!resultReady||!writable||saveBlocked||resultBusy;
+ const bonusFits=state.profile.crystals+payout.parts<=1e9&&(state.profile.scrap??0)+payout.scrap<=1e9;
+ ad.disabled=claim.disabled||!platform.resultAdAvailable||!bonusFits||!(payout.parts||payout.scrap);
+}
+async function collectRunResult(withAd:boolean){
+ const selected=state.result;
+ if(screen!=='result'||!selected?.rewardPending||resultBusy||!resultReady||!writable||saveBlocked)return;
+ const message=$('.result-message');
+ if(withAd&&$<HTMLButtonElement>('#result-claim-ad').disabled)return;
+ resultBusy=true;renderResultActions();
+ try{
+  if(withAd&&await platform.showResultAd(pause)!=='success'){
+   message.textContent='Просмотр не завершён. Обычная награда доступна.';return;
+  }
+  if(screen!=='result'||state.result!==selected||!writable||saveBlocked)return;
+  const next=claimRunReward(state,selected.runId,withAd);
+  if(next===state||!save(next)){message.textContent='Не удалось сохранить награду. Попробуйте ещё раз.';return;}
+  state=next;
+  void throughGates(()=>{openMenu();root.scrollTop=0;},focusTitleAction);
+ }catch{message.textContent='Реклама недоступна. Обычная награда доступна.';}
+ finally{resultBusy=false;renderResultActions();}
+}
 let disposeWorkshopTabs: (()=>void) | undefined;
 let disposeShopScrollbars: (()=>void) | undefined;
 function drawPanel(){
+ disposeRunResult?.();disposeRunResult=undefined;resultReady=false;
  disposeTitleTips?.();disposeTitleTips=undefined;
  disposeWorkshopTabs?.();disposeWorkshopTabs=undefined;
  disposeShopScrollbars?.();disposeShopScrollbars=undefined;
- const panel=$('#panel');panel.className=screen==='menu'?(menuPage==='shop'?'module-shop-panel':menuPage==='workshop'?'workshop-panel':'title-panel'):`panel ${screen}-panel`;
+ const panel=$('#panel');panel.className=screen==='menu'?(menuPage==='shop'?'module-shop-panel':menuPage==='workshop'?'workshop-panel':'title-panel') :screen==='result'?'run-result-screen':'panel combat-panel';
  if(screen==='menu')panel.innerHTML=menuPage==='shop'?moduleShopMarkup:menuPage==='workshop'?workshopMarkup(state.profile.enhancements):titleMarkup;
  else if(screen==='combat')panel.innerHTML='';
- else panel.innerHTML=`<div class="result-emblem">${state.result?.outcome==='victory'?'★':'⬡'}</div><div class="eyebrow">${state.result?.outcome==='victory'?'Периметр защищён':'Связь с оплотом потеряна'}</div><h1>${state.result?.outcome==='victory'?'Колосс<br>повержен.':'Забег<br>завершён.'}</h1><p>${state.result?.outcome==='victory'?'Все 30 волн пройдены. Вы удержали сектор.':'Детали сохранены. Усильте стартовые параметры и вернитесь в бой.'}</p><div class="combat-stats"><div class="stat-box"><span>Пройдено волн</span><strong>${state.result?.completedWaves??0} / 30</strong></div><div class="stat-box crystals"><span>Заработано</span><strong>+${state.result?.earnedCrystals??0} ${currencyIcon('parts')}</strong></div><div class="stat-box"><span>Уничтожено мехов</span><strong>${state.result?.kills??0}</strong></div><div class="stat-box"><span>Время обороны</span><strong>${Math.floor((state.result?.duration??0)/60)}:${String(Math.floor((state.result?.duration??0)%60)).padStart(2,'0')}</strong></div></div><p class="hint">Временное золото и боевые модули сброшены. Улучшения мастерской остаются с вами.</p><button class="main-button panel-bottom" id="to-workshop">В мастерскую</button>`;
+ else if(state.result)panel.innerHTML=runResultMarkup(state.result);
  if(screen==='menu'){
   if(menuPage==='workshop'){
    $('#workshop-back').onclick=()=>showMenuPage('title');
@@ -330,7 +360,14 @@ function drawPanel(){
    if(!root.inert&&!document.querySelector('#boot'))mountTitleWidgets();
   }
  }
- if(screen==='result')$('#to-workshop').onclick=()=>{openMenu();void showMenuPage('workshop',false);};
+ if(screen==='result'&&state.result){
+  $('#result-claim').onclick=()=>void collectRunResult(false);
+  $('#result-claim-ad').onclick=()=>void collectRunResult(true);
+  disposeRunResult=animateRunRewards(panel,state.result,()=>{
+   resultReady=true;renderResultActions();
+   if(!platform.resultAdAvailable)$(".result-message").textContent='Реклама недоступна';
+  });
+ }
  renderedScreen=screen;
 }
 function renderUI(force=false){
@@ -357,6 +394,8 @@ function renderUI(force=false){
  $('.shell').classList.toggle('at-workshop',screen==='menu'&&menuPage==='workshop');
  $('.shell').classList.toggle('at-module-shop',screen==='menu'&&menuPage==='shop');
  $('.shell').classList.toggle('in-battle',battle);
+ $('.shell').classList.toggle('at-run-result',screen==='result');
+ $('.shell').classList.toggle('result-victory',screen==='result'&&state.result?.outcome==='victory');
  document.body.classList.toggle('battle-active',battle);
  $('#battle-hud').classList.toggle('hidden',!battle);
  $('#battle-notice').textContent=$('#notice').textContent;
@@ -415,7 +454,7 @@ function animate(now:number){
    for(const ev of state.events){if(ev.type==='spawn'&&state.run)spawns.push({...ev,time:state.run.time});if(ev.type==='shot')sound.play('shot');if(ev.type==='kill'){sound.play('kill');toast(`+${ev.amount} золота`);}if(ev.type==='waveComplete'){sound.play('wave');toast(`Волна ${ev.wave} пройдена · +1 деталь`);}if(ev.type==='waveStart'&&ev.wave===30)toast('ВНИМАНИЕ: КОЛОСС · финальный босс');}
    if(state.events.some(e=>e.type==='kill'||e.type==='waveComplete'||e.type==='runEnded'))save();
   }
-  if(!state.run&&state.result){battleMenu.close();screen='result';pause.add('menu');save();renderUI(true);}
+  if(!state.run&&state.result){battleMenu.close();screen='result';pause.add('menu');save();renderUI(true);$('#run-result-title').focus({preventScroll:true});}
  }else accumulator=0;
  if(scene){
   const frame=frameForScene(spawns);
@@ -485,7 +524,7 @@ async function openSave(){
  try{
   repository=new SaveRepository(localStorage);
   const loaded=repository.load();
-  if(loaded.state)state=loaded.state;
+  if(loaded.state){state=loaded.state;if(state.result?.rewardPending){screen='result';pause.add('menu');}}
   if(loaded.warning)notify(loaded.warning);
   saveBlocked=loaded.blocked;
   if(saveBlocked)showSaveRecovery();
@@ -511,7 +550,8 @@ async function init(){
   };
   const enableInput=()=>{
    root.inert=false;
-   $('#modal-root').querySelector('button')?.focus();
+   const modalButton=$('#modal-root').querySelector('button');
+   if(modalButton)modalButton.focus();else if(screen==='result')$('#run-result-title')?.focus({preventScroll:true});
   };
   if(startup){
    await startup.reveal(show,enableInput);

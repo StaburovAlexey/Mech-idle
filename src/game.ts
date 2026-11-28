@@ -28,12 +28,14 @@ export interface Run {
   kills: number; earnedGold: number; earnedCrystals: number;
   enhancements?: CombatEnhancements;
   pickups?: Pickup[];
+  collectedLoot?: LootTotal;
   spawnMode?: 'circle';
   combatMode?: 'telegraphed';
   /** Read only by the one-time migration of old viewport-based saves. */
   spawnGeometry?: SpawnGeometry; nextArrival?: number;
 }
-export interface RunResult { outcome: 'defeat' | 'victory'; runId: string; wave: number; completedWaves: number; kills: number; earnedGold: number; earnedCrystals: number; duration: number; finalStats: Stats }
+type LootTotal = { parts: number; scrap: number };
+export interface RunResult { outcome: 'defeat' | 'victory'; runId: string; wave: number; completedWaves: number; kills: number; earnedGold: number; earnedCrystals: number; duration: number; finalStats: Stats; collectedLoot?: LootTotal; rewardPending?: true }
 export type GameEvent =
   | { type: 'warning' | 'spawn'; id: string; kind: EnemyKind; x: number; y: number }
   | { type: 'shot'; id: string; targetId: string; x: number; y: number; targetX: number; targetY: number }
@@ -399,6 +401,7 @@ export function collectPickups(state: GameState, ids: readonly string[]): GameSt
   const next = clone(state);
   next.events = [];
   next.run!.pickups = run.pickups.filter(item => !selected.has(item.id));
+  next.run!.collectedLoot={parts:(run.collectedLoot?.parts??0)+parts,scrap:(run.collectedLoot?.scrap??0)+scrap};
   next.profile.crystals += parts;
   if (scrap) next.profile.scrap = (state.profile.scrap ?? 0) + scrap;
   return next;
@@ -430,10 +433,28 @@ function hitWithBullet(state: GameState, target: Enemy, bullet: Bullet, dx: numb
 
 function endRun(state: GameState, outcome: 'defeat' | 'victory'): void {
   const r = state.run!;
-  state.result = { outcome, runId: r.id, wave: r.wave, completedWaves: r.lastPaidWave, kills: r.kills, earnedGold: r.earnedGold, earnedCrystals: r.earnedCrystals, duration: r.time, finalStats: getStats(state) };
+  state.result = { outcome, runId: r.id, wave: r.wave, completedWaves: r.lastPaidWave, kills: r.kills, earnedGold: r.earnedGold, earnedCrystals: r.earnedCrystals, duration: r.time, finalStats: getStats(state), collectedLoot: r.collectedLoot ?? {parts:0,scrap:0}, rewardPending:true };
   state.run = null;
   state.events.push({ type: 'runEnded', outcome });
 }
+export function runRewards(result: RunResult): LootTotal {
+  return {parts:result.earnedCrystals+(result.collectedLoot?.parts??0),scrap:result.collectedLoot?.scrap??0};
+}
+
+/** The normal payout is already banked; consume the pending result once, adding only a confirmed ad bonus. */
+export function claimRunReward(state: GameState, runId: string, adBonus = false): GameState {
+  const result=state.result;
+  if(state.run||!result?.rewardPending||result.runId!==runId)return state;
+  const profile={...state.profile};
+  if(adBonus){
+    const {parts,scrap}=runRewards(result);
+    if(profile.crystals+parts>1e9||(profile.scrap??0)+scrap>1e9)return state;
+    profile.crystals+=parts;
+    if(scrap)profile.scrap=(profile.scrap??0)+scrap;
+  }
+  return {...state,profile,result:null,events:[]};
+}
+
 function advanceTick(state: GameState): void {
   const r = state.run;
   if (!r || r.paused) return;
@@ -605,6 +626,7 @@ function validCombatLevels(v: unknown): v is CombatUpgradeLevels {
  return object(v) && Object.entries(v).every(([key, level]) =>
    Object.hasOwn(COMBAT_UPGRADES, key) && int(level, 1, key === 'scanner' ? 1 : 256));
 }
+function validLootTotal(v: unknown): v is LootTotal { return object(v) && keys(v,['parts','scrap']) && int(v.parts,0,MAX_RUN_KILLS*3) && int(v.scrap,0,MAX_RUN_KILLS*3); }
 function validStats(v: unknown): v is Stats { return object(v) && keys(v, ['damage','maxHp','attackSpeed','regen','range']) && num(v.damage, 10, Number.MAX_VALUE) && num(v.maxHp, 100, Number.MAX_VALUE) && num(v.attackSpeed, 1, Number.MAX_VALUE) && num(v.regen, 0, Number.MAX_VALUE) && (v.range === TURRET_RANGE || v.range === 10); }
 export function validateState(value: unknown, allowLegacy = false): value is GameState {
   if (!object(value) || !keys(value, ['version','profile','run','result','events']) || value.version !== 1 || !Array.isArray(value.events) || value.events.length !== 0) return false;
@@ -612,12 +634,13 @@ export function validateState(value: unknown, allowLegacy = false): value is Gam
   if (!object(p) || !keys(p, ['crystals','meta','runCounter', ...(Object.hasOwn(p,'scrap') ? ['scrap'] : []), ...(Object.hasOwn(p,'enhancements') ? ['enhancements'] : [])]) || !int(p.crystals) || (Object.hasOwn(p,'scrap') && !int(p.scrap)) || !validLevels(p.meta) || !int(p.runCounter) || (Object.hasOwn(p,'enhancements') && !validCombatLevels(p.enhancements))) return false;
   if (value.result !== null) {
     const r = value.result;
-    if (!object(r) || !keys(r, ['outcome','runId','wave','completedWaves','kills','earnedGold','earnedCrystals','duration','finalStats']) || !['defeat','victory'].includes(r.outcome) || !str(r.runId) || !int(r.wave,1,30) || !int(r.completedWaves,0,30) || !int(r.kills,0,MAX_RUN_KILLS) || !int(r.earnedGold,0,MAX_RUN_GOLD) || !int(r.earnedCrystals,0,30) || r.earnedCrystals !== r.completedWaves || !num(r.duration,0,1e7) || !validStats(r.finalStats) || (r.outcome === 'victory' && (r.wave !== 30 || r.completedWaves !== 30)) || (r.outcome === 'defeat' && r.completedWaves !== r.wave - 1)) return false;
+    if (!object(r) || !keys(r, ['outcome','runId','wave','completedWaves','kills','earnedGold','earnedCrystals','duration','finalStats', ...(Object.hasOwn(r,'collectedLoot') ? ['collectedLoot'] : []), ...(Object.hasOwn(r,'rewardPending') ? ['rewardPending'] : [])]) || (Object.hasOwn(r,'collectedLoot') && !validLootTotal(r.collectedLoot)) || (Object.hasOwn(r,'rewardPending') && (r.rewardPending!==true || !Object.hasOwn(r,'collectedLoot'))) || !['defeat','victory'].includes(r.outcome) || !str(r.runId) || !int(r.wave,1,30) || !int(r.completedWaves,0,30) || !int(r.kills,0,MAX_RUN_KILLS) || !int(r.earnedGold,0,MAX_RUN_GOLD) || !int(r.earnedCrystals,0,30) || r.earnedCrystals !== r.completedWaves || !num(r.duration,0,1e7) || !validStats(r.finalStats) || (r.outcome === 'victory' && (r.wave !== 30 || r.completedWaves !== 30)) || (r.outcome === 'defeat' && r.completedWaves !== r.wave - 1)) return false;
   }
   if (value.run === null) return true;
   if (value.result !== null) return false;
   const r = value.run;
-  if (!object(r) || !keys(r, ['id','seed','rngState','wave','phase','paused','time','tick','phaseTime','hp','gold','levels','activeLevels','enemies','bullets','warnings','spawned','spawnCooldown','shotCooldown','targetId','nextEntityId','lastSector','sectorStreak','paidKillIds','lastPaidWave','kills','earnedGold','earnedCrystals', ...(Object.hasOwn(r, 'combatMode') ? ['combatMode','enemyProjectiles'] : []), ...(Object.hasOwn(r, 'spawnMode') ? ['spawnMode'] : []), ...(Object.hasOwn(r, 'enhancements') ? ['enhancements'] : []), ...(Object.hasOwn(r, 'pickups') ? ['pickups'] : []), ...(Object.hasOwn(r, 'spawnGeometry') ? ['spawnGeometry'] : []), ...(Object.hasOwn(r, 'nextArrival') ? ['nextArrival'] : [])])) return false;
+  if (!object(r) || !keys(r, ['id','seed','rngState','wave','phase','paused','time','tick','phaseTime','hp','gold','levels','activeLevels','enemies','bullets','warnings','spawned','spawnCooldown','shotCooldown','targetId','nextEntityId','lastSector','sectorStreak','paidKillIds','lastPaidWave','kills','earnedGold','earnedCrystals', ...(Object.hasOwn(r, 'combatMode') ? ['combatMode','enemyProjectiles'] : []), ...(Object.hasOwn(r, 'spawnMode') ? ['spawnMode'] : []), ...(Object.hasOwn(r, 'enhancements') ? ['enhancements'] : []), ...(Object.hasOwn(r, 'pickups') ? ['pickups'] : []), ...(Object.hasOwn(r,'collectedLoot') ? ['collectedLoot'] : []), ...(Object.hasOwn(r, 'spawnGeometry') ? ['spawnGeometry'] : []), ...(Object.hasOwn(r, 'nextArrival') ? ['nextArrival'] : [])])) return false;
+  if (Object.hasOwn(r,'collectedLoot') && !validLootTotal(r.collectedLoot)) return false;
   const telegraphed = Object.hasOwn(r, 'combatMode');
   if (telegraphed && (r.combatMode !== 'telegraphed' || !Array.isArray(r.enemyProjectiles) || r.enemyProjectiles.length > MAX_ENEMY_PROJECTILES)) return false;
   const circle = Object.hasOwn(r, 'spawnMode');
