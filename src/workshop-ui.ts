@@ -1,4 +1,4 @@
-import { COMBAT_KEYS, COMBAT_UPGRADES, combatValueLabel, workshopCombatPrice, type CombatUpgrade } from './combat-upgrades';
+import { COMBAT_KEYS, COMBAT_UPGRADES, combatValueLabel, workshopCombatPrice, isShopModule, type CombatUpgrade } from './combat-upgrades';
 import type { StatKey } from './game';
 import { STAT_LABELS, statIcon, UPGRADE_CATEGORIES } from './battle-ui';
 import { screenHeader, titleButton } from './title-ui';
@@ -23,13 +23,14 @@ export function workshopCombatCard(key: CombatUpgrade, prefix = 'workshop', show
 
 export function renderWorkshopCombatUpgrade(button: HTMLButtonElement, key: CombatUpgrade, level: number, crystals: number, blocked: boolean) {
  const {title,description}=COMBAT_UPGRADES[key], price=workshopCombatPrice(key,level), owned=price===Infinity;
- const current=combatValueLabel(key,level), next=combatValueLabel(key,level+1), coins=price.toLocaleString('ru-RU');
- button.disabled=blocked||owned||crystals<price;
+ const locked=isShopModule(key)&&!level;
+ const current=locked?'Купи в магазине':combatValueLabel(key,level), next=combatValueLabel(key,level+1), coins=price.toLocaleString('ru-RU');
+ button.disabled=blocked||owned||locked||crystals<price;
  button.querySelector('.workshop-current')!.textContent=current;
- button.querySelector('.workshop-next')!.textContent=owned?'':`→ ${next}`;
- button.querySelector('.workshop-amount')!.textContent=owned?'':coins;
- button.querySelector('.workshop-currency')!.classList.toggle('hidden',owned);
- button.setAttribute('aria-label',`${title}. ${description}. ${owned?current:`Сейчас: ${current}. После покупки: ${next}. Цена: ${coins} кристаллов.`}`);
+ button.querySelector('.workshop-next')!.textContent=owned||locked?'':`→ ${next}`;
+ button.querySelector('.workshop-amount')!.textContent=owned||locked?'':coins;
+ button.querySelector('.workshop-currency')!.classList.toggle('hidden',owned||locked);
+ button.setAttribute('aria-label',`${title}. ${description}. ${owned||locked?current:`Сейчас: ${current}. После покупки: ${next}. Цена: ${coins} кристаллов.`}`);
 }
 
 export const workshopMarkup = `

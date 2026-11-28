@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { COMBAT_KEYS, combatUpgradePrice, workshopCombatPrice, type CombatUpgrade } from './combat-upgrades';
-import { attackConfig, buyCombatUpgrade, buyWorkshopCombatUpgrade, createState, DT, enemyStats, parseState, serializeState, startRun, step, TURRET_RANGE, type Enemy, type EnemyKind, type GameState } from './game';
+import { COMBAT_KEYS, combatUpgradePrice, workshopCombatPrice, isShopModule, type CombatUpgrade } from './combat-upgrades';
+import { attackConfig, buyCombatUpgrade, buyWorkshopCombatUpgrade, buyShopModule, createState, DT, enemyStats, parseState, serializeState, startRun, step, TURRET_RANGE, type Enemy, type EnemyKind, type GameState } from './game';
 
 function battle(wave = 6): GameState {
  const state = startRun(createState(), 1), run = state.run!;
@@ -46,7 +46,7 @@ describe('combat-only upgrades',()=>{
 
  it('spends crystals on all nine starting effects and stacks gold purchases only for the current run',()=>{
   const starting=createState();starting.profile.crystals=100;
-  const hangar=COMBAT_KEYS.reduce((s,k)=>buyWorkshopCombatUpgrade(s,k),starting);
+  const hangar=COMBAT_KEYS.reduce((s,k)=>isShopModule(k)?buyShopModule(s,k):buyWorkshopCombatUpgrade(s,k),starting);
   expect(hangar.profile.crystals).toBe(100-COMBAT_KEYS.reduce((n,k)=>n+workshopCombatPrice(k,0),0));
   expect(hangar.profile.meta).toEqual(starting.profile.meta);
   expect(buyWorkshopCombatUpgrade(hangar,'scanner')).toBe(hangar);
@@ -60,6 +60,19 @@ describe('combat-only upgrades',()=>{
   expect(n.run!.gold).toBe(100-combatUpgradePrice('pierce',0));
   expect(buyCombatUpgrade(n,'scanner')).toBe(n);
   expect(startRun({...n,run:null},43).run!.enhancements?.levels.pierce).toBe(1);
+ });
+
+ it('allows one shop purchase and sends repeat upgrades to the workshop',()=>{
+  const state=createState();state.profile.crystals=50;
+  expect(buyWorkshopCombatUpgrade(state,'pulse')).toBe(state);
+  const first=buyShopModule(state,'pulse');
+  expect(first.profile.crystals).toBe(42);
+  expect(first.profile.enhancements?.pulse).toBe(1);
+  expect(buyShopModule(first,'pulse')).toBe(first);
+  const second=buyWorkshopCombatUpgrade(reload(first),'pulse');
+  expect(second.profile.crystals).toBe(30);
+  expect(second.profile.enhancements?.pulse).toBe(2);
+  expect(buyShopModule(second,'pulse')).toBe(second);
  });
 
  it('doubles a critical projectile and saves it in flight without changing damage in the workshop',()=>{

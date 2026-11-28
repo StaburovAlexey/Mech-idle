@@ -1,4 +1,4 @@
-import { COMBAT_UPGRADES, combatEffect, combatUpgradePrice, createEnhancements, workshopCombatPrice, type CombatEnhancements, type CombatUpgrade, type CombatUpgradeLevels } from './combat-upgrades';
+import { COMBAT_UPGRADES, combatEffect, combatUpgradePrice, createEnhancements, workshopCombatPrice, isShopModule, type CombatEnhancements, type CombatUpgrade, type CombatUpgradeLevels, type ShopModule } from './combat-upgrades';
 import { PORTAL_RISE_SECONDS } from './portalTiming';
 import { clampToSpawnCircle, onSpawnCircle, SPAWN_RADIUS, spawnPoint, validSpawnGeometry, WORLD_LIMIT, type SpawnGeometry } from './spawnGeometry';
 /** Deterministic, fixed-step game simulation. No wall clock, browser, or renderer dependencies. */
@@ -155,7 +155,7 @@ export function buyCombatUpgrade(state: GameState, key: CombatUpgrade): GameStat
   return next;
 }
 
-export function buyWorkshopCombatUpgrade(state: GameState, key: CombatUpgrade): GameState {
+function buyPermanentCombatUpgrade(state: GameState, key: CombatUpgrade): GameState {
   if (state.run || !Object.hasOwn(COMBAT_UPGRADES, key)) return state;
   const level = state.profile.enhancements?.[key] ?? 0;
   const price = workshopCombatPrice(key, level);
@@ -165,6 +165,16 @@ export function buyWorkshopCombatUpgrade(state: GameState, key: CombatUpgrade): 
   next.profile.crystals -= price;
   next.events = [];
   return next;
+}
+
+export function buyWorkshopCombatUpgrade(state: GameState, key: CombatUpgrade): GameState {
+  if (isShopModule(key) && !state.profile.enhancements?.[key]) return state;
+  return buyPermanentCombatUpgrade(state,key);
+}
+
+export function buyShopModule(state: GameState, key: ShopModule): GameState {
+  if (!isShopModule(key) || state.profile.enhancements?.[key]) return state;
+  return buyPermanentCombatUpgrade(state,key);
 }
 
 function effect(run: Run, key: CombatUpgrade): number {
