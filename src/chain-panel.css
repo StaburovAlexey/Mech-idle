@@ -73,4 +73,3 @@ body:has(.chain-panel-layer:not(.hidden)) { overflow: hidden; }
 .settings-volume { display: grid; grid-template-columns: 1fr auto; }
 .settings-volume input { grid-column: 1/-1; width: 100%; min-height: 28px; }
 .settings-volume output { color: #c9f397; }
-.chain-settings p { color: #d1c6bf; font-size: 12px; margin: 0 4px 3px; }

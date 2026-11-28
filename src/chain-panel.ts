@@ -4,7 +4,7 @@ import './chain-panel.css';
 
 type PanelContent = {
  title: string; subtitle: string; body: string; leading?: string;
- headingId: string; closeId: string; descriptionId: string;
+ headingId: string; closeId: string; descriptionId?: string;
  returnFocus: () => void;
 };
 
@@ -24,7 +24,7 @@ export function animateChainSheet(sheet:HTMLElement, enter:boolean) {
 
 export function openChainPanel(area: HTMLElement, shell: HTMLElement, panel: PanelContent) {
  if (area.childElementCount) return null;
- const frame=chainPanelSheet(`<div class="chain-panel-content" role="dialog" aria-modal="true" aria-labelledby="${panel.headingId}" aria-describedby="${panel.descriptionId}">
+ const frame=chainPanelSheet(`<div class="chain-panel-content" role="dialog" aria-modal="true" aria-labelledby="${panel.headingId}"${panel.descriptionId ? ` aria-describedby="${panel.descriptionId}"` : ''}>
     <header class="chain-panel-head">
      ${panel.leading??''}<div><small>${panel.subtitle}</small><h2 id="${panel.headingId}">${panel.title}</h2></div>
      <button type="button" class="chain-panel-close" id="${panel.closeId}" aria-label="Закрыть">×</button>

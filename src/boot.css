@@ -50,5 +50,3 @@ body:has(#boot:not([data-phase="menu"])) #app { visibility:hidden; }
 .boot-loader .boot-track{stroke:#515c40}
 .boot-loader .boot-arc{stroke:#c7ed96;stroke-linecap:round;stroke-dasharray:42 61;transform:rotate(-88deg);transform-origin:center;filter:drop-shadow(0 0 4px #a7d47865)}
 .boot-heading{margin:0;color:#f8e9d2;font-weight:800;font-size:clamp(12px,3.65cqw,16px);line-height:1.2;letter-spacing:.045em}
-
-#boot.crt-disabled .boot-grain { display: none; }

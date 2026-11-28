@@ -1,4 +1,3 @@
-import { bindCrtScreen } from './crt-screen';
 import { bindGameSettings, gameSettingsMarkup, readGameSettings, saveGameSettings } from './game-settings';
 import { armoredScrollMarkup, bindArmoredScrollbars } from './armored-scroll';
 import { animateChainSheet, openChainPanel } from './chain-panel';
@@ -25,10 +24,7 @@ import {BattleMenuController,battleHudMarkup,battleMenuMarkup,bossBarMarkup,batt
 const $=<T extends HTMLElement=HTMLElement>(s:string)=>document.querySelector<T>(s)!;
 const root=$('#app');
 const settings=readGameSettings();
-const startup=bootScreen(root,settings.crt);
-const stageScreen=document.querySelector<HTMLElement>('#game-stage');
-const setCrt=stageScreen?bindCrtScreen(stageScreen):()=>{};
-setCrt(settings.crt);
+const startup=bootScreen(root);
 for (const type of ['contextmenu', 'dragstart']) {
  root.addEventListener(type, event => event.preventDefault());
 }
@@ -96,7 +92,8 @@ function modal(title:string,text:string,actions:{label:string,action:()=>void,se
 }
 function downloadCorrupt(){if(!repository)return;const blob=new Blob([repository.raw()],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='oplot-save-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
 function showSaveRecovery(){modal('Сохранение повреждено','Старые данные оставлены на устройстве. Сначала можно скачать копию. Новый профиль удалит текущее локальное сохранение и его резервную копию.',[{label:'Скачать копию',secondary:true,action:()=>{downloadCorrupt();showSaveRecovery();}},{label:'Новый профиль',action:()=>modal('Начать с нуля?','Детали, постоянные улучшения и незаконченный забег будут удалены на этом устройстве.',[{label:'Отмена',secondary:true,action:showSaveRecovery},{label:'Удалить и начать',action:()=>{repository?.reset();state=createState();saveBlocked=false;$('#notice').classList.add('hidden');save();renderUI(true);}}],false)}],false);}
-function openMenu(){battleMenu.close();screen='menu';menuPage='title';pause.add('menu');accumulator=0;save();renderUI(true);$(state.run?'#resume':'#start').focus();}
+function focusTitleAction(){$(state.run?'#resume':'#start').focus({preventScroll:true});}
+function openMenu(){battleMenu.close();screen='menu';menuPage='title';pause.add('menu');accumulator=0;save();renderUI(true);}
 function setMenuPage(page: MenuPage){
  menuPage=page;renderUI(true);
  root.scrollTop=0;
@@ -164,7 +161,6 @@ for (const key of COMBAT_KEYS) $(`#upgrade-${key}`).onclick=()=>{
  state=next;sound.play('upgrade');renderUI();
 };
 function applySettings(){
- setCrt(settings.crt);
  sound.enabled=settings.sound;sound.volume=settings.volume/100;
  if(settings.sound)sound.unlock();else sound.suspend();
  $('#sound').textContent=settings.sound?'♫':'♪';
@@ -215,20 +211,20 @@ function dismissBattleMenu(){
  if(drawerConfirming)switchBattleMenu(false);
  else closeBattleMenu();
 }
-function endBattleRun(){
- if(!drawerConfirming||drawerBusy||!state.run)return;
- closeBattleMenu(false,()=>{
-  state={...state,run:null,result:null,events:[]};
-  openMenu();
- });
+function leaveBattle(discard=false){
+ if(screen!=='combat'||!battleMenu.open||drawerBusy||gatesMoving||!state.run||discard!==drawerConfirming)return;
+ closeBattleMenu(false,()=>throughGates(()=>{
+  if(discard)state={...state,run:null,result:null,events:[]};
+  openMenu();root.scrollTop=0;
+ },focusTitleAction));
 }
 $('#battle-menu-toggle').onclick=openBattleMenu;
 $('#battle-menu-return').onclick=()=>closeBattleMenu();
 $('#battle-menu-settings').onclick=()=>openSettings($('#battle-menu-settings'));
-$('#battle-menu-save').onclick=()=>closeBattleMenu(false,openMenu);
+$('#battle-menu-save').onclick=()=>leaveBattle();
 $('#battle-menu-abandon').onclick=()=>switchBattleMenu(true);
 $('#battle-confirmation-cancel').onclick=()=>switchBattleMenu(false);
-$('#battle-confirmation-end').onclick=endBattleRun;
+$('#battle-confirmation-end').onclick=()=>leaveBattle(true);
 drawerElement.addEventListener('click',event=>{if(event.target===drawerElement)dismissBattleMenu();});
 drawerElement.addEventListener('keydown',event=>{
  if(event.key!=='Tab')return;
@@ -271,7 +267,7 @@ function openSettings(source: HTMLElement){
  const area=$('#modal-root'), fromBattle=screen==='combat';
  if(fromBattle&&(!battleMenu.open||drawerConfirming))return;
  const panel=openChainPanel(area,$('.shell'),{
-  title:'Настройки',subtitle:'',headingId:'game-settings-title',closeId:'game-settings-close',descriptionId:'crt-help',
+  title:'Настройки',subtitle:'',headingId:'game-settings-title',closeId:'game-settings-close',
   body:gameSettingsMarkup,
   returnFocus:()=>{
    drawerElement.classList.remove('settings-underlay');
@@ -293,7 +289,7 @@ function openSpecialOffer(){
 }
 let disposeTitleTips: (()=>void) | undefined;
 function mountTitleWidgets(){
- disposeTitleTips=rotateTitleTips($('.title-tip'),()=>!settings.crt);
+ disposeTitleTips=rotateTitleTips($('.title-tip'));
  announcements.mount($('.menu-announcement-slot'),destination=>{if(destination==='offer')openSpecialOffer();else void showMenuPage(destination);},
   destination=>!gatesMoving&&(destination==='offer'||!state.run), ()=>$(state.run?'#resume':'#start').focus({preventScroll:true}));
 }
