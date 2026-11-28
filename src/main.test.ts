@@ -10,6 +10,7 @@ import type { SceneFrame } from './scene';
 const fakes = vi.hoisted(() => ({
   render: vi.fn(), ready: vi.fn(), soundToggle: vi.fn(), soundSuspend: vi.fn(), soundResume: vi.fn(),
   assets: undefined as Promise<boolean> | undefined,
+  acquire: vi.fn<() => Promise<'acquired'|'busy'|'unavailable'>>(), release: vi.fn(),
   pause: null as null | { reasons: Set<string>; readonly paused: boolean },
 }));
 vi.mock('./scene', async () => {
@@ -47,7 +48,7 @@ vi.mock('./persistence', async importOriginal => {
     PauseManager: class extends actual.PauseManager {
       constructor() { super(); fakes.pause = this; }
     },
-    TabLock: class { async acquire() { return true; } release() {} },
+    TabLock: class { acquire() { return fakes.acquire(); } release() { fakes.release(); } },
   };
 });
 
@@ -125,7 +126,7 @@ function closeModal(index = 0) {
 }
 
 beforeEach(() => {
-  vi.resetModules(); vi.clearAllMocks();
+  vi.resetModules(); vi.clearAllMocks(); fakes.acquire.mockReset().mockResolvedValue('acquired');
   document.body.innerHTML = '<div id="app"></div>';
   document.body.className = '';
   localStorage.clear();
@@ -145,6 +146,31 @@ beforeEach(() => {
 afterEach(() => {
   removeListeners(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals();
   document.body.innerHTML = ''; localStorage.clear();
+});
+
+describe('save protection at startup', () => {
+  it('retries an occupied lock without reloading or losing a saved run', async () => {
+    const run = fundedRun();
+    const encoded = serializeState(run);
+    localStorage.setItem(SAVE_KEY, encoded);
+    fakes.acquire.mockResolvedValueOnce('busy');
+    await import('./main');
+    await vi.waitFor(() => expect(element('#modal-title').textContent).toBe('Защита сохранения'));
+    expect(button('#start').disabled).toBe(true);
+    expect(localStorage.getItem(SAVE_KEY)).toBe(encoded);
+    closeModal();
+    await vi.waitFor(() => expect(button('#resume').disabled).toBe(false));
+    expect(localStorage.getItem(SAVE_KEY)).toBe(encoded);
+    window.dispatchEvent(new Event('pagehide'));
+    expect(fakes.release).toHaveBeenCalledOnce();
+  });
+  it('does not blame another tab when the browser denies the lock API', async () => {
+    fakes.acquire.mockResolvedValueOnce('unavailable');
+    await import('./main');
+    await vi.waitFor(() => expect(element('#modal-body').textContent).toContain('Браузер не дал'));
+    expect(button('#start').disabled).toBe(true);
+    expect(localStorage.getItem(SAVE_KEY)).toBeNull();
+  });
 });
 
 describe('startup', () => {

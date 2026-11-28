@@ -24,16 +24,36 @@ export class PauseManager {
  remove(reason:string){this.reasons.delete(reason);}
  get paused(){return this.reasons.size>0;}
 }
+type LockResult='acquired'|'busy'|'unavailable';
 export class TabLock {
  private releaseLock:(()=>void)|null=null;
- async acquire():Promise<boolean> {
-  return new Promise<boolean>(resolve=>{
-   if(!navigator.locks){resolve(false);return;}
-   navigator.locks.request('oplot-profile-writer-v1',{ifAvailable:true},async lock=>{
-    if(!lock){resolve(false);return;}
-    await new Promise<void>(release=>{this.releaseLock=release;resolve(true);});
-   }).catch(()=>resolve(false));
-  }).catch(()=>false);
+ private pending:AbortController|null=null;
+ async acquire():Promise<LockResult> {
+  if(this.releaseLock)return 'acquired';
+  if(this.pending)return 'busy';
+  const controller=new AbortController();
+  this.pending=controller;
+  // A reload can briefly overlap with the previous document releasing its lock.
+  const deadline=setTimeout(()=>controller.abort(),1200);
+  try {
+   const locks=navigator.locks;
+   if(!locks)return 'unavailable';
+   return await new Promise<LockResult>((resolve,reject)=>{
+    void locks.request('oplot-profile-writer-v1',{signal:controller.signal},lock=>{
+     if(!lock||controller.signal.aborted){resolve('busy');return;}
+     return new Promise<void>(release=>{this.releaseLock=release;resolve('acquired');});
+    }).catch(reject);
+   });
+  }catch{
+   return controller.signal.aborted?'busy':'unavailable';
+  }finally{
+   clearTimeout(deadline);
+   this.pending=null;
+  }
  }
- release(){this.releaseLock?.();this.releaseLock=null;}
+ release(){
+  this.pending?.abort();
+  this.releaseLock?.();
+  this.releaseLock=null;
+ }
 }
