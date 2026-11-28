@@ -4,8 +4,8 @@ import { STAT_LABELS, statIcon, UPGRADE_CATEGORIES } from './battle-ui';
 import { screenHeader, titleButton } from './title-ui';
 import { armoredFrame } from './armored-frame';
 
-function workshopCard(id: string, name: string, icon: StatKey, attribute: string, description = '', prefix = 'workshop') {
- return `<button type="button" class="workshop-row" id="${prefix}-${id}" ${attribute}="${id}">
+function workshopCard(id: string, name: string, icon: StatKey, attribute: string, description = '') {
+ return `<button type="button" class="workshop-row" id="workshop-${id}" ${attribute}="${id}">
     <span class="workshop-icon" aria-hidden="true">${statIcon(icon)}</span>
     <span class="workshop-data">
       <span class="workshop-name">${name}</span>
@@ -16,9 +16,9 @@ function workshopCard(id: string, name: string, icon: StatKey, attribute: string
   </button>`;
 }
 
-export function workshopCombatCard(key: CombatUpgrade, prefix = 'workshop', showDescription = true) {
+function workshopCombatCard(key: CombatUpgrade) {
  const {title,icon,description}=COMBAT_UPGRADES[key];
- return workshopCard(key,title,icon,'data-workshop-combat',showDescription?description:'',prefix);
+ return workshopCard(key,title,icon,'data-workshop-combat',description);
 }
 
 export function renderWorkshopCombatUpgrade(button: HTMLButtonElement, key: CombatUpgrade, level: number, crystals: number, blocked: boolean) {
