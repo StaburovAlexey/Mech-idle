@@ -1,3 +1,4 @@
+import { armoredScrollMarkup } from './armored-scroll';
 import { priceMarkup, priceText } from './currency-ui';
 import { armoredFrame } from './armored-frame';
 import { statIcon } from './battle-ui';
@@ -15,7 +16,7 @@ function shopCard(key: ShopModule) {
 
 export const moduleShopMarkup = `
  ${screenHeader('МАГАЗИН')}
- ${armoredFrame('section','module-shop-rack',`<div class="module-shop-list" role="region" aria-label="Список модулей" tabindex="0">${SHOP_MODULES.map(shopCard).join('')}</div>`)}
+ ${armoredFrame('section','module-shop-rack',armoredScrollMarkup(`<div class="module-shop-list" role="region" aria-label="Список модулей" tabindex="0">${SHOP_MODULES.map(shopCard).join('')}</div>`))}
  ${titleButton('module-shop-back','Главное меню')}
 `;
 

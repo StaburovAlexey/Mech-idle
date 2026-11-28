@@ -14,8 +14,8 @@ export function bindArmoredScrollbars(root: HTMLElement) {
   for(const update of changed)update?.();
  });
  for(const area of root.querySelectorAll<HTMLElement>('.armored-scroll-area')){
-  const panel=area.querySelector<HTMLElement>('[role="tabpanel"]')!;
-  const rail=area.querySelector<HTMLElement>('.armored-scroll-rail')!;
+  const panel=area.querySelector<HTMLElement>(':scope > :not(.armored-scroll-rail)')!;
+  const rail=area.querySelector<HTMLElement>(':scope > .armored-scroll-rail')!;
   const thumb=rail.querySelector<HTMLElement>('.armored-scroll-thumb')!;
   area.classList.add('enhanced');
   let travel=0, maxScroll=0, grab=0;
@@ -33,6 +33,7 @@ export function bindArmoredScrollbars(root: HTMLElement) {
    const scrollTop=panel.scrollTop;
    // Measure without the slot; the gutter itself must never cause overflow.
    rail.hidden=true;
+   travel=maxScroll=0;
    if(!panel.clientHeight||panel.scrollHeight<=panel.clientHeight+1)return;
    rail.hidden=false;
    maxScroll=panel.scrollHeight-panel.clientHeight;
@@ -70,5 +71,6 @@ export function bindArmoredScrollbars(root: HTMLElement) {
   }
   refreshers.push(refresh);
  }
+ refreshers.forEach(update=>update());
  return {dispose:()=>observer.disconnect(),refresh:()=>refreshers.forEach(update=>update())};
 }

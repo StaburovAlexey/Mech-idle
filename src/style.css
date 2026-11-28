@@ -223,11 +223,12 @@ body.battle-active{overflow:hidden;overscroll-behavior:none}
   position:fixed;inset:0;z-index:40;padding:20px;
   padding-top:20px;
   padding-bottom:20px;
-  background:#102533b8;backdrop-filter:blur(4px);overflow:auto;overscroll-behavior:contain;
+  background:#102533b8;backdrop-filter:blur(4px);overflow:hidden;overscroll-behavior:contain;
 }
 .shell.in-battle .battle-menu-overlay{display:flex;align-items:center;justify-content:center}
+.battle-menu-overlay > .armored-scroll-area {width:min(360px,100%)}
 .battle-menu-panel{
-  position:relative;width:min(360px,100%);max-height:100%;overflow:auto;
+  position:relative;width:100%;max-height:calc(100cqh - 40px);overflow:auto;
   padding:0;display:flex;flex-direction:column;gap:10px;border:12px solid transparent;border-radius:0;
   border-image:url('/assets/ui/kenney-sci-fi/panel_glass_screws.png') 12 fill / 12px stretch;
   background:transparent;color:#4a4d5b;box-shadow:none;

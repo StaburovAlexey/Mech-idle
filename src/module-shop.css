@@ -29,9 +29,9 @@
   height: min(100%,calc(6 * var(--shop-row) + 5 * var(--shop-gap) + 2 * var(--shop-pad)));
   padding: var(--shop-pad);
 }
+.module-shop-rack > .armored-scroll-area { height: 100%; }
 .module-shop-list {
   height: 100%; overflow-y: auto; overscroll-behavior-y: contain;
-  scrollbar-width: thin; scrollbar-color: #71843e #322c33;
   display: grid; align-content: start; grid-auto-rows: var(--shop-row); gap: var(--shop-gap);
 }
 .module-shop-card {

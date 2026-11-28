@@ -1,3 +1,4 @@
+import { armoredScrollMarkup, bindArmoredScrollbars } from './armored-scroll';
 import { armoredFrame } from './armored-frame';
 import './chain-panel.css';
 
@@ -11,15 +12,16 @@ export function openChainPanel(area: HTMLElement, shell: HTMLElement, panel: Pan
  if (area.childElementCount) return null;
  const frame = armoredFrame('section','chain-panel-sheet',`
    <span class="chain-panel-chain left" aria-hidden="true"></span><span class="chain-panel-chain right" aria-hidden="true"></span>
-   <div class="chain-panel-content" role="dialog" aria-modal="true" aria-labelledby="${panel.headingId}" aria-describedby="${panel.descriptionId}">
+   ${armoredScrollMarkup(`<div class="chain-panel-content" role="dialog" aria-modal="true" aria-labelledby="${panel.headingId}" aria-describedby="${panel.descriptionId}">
     <header class="chain-panel-head">
      ${panel.leading??''}<div><small>${panel.subtitle}</small><h2 id="${panel.headingId}">${panel.title}</h2></div>
      <button type="button" class="chain-panel-close" id="${panel.closeId}" aria-label="Закрыть">×</button>
     </header>
     ${panel.body}
-   </div>`);
+   </div>`)}`);
  area.innerHTML=`<div class="chain-panel-layer">${frame}</div>`;
  const layer=area.firstElementChild as HTMLElement;
+ const scrollbars=bindArmoredScrollbars(layer);
  const sheet=layer.querySelector<HTMLElement>('.chain-panel-sheet')!;
  const closeButton=layer.querySelector<HTMLButtonElement>('.chain-panel-close')!;
  const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -40,7 +42,7 @@ export function openChainPanel(area: HTMLElement, shell: HTMLElement, panel: Pan
   closing=true;
   layer.classList.add('closing');
   slide([{transform:'translateY(0)',easing:'ease-out'},{transform:'translateY(10px)',offset:.23,easing:'cubic-bezier(.55,0,.8,.45)'},{transform:'translateY(-100cqh)'}],460,()=>{
-   area.replaceChildren();area.onkeydown=null;shell.inert=false;panel.returnFocus();
+   scrollbars.dispose();area.replaceChildren();area.onkeydown=null;shell.inert=false;panel.returnFocus();
   });
  }
  closeButton.onclick=close;

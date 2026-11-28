@@ -23,8 +23,9 @@ body:has(#game-viewport) {
   background: #171720;
   box-shadow: 0 0 48px #0c0a13a8;
 }
-#game-stage > #app {
-  position: absolute; inset: 0;
+#game-stage > :is(#app,.game-scroll-area) { position: absolute; inset: 0; }
+#game-stage .game-scroll-area > #app { position: relative; height: 100%; min-width: 0; }
+#game-stage #app {
   overflow: auto;
   scrollbar-width: none;
   overscroll-behavior: contain;
