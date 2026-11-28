@@ -20,7 +20,7 @@ export const gameSettingsMarkup=`<div class="chain-settings" id="game-settings-c
  <label class="settings-row"><span>Звук</span><input name="sound" type="checkbox" role="switch"></label>
  <label class="settings-row settings-volume"><span>Громкость</span><output></output><input name="volume" type="range" min="0" max="100" step="1"></label>
  <label class="settings-row"><span>Эффект CRT</span><input name="crt" type="checkbox" role="switch" aria-describedby="crt-help"></label>
- <p id="crt-help">Изгиб и схлопывание экрана при запуске игры.</p>
+ <p id="crt-help">Слегка выгибает экран во всей игре, как у лампового телевизора. Без ряби.</p>
 </div>`;
 
 export function bindGameSettings(panel: HTMLElement, settings: GameSettings, changed: ()=>void) {
