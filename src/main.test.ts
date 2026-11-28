@@ -608,7 +608,7 @@ describe('fullscreen battle actual UI flows', () => {
     expect(fakes.pause?.reasons.has('battleMenu')).toBe(true);
     expect(button('#battle-menu-toggle').getAttribute('aria-expanded')).toBe('true');
     for (const selector of ['#battle-hud', '#upgrades', '.arena-wrap']) expect(element(selector).inert).toBe(true);
-    expect(document.activeElement).toBe(button('#battle-menu-close'));
+    expect(document.activeElement).toBe(button('#battle-menu-return'));
     advanceFrames(10); expect(elapsed()).toBe(before);
     click('#battle-menu-return');
     expect(hidden('#battle-menu-overlay')).toBe(true);
@@ -626,10 +626,10 @@ describe('fullscreen battle actual UI flows', () => {
     expect(fakes.pause?.reasons.has('battleMenu')).toBe(true);
     expect(fakes.pause?.reasons.has('user')).toBe(false);
     const overlay = element('#battle-menu-overlay');
-    expect([...overlay.querySelectorAll('button')].map(button => button.id)).toEqual([
-      'battle-menu-close', 'battle-menu-return', 'battle-menu-sound', 'battle-menu-save', 'battle-menu-abandon',
+    expect([...overlay.querySelectorAll('#battle-menu-actions button')].map(button => button.id)).toEqual([
+      'battle-menu-return', 'battle-menu-sound', 'battle-menu-save', 'battle-menu-abandon',
     ]);
-    expect(overlay.querySelectorAll('button.title-button')).toHaveLength(5);
+    expect(overlay.querySelectorAll('#battle-menu-actions button.title-button')).toHaveLength(4);
     expect(overlay.textContent).not.toMatch(/Управление оплотом|Бой остановлен|Урон|Пауза|Как играть/);
     advanceFrames(8); expect(elapsed()).toBe(before);
     button('#battle-menu-sound').focus();
@@ -647,7 +647,7 @@ describe('fullscreen battle actual UI flows', () => {
     expect(hidden('#battle-menu-overlay')).toBe(true);
     key('Escape', document.activeElement!);
     expect(hidden('#battle-menu-overlay')).toBe(false);
-    click('#battle-menu-close');
+    click('#battle-menu-return');
     expect(document.activeElement).toBe(button('#upgrade-damage'));
     key('1', document.activeElement!);
     expect(saved().run!.levels.damage).toBe(0);
@@ -657,7 +657,7 @@ describe('fullscreen battle actual UI flows', () => {
     await boot(); click('#start'); openDrawer();
     expect(element('#battle-menu-overlay').querySelectorAll('.chain-panel-chain')).toHaveLength(2);
     expect(element('#battle-menu-overlay .armored-scroll-rail')).not.toBeNull();
-    const first = button('#battle-menu-close'), last = button('#battle-menu-abandon');
+    const first = button('#battle-menu-return'), last = button('#battle-menu-abandon');
     first.focus();
     expect(key('Tab', first, { shiftKey: true }).defaultPrevented).toBe(true);
     expect(document.activeElement).toBe(last);
@@ -668,7 +668,7 @@ describe('fullscreen battle actual UI flows', () => {
     expect(hidden('#battle-menu-overlay')).toBe(true);
     for (let i = 0; i < 3; i++) {
       key('Escape'); expect(hidden('#battle-menu-overlay')).toBe(false);
-      key('Escape', button('#battle-menu-close')); expect(hidden('#battle-menu-overlay')).toBe(true);
+      key('Escape', button('#battle-menu-return')); expect(hidden('#battle-menu-overlay')).toBe(true);
       expect(fakes.pause?.paused).toBe(false);
     }
   });
@@ -685,7 +685,7 @@ describe('fullscreen battle actual UI flows', () => {
     expect(saved().run!.gold).toBe(before.run!.gold);
     expect(saved().run!.levels).toEqual(before.run!.levels);
     expect(fakes.pause?.reasons.has('user')).toBe(false);
-    click('#battle-menu-close');
+    click('#battle-menu-return');
     click('#upgrade-damage');
     expect(saved().run!.gold).toBe(before.run!.gold - 10);
     expect(saved().run!.levels.damage).toBe(1);
@@ -723,34 +723,33 @@ describe('fullscreen battle actual UI flows', () => {
     expect(element('#upgrades').textContent).not.toContain('Заказано');
   });
 
-  it('toggles sound and handles the nested abandon confirmation without losing the menu pause or inert background', async () => {
+  it('switches to confirmation in the same paused drawer, trapping focus on its visible actions', async () => {
     await boot(fundedRun()); click('#resume'); advanceFrames(2); openDrawer();
     click('#battle-menu-sound');
     expect(fakes.soundToggle).toHaveBeenCalledOnce();
     expect(element('#battle-menu-sound').textContent).toContain('включён');
     expect(fakes.soundSuspend).toHaveBeenCalled();
-    button('#battle-menu-abandon').focus(); click('#battle-menu-abandon');
-    expect(element('.shell').inert).toBe(true);
-    expect(fakes.pause?.reasons.has('dialog')).toBe(true);
+    click('#battle-menu-abandon');
+    expect(hidden('#battle-menu-actions')).toBe(true);
+    expect(hidden('#battle-confirmation')).toBe(false);
+    expect(element('#battle-menu-overlay .battle-menu-panel').getAttribute('aria-labelledby')).toBe('battle-confirmation-title');
+    expect(document.activeElement).toBe(button('#battle-confirmation-cancel'));
+    expect(element('#modal-root').children.length).toBe(0);
     const before = elapsed();
     advanceFrames(4); expect(elapsed()).toBe(before);
     expect(key('Tab', document.activeElement!).defaultPrevented).toBe(true);
-    expect(element('#modal-root').contains(document.activeElement)).toBe(true);
+    expect(document.activeElement).toBe(button('#battle-confirmation-end'));
     key('1');
     expect(saved().run!.levels.damage).toBe(0);
-    closeModal();
-    expect(element('.shell').inert).toBe(false);
+    key('Escape', document.activeElement!);
+    expect(hidden('#battle-confirmation')).toBe(true);
+    expect(hidden('#battle-menu-actions')).toBe(false);
+    expect(element('#battle-menu-overlay .battle-menu-panel').hasAttribute('aria-describedby')).toBe(false);
     expect(element('#battle-hud').inert).toBe(true);
     expect(element('#upgrades').inert).toBe(true);
-    expect(fakes.pause?.reasons.has('dialog')).toBe(false);
     expect(fakes.pause?.reasons.has('battleMenu')).toBe(true);
     expect(document.activeElement).toBe(button('#battle-menu-abandon'));
     advanceFrames(3); expect(elapsed()).toBe(before);
-    click('#battle-menu-abandon'); key('Escape', document.activeElement!);
-    expect(element('#modal-root').children.length).toBe(0);
-    expect(hidden('#battle-menu-overlay')).toBe(false);
-    expect(element('.shell').inert).toBe(false);
-    expect(fakes.pause?.reasons.has('battleMenu')).toBe(true);
     click('#battle-menu-return'); advanceFrames(3); expect(elapsed()).toBeGreaterThan(before);
   });
 
@@ -759,7 +758,7 @@ describe('fullscreen battle actual UI flows', () => {
     const before = elapsed();
     vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
     document.dispatchEvent(new Event('visibilitychange'));
-    click('#battle-menu-close'); advanceFrames(5);
+    click('#battle-menu-return'); advanceFrames(5);
     expect(fakes.pause?.reasons.has('hidden')).toBe(true);
     expect(elapsed()).toBe(before);
     vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
@@ -771,7 +770,7 @@ describe('fullscreen battle actual UI flows', () => {
     await boot(); click('#start'); advanceFrames(2); openDrawer();
     const before = elapsed();
     window.dispatchEvent(new Event('blur'));
-    click('#battle-menu-close'); advanceFrames(4);
+    click('#battle-menu-return'); advanceFrames(4);
     expect(fakes.pause?.reasons.has('focus')).toBe(true);
     expect(elapsed()).toBe(before);
     window.dispatchEvent(new Event('focus')); advanceFrames(3);
@@ -802,23 +801,20 @@ describe('fullscreen battle actual UI flows', () => {
     const initial = fundedRun();
     await boot(initial); click('#resume'); openDrawer();
     button('#battle-menu-abandon').focus(); click('#battle-menu-abandon');
-    expect(element('#modal-title').textContent).toContain('Завершить');
-    expect(element('.shell').inert).toBe(true);
-    key('Escape', document.activeElement!);
-    expect(element('#modal-root').children.length).toBe(0);
+    expect(element('#battle-confirmation-title').textContent).toContain('Завершить');
+    element('#battle-menu-overlay').click();
+    expect(hidden('#battle-confirmation')).toBe(true);
     expect(saved().run).toEqual(initial.run);
-    expect(hidden('#battle-menu-overlay')).toBe(false);
-    expect(fakes.pause?.reasons.has('battleMenu')).toBe(true);
-    click('#battle-menu-abandon'); closeModal(0);
+    click('#battle-menu-abandon'); click('#battle-confirmation-cancel');
     expect(saved().run).toEqual(initial.run);
     expect(hidden('#battle-menu-overlay')).toBe(false);
     expect(document.activeElement).toBe(button('#battle-menu-abandon'));
     expect(fakes.pause?.reasons.has('battleMenu')).toBe(true);
-    click('#battle-menu-abandon'); closeModal(1);
+    click('#battle-menu-abandon'); click('#battle-confirmation-end');
     expect(saved().run).toBeNull();
     expect(saved().profile).toEqual(initial.profile);
     expect(element('.shell').classList.contains('in-battle')).toBe(false);
-    expect(element('.shell').inert).toBe(false);
+    expect(element('.shell').inert).not.toBe(true);
     expect(hidden('#battle-menu-overlay')).toBe(true);
     expect(button('#start').disabled).toBe(false);
     expect(document.activeElement).toBe(button('#start'));

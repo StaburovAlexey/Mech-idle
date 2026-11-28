@@ -107,14 +107,35 @@ export const battleHudMarkup = `<div class="battle-resources" aria-label="Рес
  <button type="button" class="battle-menu-toggle" id="battle-menu-toggle" aria-label="Открыть меню боя" aria-haspopup="dialog" aria-expanded="false" aria-controls="battle-menu-overlay"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="m10 2-.6 2.5-2 .9-2.4-1.1-2 3.4 2 1.7v2.2l-2 1.7 2 3.4 2.4-1.1 2 .9.6 2.5h4l.6-2.5 2-.9 2.4 1.1 2-3.4-2-1.7V9.4l2-1.7-2-3.4-2.4 1.1-2-.9L14 2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" transform="translate(0 1.5)"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button></div><div id="battle-notice" class="battle-notice hidden" role="status"></div>`;
 
 export const battleMenuMarkup = chainPanelSheet(`<section class="battle-menu-panel chain-panel-content" role="dialog" aria-modal="true" aria-labelledby="battle-menu-title" tabindex="-1">
- <div class="battle-menu-head"><h2 id="battle-menu-title">Меню боя</h2>${titleButton('battle-menu-close','×',false,'Закрыть меню боя')}</div>
+ <div id="battle-menu-actions">
+ <h2 id="battle-menu-title">Меню боя</h2>
  <div class="menu-actions">
   ${titleButton('battle-menu-return','Вернуться в бой',true)}
   ${titleButton('battle-menu-sound','Звук: выключен')}
   ${titleButton('battle-menu-save','Сохранить и выйти',false,'Сохранить и выйти в главное меню')}
   ${titleButton('battle-menu-abandon','Завершить забег')}
  </div>
+ </div>
+ <div class="battle-confirmation hidden" id="battle-confirmation">
+  <svg class="battle-confirmation-icon" viewBox="0 0 32 32" aria-hidden="true" fill="none"><path d="M16 4 29 27H3L16 4Z" fill="#f0bd4630" stroke="#edbe58" stroke-width="2" stroke-linejoin="round"/><path d="M16 12v7m0 3v1" stroke="#ffdd89" stroke-width="2.5" stroke-linecap="round"/></svg>
+  <h2 id="battle-confirmation-title">Завершить забег?</h2>
+  <div class="battle-confirmation-copy" id="battle-confirmation-copy"><p>Золото и боевые модули этого забега будут потеряны.</p><p>Детали и улучшения мастерской сохранятся.</p></div>
+  <div class="menu-actions">
+   ${titleButton('battle-confirmation-cancel','Отмена',true)}
+   ${titleButton('battle-confirmation-end','Завершить забег')}
+  </div>
+ </div>
 </section>`);
+
+export function setBattleMenuConfirmation(overlay: HTMLElement, confirming: boolean) {
+ const panel=overlay.querySelector<HTMLElement>('.battle-menu-panel')!;
+ panel.querySelector('#battle-menu-actions')!.classList.toggle('hidden',confirming);
+ panel.querySelector('#battle-confirmation')!.classList.toggle('hidden',!confirming);
+ panel.setAttribute('aria-labelledby',confirming?'battle-confirmation-title':'battle-menu-title');
+ if(confirming)panel.setAttribute('aria-describedby','battle-confirmation-copy');
+ else panel.removeAttribute('aria-describedby');
+ panel.scrollTop=0;
+}
 
 export function isInteractiveTarget(target:EventTarget|null):boolean {
  return target instanceof HTMLElement && !!target.closest('button,input,select,textarea,a,[contenteditable],[role=tabpanel]');
