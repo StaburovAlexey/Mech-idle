@@ -18,16 +18,13 @@ export const workshopMarkup = `
   <div class="workshop-hero" aria-hidden="true"></div>
   ${armoredFrame('section', 'workshop-rack', `
     ${STAT_KEYS.map(stat => `
-      <article class="workshop-row" id="workshop-${stat}">
+      <button type="button" class="workshop-row" id="workshop-${stat}" data-workshop-stat="${stat}">
         <span class="workshop-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${icons[stat]}</svg></span>
-        <div class="workshop-data">
-          <h2>${STAT_LABELS[stat].title}</h2>
-          <div class="workshop-values"><span class="workshop-current"></span><strong class="workshop-next"></strong></div>
-        </div>
-        <div class="workshop-buy">
-          <button type="button" class="title-button title-primary" data-workshop-stat="${stat}"><span></span></button>
-          <span class="workshop-level"></span>
-        </div>
-      </article>`).join('')}
+        <span class="workshop-data">
+          <span class="workshop-name">${STAT_LABELS[stat].title}</span>
+          <span class="workshop-values"><span class="workshop-current"></span><strong class="workshop-next"></strong></span>
+        </span>
+        <span class="workshop-price"></span>
+      </button>`).join('')}
   `, 'Постоянные улучшения')}
   ${titleButton('workshop-back', 'Главное меню')}`;

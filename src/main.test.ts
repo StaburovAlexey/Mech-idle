@@ -145,7 +145,7 @@ describe('main menu', () => {
     advanceFrames();
     expect(fakes.render.mock.calls.at(-1)?.[0].phase).toBe('workshop');
     expect(fakes.render.mock.calls.at(-1)?.[1]).toBeGreaterThan(0);
-    click('[data-workshop-stat="damage"]');
+    click('#workshop-damage .workshop-name');
     expect(element('#menu-crystals').textContent).toBe('2');
     expect(saved().profile.meta.damage).toBe(1);
     key('Escape');
@@ -180,19 +180,21 @@ describe('main menu', () => {
     expect(element('.shell').inert).toBe(false);
     expect(document.activeElement).toBe(element('#workshop-heading'));
   });
-  it('shows current levels and the next price even at the former workshop cap', async () => {
+  it('shows next values and price without displaying upgrade levels', async () => {
     const profile = createState(); profile.profile.crystals = 0; profile.profile.meta.damage = 10;
     await boot(profile);
     click('#open-workshop');
     expect(button('[data-workshop-stat="damage"]').disabled).toBe(true);
-    expect(element('[data-workshop-stat="damage"]').textContent).toBe('◇ 173');
+    expect(element('[data-workshop-stat="damage"] .workshop-price').textContent).toBe('◇ 173');
     expect(element('[data-workshop-stat="damage"]').getAttribute('aria-label')).toContain('цена: 173');
     expect(element('#workshop-damage .workshop-next').textContent).toBe('→ 21 урона');
-    expect(element('#workshop-damage .workshop-level').textContent).toBe('10');
+    expect(document.querySelector('.workshop-level')).toBeNull();
+    expect(button('#workshop-damage').getAttribute('aria-label')).not.toContain('уровень');
+    expect(button('#workshop-damage').querySelector('button')).toBeNull();
     for (const [stat, next] of [['maxHp', '→ 110 HP'], ['attackSpeed', '→ 1,1 /с'], ['regen', '→ 0,2 HP/с']]) {
       const purchase = button(`[data-workshop-stat="${stat}"]`);
       expect(purchase.disabled).toBe(true);
-      expect(purchase.textContent).toBe('◇ 3');
+      expect(purchase.querySelector('.workshop-price')?.textContent).toBe('◇ 3');
       expect(element(`#workshop-${stat} .workshop-next`).textContent).toBe(next);
     }
   });
@@ -417,7 +419,7 @@ describe('fullscreen battle actual UI flows', () => {
     for (const stat of STAT_KEYS) {
       expect(stats[stat]).toBeGreaterThan(oldStats[stat]);
       expect(after.run!.activeLevels[stat]).toBe(1);
-      expect(element(`#upgrade-${stat} .upgrade-level`).textContent).toBe('1');
+      expect(document.querySelector(`#upgrade-${stat} .upgrade-level`)).toBeNull();
       expect(element(`#upgrade-${stat} .upgrade-value`).textContent).toContain(
         Number.isInteger(stats[stat]) ? String(stats[stat]) : stats[stat].toFixed(1).replace('.', ','),
       );

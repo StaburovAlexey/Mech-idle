@@ -184,18 +184,15 @@ function renderUI(force=false){
  let nextValue=0,current=battle?stats[stat]:calculateStats(state.profile.meta)[stat];
  if(battle&&run){const nextLevel={...run.levels,[stat]:level+1};nextValue=calculateStats(state.profile.meta,nextLevel)[stat];}else nextValue=calculateStats({...state.profile.meta,[stat]:level+1})[stat];
  btn.disabled=budget<price||(!battle&&!!run)||screen==='result'||fatal||saveBlocked||!writable||battleMenu.open;
- const accessible=`${labels[stat].title}, уровень ${level}, сейчас ${fmt(current)} ${labels[stat].unit}, следующий: ${fmt(nextValue)} ${labels[stat].unit}, цена: ${price} ${battle?'золота':'кристаллов'}`;
+ const accessible=`${labels[stat].title}, сейчас ${fmt(current)} ${labels[stat].unit}, следующий: ${fmt(nextValue)} ${labels[stat].unit}, цена: ${price} ${battle?'золота':'кристаллов'}`;
  btn.setAttribute('aria-label',accessible);
  if(inWorkshop){
-  const row=$(`#workshop-${stat}`);
-  row.querySelector('.workshop-current')!.textContent=`${fmt(current)} ${labels[stat].unit}`;
-  row.querySelector('.workshop-next')!.textContent=`→ ${fmt(nextValue)} ${labels[stat].unit}`;
-  row.querySelector('.workshop-level')!.textContent=String(level);
-  btn.querySelector('span')!.textContent=`◇ ${coins(price)}`;
+  btn.querySelector('.workshop-current')!.textContent=`${fmt(current)} ${labels[stat].unit}`;
+  btn.querySelector('.workshop-next')!.textContent=`→ ${fmt(nextValue)} ${labels[stat].unit}`;
+  btn.querySelector('.workshop-price')!.textContent=`◇ ${coins(price)}`;
   continue;
  }
  btn.classList.toggle('meta',!battle);btn.classList.toggle('affordable',budget>=price&&(battle||!run));
- btn.querySelector('.upgrade-level')!.textContent=String(level);
  btn.querySelector('.upgrade-value')!.innerHTML=`${fmt(current)}<small>${labels[stat].unit}</small>`;
  btn.querySelector('.upgrade-price')!.textContent=`${battle?'◈':'◇'} ${coins(price)}`;
  btn.querySelector('.upgrade-sub')!.textContent=`Следующий: ${fmt(nextValue)} ${labels[stat].unit}`;

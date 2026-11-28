@@ -93,7 +93,7 @@ describe('battle controls and keyboard target semantics', () => {
       expect(button.id).toBe(`upgrade-${stat}`);
       expect(button.getAttribute('aria-label')).toBe(STAT_LABELS[stat].title);
       expect(button.querySelector('.upgrade-title')?.textContent).toContain(STAT_LABELS[stat].title);
-      for (const selector of ['.upgrade-top', '.upgrade-level', '.upgrade-data', '.upgrade-value', '.upgrade-price', '.upgrade-sub']) {
+      for (const selector of ['.upgrade-top', '.upgrade-data', '.upgrade-value', '.upgrade-price', '.upgrade-sub']) {
         expect(button.querySelectorAll(selector)).toHaveLength(1);
       }
     }
