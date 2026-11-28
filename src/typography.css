@@ -7,9 +7,9 @@
 }
 :root {
   --oplot-font: "JetBrains Mono", ui-monospace, monospace;
-  --type-small: 0 1px 1px #130d17b3;
-  --type-raised: 0 1px #895d43, 0 2px #523529, 0 4px 4px #100b14c9;
-  --type-green: 0 1px #4e6232, 0 2px #2e3821, 0 3px 3px #10120dc9;
+  --type-depth: #302027;
+  --type-small: 0 1px var(--type-depth);
+  --type-raised: 0 2px var(--type-depth);
   text-shadow: var(--type-small);
   font-variant-ligatures: none;
 }
