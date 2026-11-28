@@ -153,7 +153,8 @@ function bindCrystalModules(){
 function openModuleDetail(key: ShopModule, source: HTMLButtonElement){
  const area=$('#modal-root'), shell=$('.shell');
  if(screen!=='menu'||menuPage!=='shop'||gatesMoving||area.children.length)return;
- area.innerHTML=moduleDetailMarkup(key);shell.inert=true;pause.add('dialog');
+ // The shop already pauses gameplay; block input without pausing Stan's idle animation.
+ area.innerHTML=moduleDetailMarkup(key);shell.inert=true;
  const layer=$('.module-detail-layer'), sheet=$('.module-detail-sheet');
  const closeButton=$<HTMLButtonElement>('#module-detail-close'), buyButton=$<HTMLButtonElement>('#module-detail-buy');
  const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -170,7 +171,7 @@ function openModuleDetail(key: ShopModule, source: HTMLButtonElement){
   if(moving){closeRequested=true;return;}
   closing=true;layer.classList.add('closing');render();
   animate([{transform:'translateY(0)',easing:'ease-out'},{transform:'translateY(10px)',offset:.23,easing:'cubic-bezier(.55,0,.8,.45)'},{transform:'translateY(-100dvh)'}],460,()=>{
-   area.replaceChildren();area.onkeydown=null;shell.inert=false;pause.remove('dialog');source.focus({preventScroll:true});
+   area.replaceChildren();area.onkeydown=null;shell.inert=false;source.focus({preventScroll:true});
   });
  }
  closeButton.onclick=close;
