@@ -66,23 +66,32 @@ export class PickupView {
    node.style.left = pos.left.toFixed(2) + 'px'; node.style.top = pos.top.toFixed(2) + 'px';
   };
   const right = camera.matrixWorld.elements;
+  const pixelsPerUnit = field.width / (2*FIELD_HALF_WIDTH);
+  const used: {left:number; top:number; width:number; height:number}[] = [];
   for (const pile of piles) {
-   const anchor = pile[0];
-   const parts = pile.filter(item => item.kind === 'parts').length;
-   const scrap = pile.length - parts, spread = parts && scrap ? .84 : 0;
-   let partsVisibility = 0, scrapVisibility = 0;
-   for (const item of pile) {
-    const visibility = pickupVisibility(item,time);
-    if (item.kind === 'parts') partsVisibility = Math.max(partsVisibility,visibility);
-    else scrapVisibility = Math.max(scrapVisibility,visibility);
-   }
-   // Don't fade a type's model (or the shared icon) until its last piece is expiring.
-   if (parts) models.push({item:{...anchor,kind:'parts'},shift:-spread,count:parts,visibility:partsVisibility});
-   if (scrap) models.push({item:{...anchor,kind:'scrap'},shift:spread,count:scrap,visibility:scrapVisibility});
-   if (!interactive || !this.batches.size) continue;
+   const anchor = pile[0], spread = pile.length > 1 ? .84 : 0;
    const pose = pickupPose(anchor,time,this.reduced);
    const pos = project(pose.x,Math.max(.048,sandHeight(pose.x,pose.z)) + .16,pose.z);
-   if (!pos) continue;
+   let offset = 0, left = pos?.left ?? 0, top = 0, height = 0, width = 0;
+   if (pos) {
+    top = Math.max(0,pos.top-54);
+    width = Math.max(44,2*(spread+.75)*pixelsPerUnit+16);
+    height = Math.max(44,pos.top-top+Math.max(16,.7*pixelsPerUnit+10));
+    const min = field.x+width/2, max = field.x+field.width-width/2;
+    const row = used.filter(box => top < box.top+box.height && top+height > box.top);
+    const candidates = [Math.max(min,Math.min(max,left)), ...row.flatMap(box => {
+     const gap = (box.width+width)/2+2;
+     return [box.left-gap,box.left+gap];
+    })];
+    const clear = candidates.filter(x => x >= min && x <= max &&
+     row.every(box => Math.abs(box.left-x) >= (box.width+width)/2));
+    if (clear.length) left = clear.reduce((a,b) => Math.abs(a-pos.left) <= Math.abs(b-pos.left) ? a : b);
+    offset = (left-pos.left) / pixelsPerUnit;
+    used.push({left,top,width,height});
+   }
+   // Presentation offsets keep nearby touch targets distinct without combining the drops.
+   pile.forEach(item => models.push({item,shift:offset+(item.kind==='parts' ? -spread : spread),count:1,visibility:pickupVisibility(item,time)}));
+   if (!pos || !interactive || !this.batches.size) continue;
    activeButtons.add(anchor.id);
    let button = this.buttons.get(anchor.id);
    if (!button) {
@@ -92,19 +101,17 @@ export class PickupView {
    }
    const ids = pile.map(item => item.id).join(',');
    if (button.dataset.pickupIds !== ids) {
-    const reward = PICKUP_KINDS.filter(kind => kind === 'parts' ? parts : scrap)
-     .map(kind => currencyLabels[kind] + ' ×' + (kind === 'parts' ? parts : scrap)).join(', ');
+    const reward = PICKUP_KINDS.filter(kind => pile.some(item => item.kind === kind))
+     .map(kind => currencyLabels[kind] + ' ×1').join(', ');
     button.dataset.pickupIds = ids;
     button.title = 'Подобрать: ' + reward + ' (тестовый режим, без рекламы)';
     button.setAttribute('aria-label',button.title);
    }
-   const visibility = Math.max(partsVisibility,scrapVisibility);
+   const visibility = Math.max(...pile.map(item => pickupVisibility(item,time)));
    button.style.setProperty('--loot-visibility',visibility.toFixed(3));
-   const top = Math.max(0,pos.top-54);
-   const pixelsPerUnit = field.width / (2*FIELD_HALF_WIDTH);
-   button.style.width = Math.max(44,2*(spread+.75)*pixelsPerUnit+16) + 'px';
-   button.style.height = Math.max(44,pos.top-top+Math.max(16,.7*pixelsPerUnit+10)) + 'px';
-   place(button,{left:Math.max(field.x+22,Math.min(field.x+field.width-22,pos.left)),top});
+   button.style.width = width + 'px';
+   button.style.height = height + 'px';
+   place(button,{left,top});
   }
   for (const [kind,batch] of this.batches) {
    const group = models.filter(model => model.item.kind === kind);
