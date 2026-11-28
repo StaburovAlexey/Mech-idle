@@ -60,7 +60,7 @@
 .workshop-name {
   display: block;
   margin: 0 0 3px; line-height: 1.1; text-transform: uppercase;
-  font-family: "Oplot Display",sans-serif; font-size: clamp(11px,3.25vw,23px); font-weight: 400;
+  font-size: clamp(11px,3.15vw,22px); font-weight: 700; text-shadow: var(--type-small);
 }
 .workshop-values {
   display: flex; align-items: baseline; flex-wrap: wrap; gap: 3px 6px;
@@ -69,9 +69,11 @@
 .workshop-next { color: #bee68a; }
 .workshop-price {
   display: flex; align-items: baseline; justify-content: end; gap: 5px;
-  font: clamp(20px,6.3vw,32px)/1 "Oplot Display",sans-serif;
+  font: 700 clamp(20px,6.3vw,32px)/1 var(--oplot-font);
   color: #c4eb89; white-space: nowrap; font-variant-numeric: tabular-nums;
 }
+.workshop-amount,.workshop-next { text-shadow: var(--type-green); }
+.workshop-row:disabled .workshop-amount { text-shadow: var(--type-raised); }
 .workshop-currency { font-size: .55em; }
 .workshop-row:disabled .workshop-price { color: #d6c6bc; }
 .workshop-row:not(:disabled):active {

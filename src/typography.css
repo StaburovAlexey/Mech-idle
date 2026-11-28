@@ -1,0 +1,15 @@
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url('/assets/ui/fonts/jetbrains-mono.woff') format('woff');
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+}
+:root {
+  --oplot-font: "JetBrains Mono", ui-monospace, monospace;
+  --type-small: 0 -1px #fff3d318, 0 1px 1px #130d17b3;
+  --type-raised: 0 -1px #fff4d981, 0 1px #895d43, 0 2px #523529, 0 4px 4px #100b14c9;
+  --type-green: 0 -1px #f4ffd67f, 0 1px #4e6232, 0 2px #2e3821, 0 3px 3px #10120dc9;
+  text-shadow: var(--type-small);
+  font-variant-ligatures: none;
+}
