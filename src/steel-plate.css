@@ -1,0 +1,13 @@
+.steel-plate {
+  position:relative;border-radius:5px;
+  background:
+    repeating-linear-gradient(0deg,#10161a26 0 1px,transparent 1px 3px),
+    linear-gradient(170deg,#59636b,#3c464e 36%,#2b343c 66%,#374149);
+  box-shadow:inset 0 0 0 1px var(--plate-edge,#1c2329),inset 0 2px var(--plate-bevel,#74808a),inset 0 -3px #20282e,0 3px #101419;
+}
+.steel-plate-bolt {
+  position:absolute;width:var(--plate-bolt-size,12px);height:var(--plate-bolt-size,12px);
+  top:var(--plate-bolt-top,50%);transform:translateY(-50%);pointer-events:none;
+}
+.steel-plate-bolt:first-child {left:var(--plate-bolt-inset,7px)}
+.steel-plate-bolt:last-child {right:var(--plate-bolt-inset,7px);}
