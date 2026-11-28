@@ -41,7 +41,12 @@ export function bindBattleUpgradeTabs(dock: HTMLElement) {
   });
  }
  tabs.forEach((tab,i)=>{
-  tab.onclick=()=>select(i);
+  tab.onclick=()=>{
+   select(i);
+   if(!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+    tab.animate?.([{transform:'translateY(2px) scale(.95)'},{transform:'none'}],{duration:150,easing:'ease-out'});
+   }
+  };
   tab.onkeydown=event=>{
    const index=event.key==='Home'?0:event.key==='End'?tabs.length-1:
     event.key==='ArrowLeft'?(i+tabs.length-1)%tabs.length:event.key==='ArrowRight'?(i+1)%tabs.length:-1;
