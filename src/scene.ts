@@ -246,7 +246,7 @@ export class SceneView {
     city.rotation.y = CITY_YAW;
     this.scene.add(city);
     const concrete = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .96 });
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshStandardMaterial({ color: 0xb4a58a, roughness: 1 }));
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshStandardMaterial({ color: 0x99752b, roughness: 1 }));
     ground.name = 'city-continuous-ground';
     ground.rotation.x = -Math.PI / 2; ground.position.y = CITY_FLOOR; ground.receiveShadow = true;
     city.add(ground);
@@ -254,7 +254,7 @@ export class SceneView {
     // Dunes lap against the wrecks while the central playfield stays flat.
     const sand = new THREE.PlaneGeometry(43, 55, 70, 84).rotateX(-Math.PI / 2);
     const positions = sand.getAttribute('position'), shades = new Float32Array(positions.count * 3);
-    const dark = new THREE.Color(0xa99778), sunlit = new THREE.Color(0xc3b49a), color = new THREE.Color();
+    const dark = new THREE.Color(0x886823), sunlit = new THREE.Color(0xab8430), color = new THREE.Color();
     for (let i = 0; i < positions.count; i++) {
       const x = positions.getX(i), z = positions.getZ(i);
       positions.setY(i, sandHeight(x, z));
