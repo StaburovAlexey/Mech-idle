@@ -45,12 +45,13 @@ export class TitleMech {
     });
     this.model = model;
     if (this.turret) {
+      const swivel = model.getObjectByName('Swivel');
       const head = model.getObjectByName('Head');
       const barrel = model.getObjectByName('Barrel');
-      if (head && barrel) {
+      if (swivel && head && barrel) {
         this.aimPivot = new THREE.Group();
         model.add(this.aimPivot);
-        this.aimPivot.add(head, barrel);
+        this.aimPivot.add(swivel, head, barrel);
         this.aimPivot.rotation.y = workshopAim(0);
       }
     }

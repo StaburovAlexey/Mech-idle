@@ -5,6 +5,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { walkClipTime } from './oplotModels';
 import { shortenStride } from './shortStride';
 import { SPAWN_RADIUS } from './spawnGeometry';
+import { splitTurretMount } from './turretMount';
 
 function manifest(file: string) {
   const data = readFileSync(new URL('../public/assets/oplot/' + file + '.glb', import.meta.url));
@@ -49,19 +50,45 @@ test('samples gait by travel, with clip-specific strides scaled to the actual mo
 });
 
 
+function loadGeometry(name: string) {
+  // WebGL texture decoding is irrelevant to this bone-level check. Reuse the original BIN/accessors.
+  const raw = readFileSync(new URL('../public/assets/oplot/' + name + '.glb', import.meta.url));
+  const json = manifest(name);
+  delete json.images; delete json.textures; delete json.materials;
+  for (const mesh of json.meshes) for (const primitive of mesh.primitives) delete primitive.material;
+  const serialized = JSON.stringify(json);
+  const chunk = Buffer.from(serialized.padEnd(Math.ceil(serialized.length / 4) * 4, ' '));
+  const tail = raw.subarray(20 + raw.readUInt32LE(12)), header = Buffer.from(raw.subarray(0, 20));
+  header.writeUInt32LE(20 + chunk.length + tail.length, 8); header.writeUInt32LE(chunk.length, 12);
+  const glb = Uint8Array.from(Buffer.concat([header, chunk, tail])).buffer;
+  return new GLTFLoader().parseAsync(glb, '');
+}
+
+test('keeps all three feet and the bottom ring fixed while the collar and column rotate', async () => {
+  const { scene } = await loadGeometry('turret');
+  const base = scene.getObjectByName('Base') as THREE.Mesh;
+  const original = Array.from(base.geometry.index!.array);
+  const swivel = splitTurretMount(base);
+  const fixed = Array.from(base.geometry.index!.array), moving = Array.from(swivel.geometry.index!.array);
+  expect(fixed.length).toBeGreaterThan(0); expect(moving.length).toBeGreaterThan(0);
+  expect([...fixed,...moving].sort((a,b)=>a-b)).toEqual(original.sort((a,b)=>a-b));
+  expect(swivel.material).toBe(base.material);
+  const heights = (mesh: THREE.Mesh, indices: number[]) => indices.map(i =>
+    mesh.position.y + mesh.scale.y * mesh.geometry.getAttribute('position').getY(i));
+  expect(Math.max(...heights(base,fixed))).toBeLessThan(.27);
+  expect(Math.min(...heights(swivel,moving))).toBeLessThan(.16);
+  expect(Math.max(...heights(swivel,moving))).toBeGreaterThan(1.4);
+  const turntable = new THREE.Group(); scene.add(turntable); turntable.add(swivel);
+  scene.updateMatrixWorld(true);
+  const foot = base.matrixWorld.clone(), column = swivel.matrixWorld.clone();
+  turntable.rotation.y = Math.PI / 2; scene.updateMatrixWorld(true);
+  expect(base.matrixWorld.equals(foot)).toBe(true);
+  expect(swivel.matrixWorld.equals(column)).toBe(false);
+});
+
 test.each([['Mike', 'Walk', .50], ['Leela', 'Run', .42], ['Stan', 'Walk', .72], ['George', 'Walk', .50]] as const)(
   'shortens %s foot travel while preserving ground height and leg reach', async (name, gait, ratio) => {
-    // WebGL texture decoding is irrelevant to this bone-level check. Reuse the original BIN/accessors.
-    const raw = readFileSync(new URL('../public/assets/oplot/' + name + '.glb', import.meta.url));
-    const json = manifest(name);
-    delete json.images; delete json.textures; delete json.materials;
-    for (const mesh of json.meshes) for (const primitive of mesh.primitives) delete primitive.material;
-    const serialized = JSON.stringify(json);
-    const chunk = Buffer.from(serialized.padEnd(Math.ceil(serialized.length / 4) * 4, ' '));
-    const tail = raw.subarray(20 + raw.readUInt32LE(12)), header = Buffer.from(raw.subarray(0, 20));
-    header.writeUInt32LE(20 + chunk.length + tail.length, 8); header.writeUInt32LE(chunk.length, 12);
-    const glb = Uint8Array.from(Buffer.concat([header, chunk, tail])).buffer;
-    const {scene, animations} = await new GLTFLoader().parseAsync(glb, '');
+    const {scene, animations} = await loadGeometry(name);
     const original = animations.find(a => a.name === gait)!;
     const edited = shortenStride(scene, original, ratio);
     const size = new THREE.Box3().setFromObject(scene).getSize(new THREE.Vector3()).y;
