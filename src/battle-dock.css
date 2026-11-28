@@ -122,17 +122,18 @@
   .shell.in-battle .battle-menu-toggle { grid-column: 4; grid-row: 1/3; }
   .shell.in-battle .battle-upgrade-tab > span { display: none; }
 }
-@media (max-width: 649px) {
+@media (max-width: 649px) and (min-height: 481px) {
   .shell.in-battle .upgrades:has(.battle-upgrade-list .upgrade:nth-child(3)) { --dock-rows: 2; }
 }
 @media (min-width: 650px) {
   .shell.in-battle .battle-upgrade-list { grid-template-columns: repeat(3,minmax(0,1fr)); }
+}
+@media (min-width: 650px) and (min-height: 481px) {
   .shell.in-battle .upgrades:has(.battle-upgrade-list .upgrade:nth-child(4)) { --dock-rows: 2; }
 }
 @media (orientation: landscape) and (max-height: 480px) {
   .shell.in-battle .battle-hud { padding-block: max(3px,env(safe-area-inset-top)) 3px; }
   .shell.in-battle .upgrades { --dock-row: 44px; }
-  .shell.in-battle .upgrades:has(.battle-upgrade-list .upgrade) { --dock-rows: 1; }
   .shell.in-battle .battle-upgrade-rack { --rim: 13px; padding-block: var(--rim); }
   .shell.in-battle .battle-upgrade-rack::before { border-width: 18px; }
 }
