@@ -1,3 +1,4 @@
+import { lootChance, pickupQuantityOdds } from './pickup';
 export const COMBAT_UPGRADES = {
   critical: { title: 'Крит', category: 'attack', icon: 'damage', price: 26, description: 'Шанс нанести двойной урон' },
   pierce: { title: 'Пробитие', category: 'attack', icon: 'damage', price: 30, description: 'Часть урона второму меху прямо за целью' },
@@ -7,14 +8,28 @@ export const COMBAT_UPGRADES = {
   emergency: { title: 'Авар. ремонт', category: 'repair', icon: 'regen', price: 36, description: 'Восстанавливает корпус ниже 25% здоровья, один раз за волну' },
   salvage: { title: 'Разбор мехов', category: 'repair', icon: 'regen', price: 25, description: 'Восстанавливает корпус за каждые пять уничтоженных после покупки мехов' },
   scanner: { title: 'Сканер', category: 'modules', icon: 'damage', price: 30, description: 'При выборе новой цели отдаёт приоритет стрелкам в радиусе огня' },
+  lootDetector: { title: 'Детектор', category: 'modules', icon: 'damage', price: 0, description: 'Увеличивает шанс выпадения деталей и обломков' },
+  lootExtractor: { title: 'Экстрактор', category: 'modules', icon: 'regen', price: 0, description: 'Увеличивает шанс получить больше единиц выпавшего ресурса' },
   pulse: { title: 'Импульс', category: 'modules', icon: 'attackSpeed', price: 38, description: 'Замедляет движение мехов на 40% на 1 с в радиусе 4' },
 } as const;
 export type CombatUpgrade = keyof typeof COMBAT_UPGRADES;
 export type CombatUpgradeLevels = Partial<Record<CombatUpgrade, number>>;
-export const SHOP_MODULES = ['scanner', 'pulse', 'deflect'] as const;
+export const SHOP_MODULES = ['scanner', 'pulse', 'deflect', 'lootDetector', 'lootExtractor'] as const;
 export type ShopModule = typeof SHOP_MODULES[number];
 export const isShopModule = (key: CombatUpgrade): key is ShopModule => (SHOP_MODULES as readonly CombatUpgrade[]).includes(key);
-export const COMBAT_KEYS = Object.keys(COMBAT_UPGRADES) as CombatUpgrade[];
+export const isLootModule = (key:CombatUpgrade) => key==='lootDetector'||key==='lootExtractor';
+export const WORKSHOP_KEYS = Object.keys(COMBAT_UPGRADES) as CombatUpgrade[];
+export const COMBAT_KEYS = WORKSHOP_KEYS.filter(key => !isLootModule(key));
+export type ModuleCost = {parts:number;scrap:number};
+export function moduleCost(key:CombatUpgrade, level:number): ModuleCost {
+  if (isLootModule(key)) {
+    const detector=key==='lootDetector';
+    if (!level) return {parts:0,scrap:detector?5:7};
+    const scale=1.5**(level-1);
+    return {parts:Math.ceil((detector?6:9)*scale),scrap:Math.ceil((detector?4:6)*scale)};
+  }
+  return {parts:workshopCombatPrice(key,level),scrap:0};
+}
 
 export interface CombatEnhancements {
   levels: CombatUpgradeLevels;
@@ -51,12 +66,15 @@ export function combatEffect(key: CombatUpgrade, level: number): number {
     case 'salvage': return level * 2;
     case 'scanner': return 1;
     case 'pulse': return 10 - 6 * growth;
+    case 'lootDetector': case 'lootExtractor': return 0;
   }
 }
 
 const seconds = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1 });
 export function combatValueLabel(key: CombatUpgrade, level: number): string {
   if (key === 'scanner') return level ? 'Включён' : 'Выкл.';
+  if (key === 'lootDetector') return seconds.format(lootChance(level)*100)+'%';
+  if (key === 'lootExtractor') return pickupQuantityOdds(level).map(n=>seconds.format(n)+'%').join(' / ');
   const value = combatEffect(key, level);
   if (key === 'deflect' || key === 'pulse') return level ? `${seconds.format(value)} с` : 'Выкл.';
   if (key === 'salvage') return `+${value} HP`;

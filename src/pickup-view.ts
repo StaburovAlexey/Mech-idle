@@ -90,7 +90,7 @@ export class PickupView {
     used.push({left,top,width,height});
    }
    // Presentation offsets keep nearby touch targets distinct without combining the drops.
-   pile.forEach(item => models.push({item,shift:offset+(item.kind==='parts' ? -spread : spread),count:1,visibility:pickupVisibility(item,time)}));
+   pile.forEach(item => models.push({item,shift:offset+(item.kind==='parts' ? -spread : spread),count:item.quantity??1,visibility:pickupVisibility(item,time)}));
    if (!pos || !interactive || !this.batches.size) continue;
    activeButtons.add(anchor.id);
    let button = this.buttons.get(anchor.id);
@@ -102,7 +102,7 @@ export class PickupView {
    const ids = pile.map(item => item.id).join(',');
    if (button.dataset.pickupIds !== ids) {
     const reward = PICKUP_KINDS.filter(kind => pile.some(item => item.kind === kind))
-     .map(kind => currencyLabels[kind] + ' ×1').join(', ');
+     .map(kind => currencyLabels[kind] + ' ×' + (pile.find(item => item.kind===kind)?.quantity??1)).join(', ');
     button.dataset.pickupIds = ids;
     button.title = 'Подобрать: ' + reward + ' (тестовый режим, без рекламы)';
     button.setAttribute('aria-label',button.title);

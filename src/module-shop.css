@@ -22,7 +22,8 @@
 .at-module-shop .arena-wrap > :not(.arena),.at-module-shop .arena .fatal { display: none; }
 .module-shop-rack {
   grid-area: 2 / 1; z-index: 2; justify-self: end; align-self: end;
-  width: 63%; max-width: 530px; display: grid; gap: clamp(6px,1.1cqh,12px);
+  width: 63%; max-width: 530px; max-height: 100%; overflow-y: auto;
+  scrollbar-width: thin; scrollbar-color: #71843e #322c33; display: grid; gap: clamp(6px,1.1cqh,12px);
   padding: calc(var(--rim) + 3px) calc(var(--rim) + 3px);
 }
 .module-shop-card {

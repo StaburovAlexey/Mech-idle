@@ -14,3 +14,9 @@ export const currencyCounter = (kind:Currency,id:string,classes:string) =>
 
 export const currencyBank = (prefix:string) =>
  `<div class="title-bank">${currencyCounter('parts',prefix+'-parts','title-balance')}${currencyCounter('scrap',prefix+'-scrap','title-balance')}</div>`;
+
+type Price = {parts:number;scrap:number};
+export const priceText = ({parts,scrap}:Price) =>
+ [parts && parts.toLocaleString('ru-RU')+' деталей',scrap && scrap.toLocaleString('ru-RU')+' обломков'].filter(Boolean).join(' + ');
+export const priceMarkup = (cost:Price) => (['parts','scrap'] as const).filter(kind=>cost[kind]>0)
+ .map(kind=>`<span class="currency-price-line">${currencyIcon(kind)} ${cost[kind].toLocaleString('ru-RU')}</span>`).join('');
