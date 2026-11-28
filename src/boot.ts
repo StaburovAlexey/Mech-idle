@@ -83,7 +83,7 @@ export function bootScreen(app: HTMLElement) {
       onShow();
       boot.dataset.phase = 'menu';
       if (motion) {
-        const origin = `50% ${window.innerHeight / 2}px`;
+        const origin = `50% ${app.clientHeight / 2}px`;
         const light = animate(beam, [
           { transform:'scaleX(0)', opacity:0 }, { transform:'scaleX(1)', opacity:.8 },
         ], 130);
@@ -100,7 +100,7 @@ export function bootScreen(app: HTMLElement) {
         open.cancel();
         fade.cancel();
         const title = app.querySelector<HTMLElement>('.shell')!;
-        stop = trackVhs(title, 780, false, window.innerHeight);
+        stop = trackVhs(title, 780, false, app.clientHeight);
         await delay(780);
         stop();
       }

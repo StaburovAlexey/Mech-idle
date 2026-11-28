@@ -1,4 +1,4 @@
-<!doctype html><html lang="ru"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/><meta name="theme-color" content="#101f28"/><meta name="description" content="ОПЛОТ: 3D-защита турели от мехов. 30 волн, финальный босс и два слоя улучшений."/><link rel="icon" href="./favicon.svg"/><title>ОПЛОТ — Турель и мехи</title><link rel="stylesheet" href="/src/boot.css"/></head><body><div id="app" inert></div>
+<!doctype html><html lang="ru"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/><meta name="theme-color" content="#101f28"/><meta name="description" content="ОПЛОТ: 3D-защита турели от мехов. 30 волн, финальный босс и два слоя улучшений."/><link rel="icon" href="./favicon.svg"/><title>ОПЛОТ — Турель и мехи</title><link rel="stylesheet" href="/src/game-frame.css"/><link rel="stylesheet" href="/src/boot.css"/></head><body><div id="game-viewport"><div id="game-stage"><div id="app" inert></div>
 <svg class="boot-filter" aria-hidden="true">
   <filter id="boot-tracking" x="0" y="0" width="100%" height="100%" primitiveUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
    <feTurbulence type="fractalNoise" baseFrequency=".001 .18" numOctaves="1" seed="7" result="noise"/>
@@ -22,4 +22,6 @@
  </div>
  <div id="boot-beam" aria-hidden="true"></div>
 </div>
+</div></div>
+<script type="module" src="/src/game-frame.ts"></script>
 <script type="module" src="/src/main.ts"></script></body></html>

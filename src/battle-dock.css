@@ -6,8 +6,8 @@
 .shell.in-battle .battle-upgrade-list { pointer-events: auto; }
 .shell.in-battle .battle-hud {
   display: flex; flex-direction: column; align-items: stretch;
-  gap: 4px; padding: max(6px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right))
-    6px max(8px,env(safe-area-inset-left));
+  gap: 4px; padding: 6px 8px
+    6px 8px;
   background: transparent; border: 0;
 }
 .shell.in-battle .battle-resources {
@@ -27,9 +27,9 @@
   text-align: center;
 }
 .shell.in-battle .battle-resource::before { display: none; }
-.shell.in-battle .battle-resource > span { color: #fff0da; font-size: clamp(10px,2.65vw,14px); line-height: 1.1; text-transform: uppercase; }
+.shell.in-battle .battle-resource > span { color: #fff0da; font-size: clamp(10px,2.65cqw,14px); line-height: 1.1; text-transform: uppercase; }
 .shell.in-battle .battle-resource > strong {
-  color: #fff0da; font-size: clamp(12px,3.6vw,18px); line-height: 1.12; margin: 0;
+  color: #fff0da; font-size: clamp(12px,3.6cqw,18px); line-height: 1.12; margin: 0;
   min-width: 0; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .shell.in-battle .battle-resource.wave {
@@ -50,7 +50,7 @@
 .battle-hp-icon {
   position: absolute; inset: 0 auto 0 7px; margin: auto 0; width: 18px; color: #a8d968;
 }
-.shell.in-battle .battle-resource.health > strong { z-index: 1; margin: 0 0 0 22px; font-size: clamp(12px,3.25vw,16px); }
+.shell.in-battle .battle-resource.health > strong { z-index: 1; margin: 0 0 0 22px; font-size: clamp(12px,3.25cqw,16px); }
 .shell.in-battle .battle-resource .health-track {
   inset: 5px 6px 5px 30px; height: auto; padding: 0; background: #19171c; border: 1px solid #151218; border-radius: 4px;
 }
@@ -70,10 +70,10 @@
 .shell.in-battle .battle-menu-toggle svg { width: 18px; height: 18px; }
 
 .shell.in-battle .upgrades {
-  --dock-row: clamp(46px,7.4dvh,68px);
+  --dock-row: clamp(46px,7.4cqh,68px);
   --dock-rows: 1;
   display: block; width: 100%; margin: 0; border: 0; background: transparent;
-  padding: 0 env(safe-area-inset-right) max(5px,env(safe-area-inset-bottom)) env(safe-area-inset-left);
+  padding: 0 0 5px;
 }
 .shell.in-battle .battle-upgrade-tabs,
 .shell.in-battle .battle-upgrade-rack { max-width: 1120px; margin: 0 auto; }
@@ -83,9 +83,9 @@
 .shell.in-battle .battle-upgrade-tab {
   display: flex; gap: 5px; align-items: center; justify-content: center;
   min-height: 44px; padding: 0 2px; border-radius: 8px 8px 3px 3px;
-  text-transform: uppercase; font-size: clamp(9px,2.8vw,14px); font-weight: 750;
+  text-transform: uppercase; font-size: clamp(9px,2.8cqw,14px); font-weight: 750;
 }
-.shell.in-battle .battle-upgrade-tab > span { display: block; width: clamp(12px,4.1vw,22px); flex: none; color: #e9dcc6; }
+.shell.in-battle .battle-upgrade-tab > span { display: block; width: clamp(12px,4.1cqw,22px); flex: none; color: #e9dcc6; }
 .battle-upgrade-tab svg { display: block; width: 100%; }
 .shell.in-battle .battle-upgrade-tab[aria-selected="true"] {
   background: linear-gradient(#627b39,#344823);
@@ -109,14 +109,14 @@
 }
 .battle-card-icon {
   display: grid; place-items: center; grid-row: span 2; align-self: center;
-  width: clamp(23px,8vw,36px); aspect-ratio: 1; padding: 3px;
+  width: clamp(23px,8cqw,36px); aspect-ratio: 1; padding: 3px;
   border: 1px solid #86965e; border-radius: 6px; color: #d3e899;
   background: linear-gradient(#475433,#283124); box-shadow: inset 0 0 0 1px #303b29;
 }
 .battle-card-icon svg { width: 100%; }
 .shell.in-battle .battle-upgrade-list .upgrade-top { display: block; min-width: 0; }
 .shell.in-battle .battle-upgrade-list .upgrade-title {
-  display: block; font-size: clamp(10px,3vw,15px); line-height: 1.12; text-transform: uppercase;
+  display: block; font-size: clamp(10px,3cqw,15px); line-height: 1.12; text-transform: uppercase;
   white-space: normal; overflow-wrap: anywhere;
 }
 .shell.in-battle .battle-upgrade-list .stat-label-full,
@@ -127,7 +127,7 @@
 }
 .shell.in-battle .battle-upgrade-list .upgrade-value,
 .shell.in-battle .battle-upgrade-list .upgrade-price {
-  font-size: clamp(11px,3.4vw,17px); line-height: 1.12; min-width: 0; white-space: normal; overflow-wrap: anywhere;
+  font-size: clamp(11px,3.4cqw,17px); line-height: 1.12; min-width: 0; white-space: normal; overflow-wrap: anywhere;
 }
 .shell.in-battle .battle-upgrade-list .upgrade-value small { font-size: .7em; }
 .shell.in-battle .battle-upgrade-list .upgrade-price { color: #ffd478; text-align: right; }
@@ -138,10 +138,10 @@
 .shell.in-battle .battle-upgrade-list .upgrade:focus-visible,
 .shell.in-battle .battle-upgrade-tab:focus-visible,
 .shell.in-battle .battle-menu-toggle:focus-visible { outline: 2px solid #fff2d6; outline-offset: -3px; }
-.shell.in-battle .battle-upgrade-list [data-combat-upgrade] .upgrade-value { font-size: clamp(9px,2.35vw,13px); }
+.shell.in-battle .battle-upgrade-list [data-combat-upgrade] .upgrade-value { font-size: clamp(9px,2.35cqw,13px); }
 .shell.in-battle .battle-upgrade-list [data-combat-upgrade] .upgrade-price { white-space: nowrap; }
 
-@media (max-width: 600px) {
+@container game (max-width: 600px) {
   .shell.in-battle .battle-resources { grid-template-columns: repeat(12,minmax(0,1fr)); }
   .shell.in-battle .battle-resource.wave { grid-column: 1/7; }
   .shell.in-battle .battle-resource.gold { grid-column: 7/10; }
@@ -153,24 +153,24 @@
   .shell.in-battle .battle-upgrade-rack .title-seam { display: none; }
   .shell.in-battle .battle-upgrade-tab { gap: 3px; }
 }
-@media (max-width: 649px) and (min-height: 570px) {
+@container game (max-width: 649px) and (min-height: 570px) {
   /* The recessed tray keeps the portrait reference's two-row footprint,
      including tabs with fewer installed upgrades. */
   .shell.in-battle .upgrades { --dock-rows: 2; }
 }
-@media (max-width: 355px) {
+@container game (max-width: 355px) {
   .shell.in-battle .battle-upgrade-tab { font-size: 8.5px; }
   .shell.in-battle .battle-resource.wave { gap: 3px; }
   .shell.in-battle .battle-resource.wave > span { font-size: 9px; }
   .shell.in-battle .battle-upgrade-list .upgrade-value small { display: none; }
 }
-@media (min-width: 650px) {
+@container game (min-width: 650px) {
   .shell.in-battle .battle-upgrade-list { grid-template-columns: repeat(3,minmax(0,1fr)); }
 }
-@media (min-width: 650px) and (min-height: 481px) {
+@container game (min-width: 650px) and (min-height: 481px) {
   .shell.in-battle .upgrades:has(.battle-upgrade-list .upgrade:nth-child(4)) { --dock-rows: 2; }
 }
-@media (orientation: landscape) and (max-height: 480px) {
-  .shell.in-battle .battle-hud { padding-block: max(3px,env(safe-area-inset-top)) 3px; }
+@container game (orientation: landscape) and (max-height: 480px) {
+  .shell.in-battle .battle-hud { padding-block: 3px 3px; }
   .shell.in-battle .upgrades { --dock-row: 44px; }
 }

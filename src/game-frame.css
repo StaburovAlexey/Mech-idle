@@ -1,0 +1,36 @@
+/* Extra space only decorates the frame. It never changes the game layout or field of view. */
+body:has(#game-viewport) {
+  margin: 0;
+  min-height: 100svh;
+  overflow: hidden;
+  background: linear-gradient(#141219b8, #101018e8), #1c1920
+    url('/assets/ui/title/sand-city.webp') center / cover no-repeat fixed;
+}
+#game-viewport {
+  position: fixed;
+  inset: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+  overflow: clip;
+  container-type: size;
+}
+#game-stage {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 390px; height: 844px;
+  container: game / size;
+  transform: translate(-50%, -50%) scale(var(--game-scale, 1));
+  overflow: hidden;
+  background: #171720;
+  box-shadow: 0 0 48px #0c0a13a8;
+}
+#game-stage > #app {
+  position: absolute; inset: 0;
+  overflow: auto;
+  scrollbar-width: none;
+  overscroll-behavior: contain;
+}
+
+/* Fit the very first HTML paint without waiting for the game bundle on modern browsers. */
+@supports (transform: scale(calc(1px / 1px))) {
+  #game-stage { --game-scale: min(calc(100cqw / 390px), calc(100cqh / 844px)); }
+}

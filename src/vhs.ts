@@ -1,5 +1,5 @@
 /** Sweep the existing VHS filter across one element; cleanup leaves the rest of the page untouched. */
-export function trackVhs(element: HTMLElement, duration: number, loop = false, height = element.getBoundingClientRect().height) {
+export function trackVhs(element: HTMLElement, duration: number, loop = false, height = element.offsetHeight) {
   const band = document.querySelector('#boot-band');
   if (!band) return () => {};
   const started = performance.now();

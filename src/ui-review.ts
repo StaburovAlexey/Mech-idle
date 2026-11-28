@@ -2,6 +2,8 @@
 import './style.css';
 import './title.css';
 import './battle-dock.css';
+import './game-frame.css';
+import {bindGameFrame} from './game-frame';
 import {battleHudMarkup,battleMenuMarkup,bossBarMarkup,battleUpgradeDockMarkup,bindUpgradeTabs,renderCombatUpgrade,STAT_LABELS} from './battle-ui';
 import {COMBAT_KEYS} from './combat-upgrades';
 import {STAT_KEYS} from './game';
@@ -17,7 +19,11 @@ if(!params.has('embed')){
  frame.style.width='390px';frame.style.height='844px';
 }else{
  document.body.classList.add('battle-active');
- root.innerHTML=`<div class="shell in-battle"><div class="battle-hud">${battleHudMarkup}${bossBarMarkup}</div><main class="workspace"><section class="arena-wrap"><div class="arena" id="review-scene"><div id="review-field" style="position:absolute;border:1px dashed #94c7c966;background:#2b3e3e;display:grid;place-items:center;text-align:center;padding:12px;font:12px system-ui;color:#c6dfdb">Область 3D-сцены<br>Полная ширина на телефоне<br><small>В этой проверке WebGL не запускается</small></div></div></section></main><section class="upgrades" id="upgrades" aria-label="Улучшения">${battleUpgradeDockMarkup}</section><div class="battle-menu-overlay hidden" id="battle-menu-overlay">${battleMenuMarkup}</div></div><div id="modal-root"></div>`;
+ const viewport=document.createElement('div'),stage=document.createElement('div');
+ viewport.id='game-viewport';stage.id='game-stage';
+ root.replaceWith(viewport);viewport.append(stage);stage.append(root);
+ bindGameFrame(stage);
+ root.innerHTML=`<div class="shell in-battle"><div class="battle-hud">${battleHudMarkup}${bossBarMarkup}</div><main class="workspace"><section class="arena-wrap"><div class="arena" id="review-scene"><div id="review-field" style="position:absolute;border:1px dashed #94c7c966;background:#2b3e3e;display:grid;place-items:center;text-align:center;padding:12px;font:12px system-ui;color:#c6dfdb">Область 3D-сцены<br>Один кадр на всех экранах<br><small>В этой проверке WebGL не запускается</small></div></div></section></main><section class="upgrades" id="upgrades" aria-label="Улучшения">${battleUpgradeDockMarkup}</section><div class="battle-menu-overlay hidden" id="battle-menu-overlay">${battleMenuMarkup}</div></div><div id="modal-root"></div>`;
  const get=(s:string)=>root.querySelector<HTMLElement>(s)!;
  bindUpgradeTabs(get('#upgrades'));
  get('#battle-wave').textContent='7 / 30';get('#battle-hp').textContent='86 / 120';get('#battle-hp-fill').style.width='71.67%';get('#battle-gold').textContent='148';get('#battle-crystals').textContent='18';
@@ -30,6 +36,6 @@ if(!params.has('embed')){
  get('#battle-menu-close').onclick=close;get('#battle-menu-return').onclick=close;
  get('#battle-menu-overlay').onclick=event=>{if(event.target===get('#battle-menu-overlay'))close();};
  document.addEventListener('keydown',event=>{if(event.key==='Escape')close();});
- const resize=()=>{const stage=get('#review-scene'),size=stage.getBoundingClientRect(),v=arenaViewport(size.width,size.height),field=get('#review-field');Object.assign(field.style,{left:`${v.x}px`,top:`${v.y}px`,width:`${v.width}px`,height:`${v.height}px`});};
+ const resize=()=>{const stage=get('#review-scene'),v=arenaViewport(stage.clientWidth,stage.clientHeight),field=get('#review-field');Object.assign(field.style,{left:`${v.x}px`,top:`${v.y}px`,width:`${v.width}px`,height:`${v.height}px`});};
  new ResizeObserver(resize).observe(get('#review-scene'));resize();
 }
