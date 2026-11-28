@@ -32,11 +32,11 @@
 .module-shop-rack > .armored-scroll-area { height: 100%; }
 .module-shop-list {
   height: 100%; overflow-y: auto; overscroll-behavior-y: contain;
-  display: grid; align-content: start; grid-auto-rows: var(--shop-row); gap: var(--shop-gap);
+  display: grid; align-content: start; grid-auto-rows: max-content; gap: var(--shop-gap);
 }
 .module-shop-card {
   position: relative; overflow: hidden;
-  min-height: 0;
+  min-height: var(--shop-row);
   grid-template-columns: auto minmax(0,1fr) auto;
   gap: clamp(5px,1.6cqw,14px); padding-inline: clamp(4px,1.3cqw,12px);
 }
