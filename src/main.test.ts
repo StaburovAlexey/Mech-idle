@@ -608,7 +608,7 @@ describe('fullscreen battle actual UI flows', () => {
     expect(fakes.pause?.reasons.has('battleMenu')).toBe(true);
     expect(button('#battle-menu-toggle').getAttribute('aria-expanded')).toBe('true');
     for (const selector of ['#battle-hud', '#upgrades', '.arena-wrap']) expect(element(selector).inert).toBe(true);
-    expect(document.activeElement).toBe(button('#battle-menu-close'));
+    expect(document.activeElement).toBe(button('#battle-menu-return'));
     advanceFrames(10); expect(elapsed()).toBe(before);
     click('#battle-menu-return');
     expect(hidden('#battle-menu-overlay')).toBe(true);
@@ -627,9 +627,9 @@ describe('fullscreen battle actual UI flows', () => {
     expect(fakes.pause?.reasons.has('user')).toBe(false);
     const overlay = element('#battle-menu-overlay');
     expect([...overlay.querySelectorAll('button')].map(button => button.id)).toEqual([
-      'battle-menu-close', 'battle-menu-return', 'battle-menu-sound', 'battle-menu-save', 'battle-menu-abandon',
+      'battle-menu-return', 'battle-menu-sound', 'battle-menu-save', 'battle-menu-abandon',
     ]);
-    expect(overlay.querySelectorAll('button.title-button')).toHaveLength(5);
+    expect(overlay.querySelectorAll('button.title-button')).toHaveLength(4);
     expect(overlay.textContent).not.toMatch(/Управление оплотом|Бой остановлен|Урон|Пауза|Как играть/);
     advanceFrames(8); expect(elapsed()).toBe(before);
     button('#battle-menu-sound').focus();
@@ -647,7 +647,7 @@ describe('fullscreen battle actual UI flows', () => {
     expect(hidden('#battle-menu-overlay')).toBe(true);
     key('Escape', document.activeElement!);
     expect(hidden('#battle-menu-overlay')).toBe(false);
-    click('#battle-menu-close');
+    click('#battle-menu-return');
     expect(document.activeElement).toBe(button('#upgrade-damage'));
     key('1', document.activeElement!);
     expect(saved().run!.levels.damage).toBe(0);
@@ -657,7 +657,7 @@ describe('fullscreen battle actual UI flows', () => {
     await boot(); click('#start'); openDrawer();
     expect(element('#battle-menu-overlay').querySelectorAll('.chain-panel-chain')).toHaveLength(2);
     expect(element('#battle-menu-overlay .armored-scroll-rail')).not.toBeNull();
-    const first = button('#battle-menu-close'), last = button('#battle-menu-abandon');
+    const first = button('#battle-menu-return'), last = button('#battle-menu-abandon');
     first.focus();
     expect(key('Tab', first, { shiftKey: true }).defaultPrevented).toBe(true);
     expect(document.activeElement).toBe(last);
@@ -668,7 +668,7 @@ describe('fullscreen battle actual UI flows', () => {
     expect(hidden('#battle-menu-overlay')).toBe(true);
     for (let i = 0; i < 3; i++) {
       key('Escape'); expect(hidden('#battle-menu-overlay')).toBe(false);
-      key('Escape', button('#battle-menu-close')); expect(hidden('#battle-menu-overlay')).toBe(true);
+      key('Escape', button('#battle-menu-return')); expect(hidden('#battle-menu-overlay')).toBe(true);
       expect(fakes.pause?.paused).toBe(false);
     }
   });
@@ -685,7 +685,7 @@ describe('fullscreen battle actual UI flows', () => {
     expect(saved().run!.gold).toBe(before.run!.gold);
     expect(saved().run!.levels).toEqual(before.run!.levels);
     expect(fakes.pause?.reasons.has('user')).toBe(false);
-    click('#battle-menu-close');
+    click('#battle-menu-return');
     click('#upgrade-damage');
     expect(saved().run!.gold).toBe(before.run!.gold - 10);
     expect(saved().run!.levels.damage).toBe(1);
@@ -759,7 +759,7 @@ describe('fullscreen battle actual UI flows', () => {
     const before = elapsed();
     vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
     document.dispatchEvent(new Event('visibilitychange'));
-    click('#battle-menu-close'); advanceFrames(5);
+    click('#battle-menu-return'); advanceFrames(5);
     expect(fakes.pause?.reasons.has('hidden')).toBe(true);
     expect(elapsed()).toBe(before);
     vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
@@ -771,7 +771,7 @@ describe('fullscreen battle actual UI flows', () => {
     await boot(); click('#start'); advanceFrames(2); openDrawer();
     const before = elapsed();
     window.dispatchEvent(new Event('blur'));
-    click('#battle-menu-close'); advanceFrames(4);
+    click('#battle-menu-return'); advanceFrames(4);
     expect(fakes.pause?.reasons.has('focus')).toBe(true);
     expect(elapsed()).toBe(before);
     window.dispatchEvent(new Event('focus')); advanceFrames(3);

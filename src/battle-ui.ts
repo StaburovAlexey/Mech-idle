@@ -107,7 +107,7 @@ export const battleHudMarkup = `<div class="battle-resources" aria-label="Рес
  <button type="button" class="battle-menu-toggle" id="battle-menu-toggle" aria-label="Открыть меню боя" aria-haspopup="dialog" aria-expanded="false" aria-controls="battle-menu-overlay"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="m10 2-.6 2.5-2 .9-2.4-1.1-2 3.4 2 1.7v2.2l-2 1.7 2 3.4 2.4-1.1 2 .9.6 2.5h4l.6-2.5 2-.9 2.4 1.1 2-3.4-2-1.7V9.4l2-1.7-2-3.4-2.4 1.1-2-.9L14 2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" transform="translate(0 1.5)"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button></div><div id="battle-notice" class="battle-notice hidden" role="status"></div>`;
 
 export const battleMenuMarkup = chainPanelSheet(`<section class="battle-menu-panel chain-panel-content" role="dialog" aria-modal="true" aria-labelledby="battle-menu-title" tabindex="-1">
- <div class="battle-menu-head"><h2 id="battle-menu-title">Меню боя</h2>${titleButton('battle-menu-close','×',false,'Закрыть меню боя')}</div>
+ <h2 id="battle-menu-title">Меню боя</h2>
  <div class="menu-actions">
   ${titleButton('battle-menu-return','Вернуться в бой',true)}
   ${titleButton('battle-menu-sound','Звук: выключен')}

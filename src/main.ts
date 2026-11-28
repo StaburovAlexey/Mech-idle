@@ -162,7 +162,7 @@ $('#help').onclick=showHelp;
 function openBattleMenu(){
  if(screen!=='combat'||!state.run||battleMenu.open||drawerClosing)return;
  menuReturnFocus=document.activeElement instanceof HTMLElement?document.activeElement:null;
- battleMenu.show();accumulator=0;save();renderUI();drawerScrollbars.refresh();$('#battle-menu-close').focus();slideBattleMenu(true);
+ battleMenu.show();accumulator=0;save();renderUI();drawerScrollbars.refresh();$('#battle-menu-return').focus({preventScroll:true});slideBattleMenu(true);
 }
 function closeBattleMenu(restoreFocus=true,after=()=>{}){
  if(!battleMenu.open||drawerClosing)return;
@@ -185,7 +185,6 @@ function confirmAbandon(){
  ]);
 }
 $('#battle-menu-toggle').onclick=openBattleMenu;
-$('#battle-menu-close').onclick=()=>closeBattleMenu();
 $('#battle-menu-return').onclick=()=>closeBattleMenu();
 $('#battle-menu-sound').onclick=toggleSound;
 $('#battle-menu-save').onclick=()=>closeBattleMenu(false,openMenu);
