@@ -43,16 +43,19 @@ export function pickupPose(pickup: Pickup, time: number, reduced = false) {
  return { x, z, height: Math.max(0, jump), yaw: reduced ? 0 : 2 * t + .95 * Math.max(0, age - PICKUP_LAND_SECONDS), tilt: .36 * Math.sin(2 * Math.PI * t) };
 }
 
-/** Before landing, each piece hops individually. Only settled nearby loot is grouped. */
+/** Bonus drops share their source enemy with the unsuffixed primary pickup. */
+export const pickupSource = (id: string) => id.endsWith(':bonus') ? id.slice(0,-6) : id;
+
+/** Before landing, each piece hops individually. Group landed drops only by source enemy. */
 export function groupPickups(items: readonly Pickup[], time: number) {
- const piles: Pickup[][] = [];
+ const piles = new Map<string,Pickup[]>();
  const airborne: Pickup[] = [];
  for (const item of items) {
   if (pickupExpired(item,time)) continue;
   if (!pickupLanded(item,time)) {airborne.push(item);continue;}
-  const pile = piles.find(([anchor]) => Math.hypot(anchor.x-item.x,anchor.y-item.y) <= 2.6);
+  const source = pickupSource(item.id), pile = piles.get(source);
   if (pile) pile.push(item);
-  else piles.push([item]);
+  else piles.set(source,[item]);
  }
- return {piles,airborne};
+ return {piles:[...piles.values()],airborne};
 }

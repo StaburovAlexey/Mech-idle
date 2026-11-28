@@ -83,6 +83,11 @@ describe('battle pickups', () => {
     expect(collectPickups(killed,items.map(item=>item.id))).toBe(killed);
     const loaded=parseState(serializeState(step(killed,30)))!;
     expect(groupPickups(loaded.run!.pickups!,loaded.run!.time).piles).toEqual([items]);
+    const stranger = {...items[0],id:target.id+'0'};
+    const neighbors = {...loaded,run:{...loaded.run!,pickups:[...items,stranger]}};
+    expect(groupPickups(neighbors.run.pickups,neighbors.run.time).piles).toEqual([items,[stranger]]);
+    expect(collectPickups(neighbors,[items[0].id,stranger.id])).toBe(neighbors);
+    expect(collectPickups(neighbors,items.map(item=>item.id)).run!.pickups).toEqual([stranger]);
     const ids=items.map(item=>item.id);
     expect(collectPickups(loaded,[...ids,'missing'])).toBe(loaded);
     const collected=collectPickups(loaded,[...ids,ids[0]]);

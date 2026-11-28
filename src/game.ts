@@ -1,4 +1,4 @@
-import { pickupDrops, pickupExpired, pickupLanded, type Pickup } from './pickup';
+import { pickupDrops, pickupExpired, pickupLanded, pickupSource, type Pickup } from './pickup';
 import { COMBAT_UPGRADES, combatEffect, combatUpgradePrice, createEnhancements, workshopCombatPrice, isShopModule, type CombatEnhancements, type CombatUpgrade, type CombatUpgradeLevels, type ShopModule } from './combat-upgrades';
 import { PORTAL_RISE_SECONDS } from './portalTiming';
 import { clampToSpawnCircle, onSpawnCircle, SPAWN_RADIUS, spawnPoint, validSpawnGeometry, WORLD_LIMIT, type SpawnGeometry } from './spawnGeometry';
@@ -382,6 +382,8 @@ function damageEnemy(state: GameState, enemy: Enemy, damage: number): void {
 export function collectPickups(state: GameState, ids: readonly string[]): GameState {
   const run = state.run;
   if (!run || run.paused || !run.pickups?.length || !ids.length) return state;
+  const source = pickupSource(ids[0]);
+  if (ids.some(id => pickupSource(id) !== source)) return state;
   const selected = new Set(ids);
   const pickups = run.pickups.filter(item => selected.has(item.id) && pickupLanded(item, run.time) && !pickupExpired(item, run.time));
   if (pickups.length !== selected.size) return state;
@@ -639,7 +641,7 @@ export function validateState(value: unknown, allowLegacy = false): value is Gam
     for (const d of r.pickups) {
       if (!object(d) || !keys(d, ['id','kind','x','y','born']) || !str(d.id) || pending.has(d.id) ||
           !position(d) || !num(d.born, 0, r.time)) return false;
-      const bonus = d.id.endsWith(':bonus'), source = bonus ? d.id.slice(0,-6) : d.id;
+      const source = pickupSource(d.id), bonus = source !== d.id;
       if (!paid.has(source)) return false;
       const [primary, secondary] = pickupDrops(r.seed, source);
       const kind = bonus ? secondary : primary;
