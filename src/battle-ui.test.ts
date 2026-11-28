@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
-import { BattleMenuController, battleHudMarkup, battleMenuMarkup, bossBarMarkup, upgradeButtonsMarkup, STAT_LABELS, isInteractiveTarget } from './battle-ui';
+import { BattleMenuController, battleHudMarkup, battleMenuMarkup, bossBarMarkup, battleUpgradeDockMarkup, bindBattleUpgradeTabs, upgradeButtonsMarkup, STAT_LABELS, isInteractiveTarget } from './battle-ui';
 import { STAT_KEYS } from './game';
 import { PauseManager } from './persistence';
 import { readFileSync } from 'node:fs';
@@ -99,6 +99,24 @@ describe('battle controls and keyboard target semantics', () => {
     }
   });
 
+  it('switches labelled upgrade categories by click and keyboard without cloning or losing cards', () => {
+    document.body.innerHTML = `<section id="dock">${battleUpgradeDockMarkup}</section>`;
+    const dock = document.getElementById('dock')!;
+    bindBattleUpgradeTabs(dock);
+    const tabs = [...dock.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+    const visible = () => [...dock.querySelectorAll('[role="tabpanel"]:not([hidden])')];
+    expect(visible().map(panel => panel.id)).toEqual(['battle-upgrades-attack']);
+    expect([...dock.querySelectorAll('.upgrade')].map(card => (card as HTMLElement).dataset.stat).sort()).toEqual([...STAT_KEYS].sort());
+    tabs[1].click();
+    expect(visible()[0].querySelector('#upgrade-maxHp')).not.toBeNull();
+    tabs[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    expect(visible()[0].querySelector('#upgrade-regen')).not.toBeNull();
+    expect(document.activeElement).toBe(tabs[2]);
+    expect(tabs.map(tab => tab.getAttribute('aria-selected'))).toEqual(['false','false','true','false']);
+    tabs[3].click();
+    expect(visible()[0].querySelectorAll('.upgrade')).toHaveLength(0);
+  });
+
   it('keeps the boss and notice in the status component without adding secondary controls', () => {
     document.body.innerHTML = `<div id="battle-hud">${battleHudMarkup}${bossBarMarkup}</div>`;
     const hud = document.getElementById('battle-hud')!;
@@ -160,15 +178,6 @@ describe('battle layout stylesheet contract (static, not a browser layout measur
   it('keeps boss and failure notices in normal flow so they enlarge the status row', () => {
     for (const selector of ['.shell.in-battle .battle-hud .boss-bar', '.shell.in-battle .battle-notice']) {
       expect(combinedRulesFor(selector)).toMatchObject({ 'grid-column': '1/-1', position: 'static', inset: 'auto', transform: 'none' });
-    }
-  });
-
-  it('retains four upgrade columns even when mobile workshop layout uses two', () => {
-    const battleUpgradeRules = rulesFor('.shell.in-battle .upgrades');
-    expect(battleUpgradeRules.length).toBeGreaterThan(1);
-    expect(battleUpgradeRules.filter(rule => rule['grid-template-columns']).length).toBeGreaterThan(1);
-    for (const rule of battleUpgradeRules.filter(rule => rule['grid-template-columns'])) {
-      expect(rule['grid-template-columns'].replace(/\s+/g, '')).toMatch(/^repeat\(4,minmax\(0,(?:1fr|\d+px)\)\)$/);
     }
   });
 
