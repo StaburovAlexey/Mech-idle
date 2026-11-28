@@ -1,4 +1,4 @@
-/* Extra space only decorates the frame. It never changes the game layout or field of view. */
+/* Square and landscape windows keep the fixed portrait composition. */
 body:has(#game-viewport) {
   margin: 0;
   min-height: 100svh;
@@ -11,7 +11,7 @@ body:has(#game-viewport) {
   inset: env(safe-area-inset-top) env(safe-area-inset-right)
     env(safe-area-inset-bottom) env(safe-area-inset-left);
   overflow: clip;
-  container-type: size;
+  container: game-viewport / size;
 }
 #game-stage {
   position: absolute;
@@ -33,4 +33,15 @@ body:has(#game-viewport) {
 /* Fit the very first HTML paint without waiting for the game bundle on modern browsers. */
 @supports (transform: scale(calc(1px / 1px))) {
   #game-stage { --game-scale: min(calc(100cqw / 390px), calc(100cqh / 844px)); }
+}
+
+/* Strictly portrait: let the existing responsive UI use the whole safe area. */
+@container game-viewport (aspect-ratio < 1 / 1) {
+  #game-stage {
+    inset: 0;
+    width: auto; height: auto;
+    /* Keep a containing block for fixed overlays, without scaling the UI. */
+    transform: translateZ(0);
+    box-shadow: none;
+  }
 }
