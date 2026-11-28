@@ -169,9 +169,13 @@
 }
 .title-bulb svg { width: 68%; }
 .title-tip strong { color: #a6e270; font: 700 clamp(13px,3vw,21px)/1.2 var(--oplot-font); text-transform: uppercase; }
-.title-tip-text { display: grid; }
+.title-tip-text { display: grid; position: relative; }
 .title-tip-text p { grid-area: 1 / 1; visibility: hidden; }
 .title-tip-text p.current { visibility: visible; }
+.title-tip-text .title-tip-code { position: absolute; inset: 0; pointer-events: none; }
+.title-tip-text.scrambling p.current { color: transparent; text-shadow: none; }
+.title-tip-text.scrambling .title-tip-code { visibility: visible; }
+.title-tip-code span:last-child { color: #b9f17d; text-shadow: 0 0 6px #a8e47580; }
 .title-tip p { margin: 2px 0 0; font-size: clamp(12px,2.7vw,18px); line-height: 1.38; }
 .modal { max-height: calc(100dvh - 28px); overflow: auto; }
 
