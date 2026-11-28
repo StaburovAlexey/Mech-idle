@@ -795,6 +795,33 @@ describe('fullscreen battle actual UI flows', () => {
     expect(elapsed()).toBeGreaterThan(before);
   });
 
+  it.each([false,true])('changes to title behind both gates after exiting battle (discard: %s)', async discard => {
+    const initial=fundedRun();
+    await boot(initial);click('#resume');openDrawer();
+    if(discard)click('#battle-menu-abandon');
+    const {gates,completion}=mockGateMotion();
+    const action=discard?'#battle-confirmation-end':'#battle-menu-save';
+    click(action);click(action);
+    expect(gates.hidden).toBe(false);
+    expect(completion).toHaveLength(2);
+    expect(hidden('#battle-hud')).toBe(false);
+    const before=initial.run!.time;
+    advanceFrames(3);expect(elapsed()).toBe(before);
+    completion[0]();await Promise.resolve();
+    expect(hidden('#battle-hud')).toBe(false);
+    expect(saved().run).toEqual(initial.run);
+    completion[1]();
+    await vi.waitFor(()=>expect(hidden('#battle-hud')).toBe(true));
+    expect(saved().run).toEqual(discard?null:initial.run);
+    expect(saved().profile).toEqual(initial.profile);
+    expect(gates.hidden).toBe(false);
+    expect(element('.shell').inert).toBe(true);
+    await vi.waitFor(()=>expect(completion).toHaveLength(4));
+    completion[2]();completion[3]();
+    await vi.waitFor(()=>expect(gates.hidden).toBe(true));
+    expect(document.activeElement).toBe(button(discard?'#start':'#resume'));
+  });
+
   it('save and exit keeps the run and returns to the same battle without workshop spending', async () => {
     const initial = fundedRun();
     await boot(initial); click('#resume'); openDrawer(); click('#battle-menu-save');

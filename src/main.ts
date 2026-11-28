@@ -96,7 +96,8 @@ function modal(title:string,text:string,actions:{label:string,action:()=>void,se
 }
 function downloadCorrupt(){if(!repository)return;const blob=new Blob([repository.raw()],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='oplot-save-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
 function showSaveRecovery(){modal('Сохранение повреждено','Старые данные оставлены на устройстве. Сначала можно скачать копию. Новый профиль удалит текущее локальное сохранение и его резервную копию.',[{label:'Скачать копию',secondary:true,action:()=>{downloadCorrupt();showSaveRecovery();}},{label:'Новый профиль',action:()=>modal('Начать с нуля?','Детали, постоянные улучшения и незаконченный забег будут удалены на этом устройстве.',[{label:'Отмена',secondary:true,action:showSaveRecovery},{label:'Удалить и начать',action:()=>{repository?.reset();state=createState();saveBlocked=false;$('#notice').classList.add('hidden');save();renderUI(true);}}],false)}],false);}
-function openMenu(){battleMenu.close();screen='menu';menuPage='title';pause.add('menu');accumulator=0;save();renderUI(true);$(state.run?'#resume':'#start').focus();}
+function focusTitleAction(){$(state.run?'#resume':'#start').focus({preventScroll:true});}
+function openMenu(){battleMenu.close();screen='menu';menuPage='title';pause.add('menu');accumulator=0;save();renderUI(true);}
 function setMenuPage(page: MenuPage){
  menuPage=page;renderUI(true);
  root.scrollTop=0;
@@ -215,20 +216,20 @@ function dismissBattleMenu(){
  if(drawerConfirming)switchBattleMenu(false);
  else closeBattleMenu();
 }
-function endBattleRun(){
- if(!drawerConfirming||drawerBusy||!state.run)return;
- closeBattleMenu(false,()=>{
-  state={...state,run:null,result:null,events:[]};
-  openMenu();
- });
+function leaveBattle(discard=false){
+ if(screen!=='combat'||!battleMenu.open||drawerBusy||gatesMoving||!state.run||discard!==drawerConfirming)return;
+ closeBattleMenu(false,()=>throughGates(()=>{
+  if(discard)state={...state,run:null,result:null,events:[]};
+  openMenu();root.scrollTop=0;
+ },focusTitleAction));
 }
 $('#battle-menu-toggle').onclick=openBattleMenu;
 $('#battle-menu-return').onclick=()=>closeBattleMenu();
 $('#battle-menu-settings').onclick=()=>openSettings($('#battle-menu-settings'));
-$('#battle-menu-save').onclick=()=>closeBattleMenu(false,openMenu);
+$('#battle-menu-save').onclick=()=>leaveBattle();
 $('#battle-menu-abandon').onclick=()=>switchBattleMenu(true);
 $('#battle-confirmation-cancel').onclick=()=>switchBattleMenu(false);
-$('#battle-confirmation-end').onclick=endBattleRun;
+$('#battle-confirmation-end').onclick=()=>leaveBattle(true);
 drawerElement.addEventListener('click',event=>{if(event.target===drawerElement)dismissBattleMenu();});
 drawerElement.addEventListener('keydown',event=>{
  if(event.key!=='Tab')return;
