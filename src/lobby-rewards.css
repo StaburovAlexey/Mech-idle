@@ -1,0 +1,36 @@
+/* The seventh button fits without taking space from the notification and tip. */
+.title-panel .title-console {margin-bottom:22px}
+.title-panel .title-console .title-button {min-height:clamp(44px,6.65cqh,56px)}
+#open-rewards {--light:#bed4e3;--edge:#638198;--fill-top:#405970;--fill-bottom:#273443;--depth:#1d2835}
+#open-rewards > span {display:flex;align-items:center;justify-content:center;gap:7px}
+#open-rewards svg {width:17px;height:17px;flex:none}
+
+.chain-panel-content:has(.lobby-rewards) {padding:7px 4px 3px}
+.lobby-rewards {margin-top:12px}
+.reward-tabs {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px;margin-bottom:10px}
+.reward-tabs .battle-upgrade-tab {position:relative}
+.reward-count {position:absolute;top:4px;right:5px;min-width:14px;padding:1px 3px;border-radius:3px;background:#273820;color:#e0f1b9;font-size:9px}
+.reward-section,.quest {padding:10px;border-radius:7px;background:linear-gradient(145deg,#393940,#24242c 65%);border:1px solid #64565c;box-shadow:inset 0 -2px #201b21}
+.reward-section h3,.quest h3 {margin:0 0 4px;font-size:16px;line-height:1.25;text-transform:uppercase}
+.reward-copy,.reward-foot,.quest-list-note {font-size:11px;line-height:1.45;color:#d8cbbd;margin:0}
+.reward-foot {text-align:center;margin-top:8px}
+.reward-cells {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:11px}
+.reward-day {min-height:61px;padding:5px;display:grid;align-content:center;justify-items:center;gap:2px;border:1px solid #16151a;border-radius:5px;background:#25232b;color:#c2b5b9;font-size:9px;text-transform:uppercase;text-align:center}
+.reward-day.done {color:#b5cd93}
+.reward-day.last {grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;min-height:42px;padding:6px 9px;background:linear-gradient(140deg,#463825,#2a2527);border-color:#796042;color:#ffe1a1}
+.reward-day.today {border-color:#abd963;background:#38452b;color:#d8f1ab;box-shadow:inset 0 0 0 1px #648043}
+.reward-day > div,.reward-amounts {display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+.reward-value {display:inline-flex;align-items:center;gap:3px;color:#fcf0de;font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.reward-value .currency-icon {width:16px;height:16px}
+.lobby-rewards .title-button {min-height:48px;font-size:clamp(11px,3.45cqw,14px);margin-top:11px}
+.quest-list {display:grid;gap:7px;margin-top:7px}
+.quest {min-width:0}
+.quest h3 {font-size:12px;text-transform:none;overflow-wrap:anywhere}
+.quest.is-ready {border-color:#839a54;background:linear-gradient(145deg,#3d4933,#26282c 72%)}
+.quest-info {display:flex;align-items:center;justify-content:space-between;gap:7px;margin-top:8px}
+.quest .title-button {min-height:38px;width:auto;padding:4px 9px;margin:0;font-size:11px}
+.quest-status {font-size:10px;color:#bcd48f;text-align:right}
+.quest-progress {height:6px;margin-top:5px;border:1px solid #5b525f;border-radius:3px;background:#19181d;overflow:hidden}
+.quest-progress i {display:block;height:100%;background:linear-gradient(#b4d86b,#647c37)}
+.reward-feedback {color:#dbe9b9;text-align:center;font-size:11px;margin:8px 0 0}
+.reward-feedback:empty {margin:0}

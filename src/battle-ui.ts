@@ -62,7 +62,7 @@ export const battleUpgradeDockMarkup = `
   </div>`)).join(''),'Боевые улучшения')}
 `;
 
-export function bindUpgradeTabs(dock: HTMLElement) {
+export function bindUpgradeTabs(dock: HTMLElement, onSelect?:()=>void) {
  const tabs=[...dock.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
  const panels=[...dock.querySelectorAll<HTMLElement>('[role="tabpanel"]')];
  const scrollbars=bindArmoredScrollbars(dock);
@@ -72,7 +72,7 @@ export function bindUpgradeTabs(dock: HTMLElement) {
    tab.setAttribute('aria-selected',String(i===index));
    panels[i].hidden=i!==index;
   });
-  scrollbars.refresh();
+  scrollbars.refresh();onSelect?.();
  }
  tabs.forEach((tab,i)=>{
   tab.onclick=()=>select(i);

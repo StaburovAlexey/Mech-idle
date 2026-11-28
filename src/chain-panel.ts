@@ -36,7 +36,7 @@ export function openChainPanel(area: HTMLElement, shell: HTMLElement, panel: Pan
  const scrollbars=bindArmoredScrollbars(layer);
  const sheet=layer.querySelector<HTMLElement>('.chain-panel-sheet')!;
  const closeButton=layer.querySelector<HTMLButtonElement>('.chain-panel-close')!;
- const controller={busy:false,onBusyChange:()=>{}};
+ const controller={busy:false,onBusyChange:()=>{},refreshLayout:scrollbars.refresh};
  let closing=false, closeRequested=false;
  shell.inert=true;
  const setBusy=(busy:boolean)=>{controller.busy=busy;controller.onBusyChange();};
@@ -61,7 +61,7 @@ export function openChainPanel(area: HTMLElement, shell: HTMLElement, panel: Pan
  area.onkeydown=e=>{
   if(e.key==='Escape'){e.preventDefault();e.stopPropagation();close();return;}
   if(e.key!=='Tab')return;
-  const controls=[...sheet.querySelectorAll<HTMLElement>('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled)')];
+  const controls=[...sheet.querySelectorAll<HTMLElement>('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled)')].filter(el=>el.tabIndex>=0&&!el.closest('[hidden]'));
   const current=controls.indexOf(document.activeElement as HTMLElement);
   const next=current<0?(e.shiftKey?controls.length-1:0):(current+(e.shiftKey?-1:1)+controls.length)%controls.length;
   e.preventDefault();controls[next]?.focus();

@@ -1,3 +1,4 @@
+import { emptyLobbyRewards, validLobbyRewards, type LobbyRewardProgress } from './lobby-rewards';
 import { legacyPickupDrops, MAX_PICKUP_PILES, pickupQuantity, pickupDrops, pickupExpired, pickupLanded, pickupSource, type Pickup } from './pickup';
 import { COMBAT_UPGRADES, combatEffect, combatUpgradePrice, createEnhancements, moduleCost, isScrapModule, isShopModule, type CombatEnhancements, type CombatUpgrade, type CombatUpgradeLevels, type ShopModule } from './combat-upgrades';
 import { PORTAL_RISE_SECONDS } from './portalTiming';
@@ -11,7 +12,7 @@ export type StatKey = typeof STAT_KEYS[number];
 export type Levels = Record<StatKey, number>;
 export type EnemyKind = 'ordinary' | 'fast' | 'ranged' | 'boss';
 export type AttackPhase = 'approach' | 'windup' | 'strike' | 'recovery';
-export interface Profile { crystals: number; scrap?: number; meta: Levels; runCounter: number; enhancements?: CombatUpgradeLevels }
+export interface Profile { crystals: number; scrap?: number; meta: Levels; runCounter: number; enhancements?: CombatUpgradeLevels; rewards?: LobbyRewardProgress }
 export interface Stats { damage: number; maxHp: number; attackSpeed: number; regen: number; range: number }
 export interface Enemy { id: string; kind: EnemyKind; x: number; y: number; hp: number; maxHp: number; damage: number; speed: number; attackInterval: number; attackCooldown: number; attackPhase: AttackPhase; attackTime: number; attackDuration: number; emergingUntil?: number }
 export interface Bullet { id: string; targetId: string; x: number; y: number; damage: number; speed: number }
@@ -174,7 +175,9 @@ function buyPermanentCombatUpgrade(state: GameState, key: CombatUpgrade): GameSt
 
 export function buyWorkshopCombatUpgrade(state: GameState, key: CombatUpgrade): GameState {
   if (isShopModule(key) && !state.profile.enhancements?.[key]) return state;
-  return buyPermanentCombatUpgrade(state,key);
+  const next=buyPermanentCombatUpgrade(state,key);
+  if(next!==state)(next.profile.rewards??=emptyLobbyRewards()).workshop=true;
+  return next;
 }
 
 export function buyShopModule(state: GameState, key: ShopModule): GameState {
@@ -368,6 +371,8 @@ function damageEnemy(state: GameState, enemy: Enemy, damage: number): void {
   state.events.push({ type: 'hit', id: enemy.id, kind: enemy.kind, x: enemy.x, y: enemy.y, amount: damage });
   if (enemy.hp > 0 || run.paidKillIds.includes(enemy.id)) return;
   run.paidKillIds.push(enemy.id); run.kills++;
+  const rewards=state.profile.rewards??=emptyLobbyRewards();
+  rewards.kills=Math.min(50,Math.max(rewards.kills+1,run.kills));
   const reward = BASE_ENEMIES[enemy.kind].reward;
   run.gold += reward; run.earnedGold += reward;
   state.events.push({ type: 'kill', id: enemy.id, kind: enemy.kind, x: enemy.x, y: enemy.y, amount: reward });
@@ -530,6 +535,8 @@ function advanceTick(state: GameState): void {
   if (r.spawned >= waveConfig(r.wave).count && r.enemies.length === 0 && r.warnings.length === 0 && r.enemyProjectiles.length === 0) {
     if (r.lastPaidWave < r.wave) {
       state.profile.crystals++; r.earnedCrystals++; r.lastPaidWave = r.wave;
+      const rewards=state.profile.rewards??=emptyLobbyRewards();
+      rewards.waves=Math.max(rewards.waves,Math.min(r.wave,5));
       state.events.push({ type: 'waveComplete', wave: r.wave });
     }
     r.bullets = []; r.targetId = null;
@@ -631,7 +638,7 @@ function validStats(v: unknown): v is Stats { return object(v) && keys(v, ['dama
 export function validateState(value: unknown, allowLegacy = false): value is GameState {
   if (!object(value) || !keys(value, ['version','profile','run','result','events']) || value.version !== 1 || !Array.isArray(value.events) || value.events.length !== 0) return false;
   const p = value.profile;
-  if (!object(p) || !keys(p, ['crystals','meta','runCounter', ...(Object.hasOwn(p,'scrap') ? ['scrap'] : []), ...(Object.hasOwn(p,'enhancements') ? ['enhancements'] : [])]) || !int(p.crystals) || (Object.hasOwn(p,'scrap') && !int(p.scrap)) || !validLevels(p.meta) || !int(p.runCounter) || (Object.hasOwn(p,'enhancements') && !validCombatLevels(p.enhancements))) return false;
+  if (!object(p) || !keys(p, ['crystals','meta','runCounter', ...(Object.hasOwn(p,'scrap') ? ['scrap'] : []), ...(Object.hasOwn(p,'enhancements') ? ['enhancements'] : []), ...(Object.hasOwn(p,'rewards') ? ['rewards'] : [])]) || (Object.hasOwn(p,'rewards')&&!validLobbyRewards(p.rewards)) || !int(p.crystals) || (Object.hasOwn(p,'scrap') && !int(p.scrap)) || !validLevels(p.meta) || !int(p.runCounter) || (Object.hasOwn(p,'enhancements') && !validCombatLevels(p.enhancements))) return false;
   if (value.result !== null) {
     const r = value.result;
     if (!object(r) || !keys(r, ['outcome','runId','wave','completedWaves','kills','earnedGold','earnedCrystals','duration','finalStats', ...(Object.hasOwn(r,'collectedLoot') ? ['collectedLoot'] : []), ...(Object.hasOwn(r,'rewardPending') ? ['rewardPending'] : [])]) || (Object.hasOwn(r,'collectedLoot') && !validLootTotal(r.collectedLoot)) || (Object.hasOwn(r,'rewardPending') && (r.rewardPending!==true || !Object.hasOwn(r,'collectedLoot'))) || !['defeat','victory'].includes(r.outcome) || !str(r.runId) || !int(r.wave,1,30) || !int(r.completedWaves,0,30) || !int(r.kills,0,MAX_RUN_KILLS) || !int(r.earnedGold,0,MAX_RUN_GOLD) || !int(r.earnedCrystals,0,30) || r.earnedCrystals !== r.completedWaves || !num(r.duration,0,1e7) || !validStats(r.finalStats) || (r.outcome === 'victory' && (r.wave !== 30 || r.completedWaves !== 30)) || (r.outcome === 'defeat' && r.completedWaves !== r.wave - 1)) return false;
