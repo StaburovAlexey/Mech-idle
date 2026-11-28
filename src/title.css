@@ -191,7 +191,8 @@
 .title-tip-text.scrambling .title-tip-code { visibility: visible; }
 .title-tip-code span:last-child { color: #b9f17d; text-shadow: 0 0 6px #a8e47580; }
 .title-tip p { margin: 2px 0 0; font-size: clamp(12px,2.7cqw,18px); line-height: 1.38; }
-.modal { max-height: calc(100cqh - 28px); overflow: auto; }
+.modal-backdrop > .armored-scroll-area { width: min(450px,100%); }
+.modal { width: 100%; max-height: calc(100cqh - 50px); overflow: auto; }
 
 @container game (min-width: 760px) {
   .at-front-menu .workspace { background-position: center 52%; }

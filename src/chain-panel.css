@@ -19,14 +19,13 @@ body:has(.chain-panel-layer) { overflow: hidden; }
 .chain-panel-chain.left { left: 12%; }
 .chain-panel-chain.right { right: 12%; }
 .chain-panel-content {
-  max-height: calc(100cqh - 44px);
+  max-height: max(44px, calc(100cqh - 28px - 2 * (var(--rim) + 5px)));
   overflow: auto; overscroll-behavior: contain; padding: 1px; color: #fff0da;
 }
 .chain-panel-head { display: grid; grid-template-columns: auto minmax(0,1fr) 44px; align-items: center; gap: 9px; }
 .chain-panel-head .workshop-icon { width: 40px; }
 .chain-panel-head:not(:has(.workshop-icon)) { grid-template-columns: minmax(0,1fr) 44px; }
 .chain-panel-description { color: #e2d6c6; font-size: clamp(11px,3.15cqw,14px); line-height: 1.5; margin: 12px 0 10px; }
-.chain-panel-content { scrollbar-width: thin; }
 .chain-panel-head small {
   color: #bbca90; font-size: 10px; text-transform: uppercase; letter-spacing: .1em;
 }

@@ -1,3 +1,4 @@
+import { armoredScrollMarkup, bindArmoredScrollbars } from './armored-scroll';
 import { openChainPanel } from './chain-panel';
 import { currencyBank, currencyIcon } from './currency-ui';
 import './style.css';
@@ -30,9 +31,19 @@ const gates=document.createElement('div');gates.className='workshop-gates';gates
 gates.setAttribute('aria-hidden','true');
 gates.innerHTML='<div class="workshop-gate"></div><div class="workshop-gate"></div>';
 root.append(gates);
+// The fixed game stage can itself scroll on short screens; use the same rail there too.
+const stage=root.parentElement;
+if(stage?.id==='game-stage'){
+ const template=document.createElement('template');
+ template.innerHTML=armoredScrollMarkup('');
+ const wrapper=template.content.firstElementChild as HTMLElement;
+ wrapper.classList.add('game-scroll-area');root.replaceWith(wrapper);wrapper.prepend(root);
+ bindArmoredScrollbars(stage);
+}
 let gatesMoving=false;
 const hud=document.createElement('div');hud.id='battle-hud';hud.className='battle-hud hidden';hud.innerHTML=battleHudMarkup+bossBarMarkup;$('.shell').append(hud);
 const drawerElement=document.createElement('div');drawerElement.id='battle-menu-overlay';drawerElement.className='battle-menu-overlay hidden';drawerElement.innerHTML=battleMenuMarkup;$('.shell').append(drawerElement);
+const drawerScrollbars=bindArmoredScrollbars(drawerElement);
 const labels=STAT_LABELS;
 const fmt=(n:number)=>{const value=Math.round(n*1e6)/1e6;return Number.isInteger(value)?String(value):value.toFixed(1).replace('.',',');};
 const coins=(n:number)=>n.toLocaleString('ru-RU');
@@ -58,10 +69,12 @@ function save(snapshot=state){
 }
 function modal(title:string,text:string,actions:{label:string,action:()=>void,secondary?:boolean}[],dismissible=true){
  const before=document.activeElement as HTMLElement|null;pause.add('dialog');$('.shell').inert=true;
- const area=$('#modal-root');area.innerHTML=`<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><h2 id="modal-title"></h2><p id="modal-body"></p><div class="button-row"></div></section></div>`;
+ const area=$('#modal-root');area.innerHTML=`<div class="modal-backdrop">${armoredScrollMarkup(`<section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><h2 id="modal-title"></h2><p id="modal-body"></p><div class="button-row"></div></section>`)}</div>`;
+ const scrollbars=bindArmoredScrollbars(area);
  $('#modal-title').textContent=title;$('#modal-body').textContent=text;
- const close=()=>{area.innerHTML='';pause.remove('dialog');$('.shell').inert=false;accumulator=0;before?.focus();};
+ const close=()=>{scrollbars.dispose();area.innerHTML='';pause.remove('dialog');$('.shell').inert=false;accumulator=0;before?.focus();};
  for(const action of actions){const btn=document.createElement('button');btn.className='main-button'+(action.secondary?' secondary':'');btn.textContent=action.label;btn.onclick=()=>{close();action.action();};$('.button-row').append(btn);}
+ scrollbars.refresh();
  area.querySelector<HTMLButtonElement>('button')?.focus();
  area.onkeydown=e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();if(dismissible)close();return;}if(e.key==='Tab'){const buttons=[...area.querySelectorAll<HTMLButtonElement>('button')];const index=buttons.indexOf(document.activeElement as HTMLButtonElement);e.preventDefault();buttons[(index+(e.shiftKey?-1:1)+buttons.length)%buttons.length]?.focus();}};
 }
@@ -143,7 +156,7 @@ $('#help').onclick=showHelp;
 function openBattleMenu(){
  if(screen!=='combat'||!state.run)return;
  menuReturnFocus=document.activeElement instanceof HTMLElement?document.activeElement:null;
- battleMenu.show();accumulator=0;save();renderUI();$('#battle-menu-close').focus();
+ battleMenu.show();accumulator=0;save();renderUI();drawerScrollbars.refresh();$('#battle-menu-close').focus();
 }
 function closeBattleMenu(restoreFocus=true){
  battleMenu.close();accumulator=0;last=performance.now();renderUI();
@@ -216,9 +229,11 @@ function mountTitleWidgets(){
   destination=>!gatesMoving&&(destination==='offer'||!state.run), ()=>$(state.run?'#resume':'#start').focus({preventScroll:true}));
 }
 let disposeWorkshopTabs: (()=>void) | undefined;
+let disposeShopScrollbars: (()=>void) | undefined;
 function drawPanel(){
  disposeTitleTips?.();disposeTitleTips=undefined;
  disposeWorkshopTabs?.();disposeWorkshopTabs=undefined;
+ disposeShopScrollbars?.();disposeShopScrollbars=undefined;
  const panel=$('#panel');panel.className=screen==='menu'?(menuPage==='shop'?'module-shop-panel':menuPage==='workshop'?'workshop-panel':'title-panel'):`panel ${screen}-panel`;
  if(screen==='menu')panel.innerHTML=menuPage==='shop'?moduleShopMarkup:menuPage==='workshop'?workshopMarkup:titleMarkup;
  else if(screen==='combat')panel.innerHTML='';
@@ -239,6 +254,7 @@ function drawPanel(){
    }
   }
   else if(menuPage==='shop'){
+   disposeShopScrollbars=bindArmoredScrollbars(panel).dispose;
    $('#module-shop-back').onclick=()=>showMenuPage('title');
    for(const key of SHOP_MODULES){const card=$<HTMLButtonElement>(`#shop-${key}`);card.onclick=()=>openModuleDetail(key,card);}
   }

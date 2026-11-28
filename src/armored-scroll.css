@@ -3,8 +3,8 @@
   display: grid; grid-template-columns: minmax(0,1fr) auto; column-gap: 4px;
 }
 .armored-scroll-area:has(> [hidden][role="tabpanel"]) { display: none; }
-.armored-scroll-area.enhanced > [role="tabpanel"] { scrollbar-width: none; }
-.armored-scroll-area.enhanced > [role="tabpanel"]::-webkit-scrollbar { display: none; }
+.armored-scroll-area.enhanced > :not(.armored-scroll-rail) { scrollbar-width: none; }
+.armored-scroll-area.enhanced > :not(.armored-scroll-rail)::-webkit-scrollbar { display: none; }
 .armored-scroll-rail {
   position: relative; width: 13px; margin-block: 2px;
   border: 1px solid #171217; border-radius: 8px;
