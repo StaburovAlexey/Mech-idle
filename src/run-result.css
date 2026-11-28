@@ -24,22 +24,11 @@
 .result-status {text-align:center}
 .result-badge {margin:0 auto 10px;width:clamp(48px,8cqh,66px);aspect-ratio:1;border:1px solid var(--result-edge);border-radius:12px;display:grid;place-items:center;color:var(--result-accent);background:radial-gradient(ellipse at 50% 15%,var(--result-tile),#25202b);box-shadow:inset 0 0 0 3px #1b171e,inset 0 0 0 4px #5d4e4868,0 3px 0 #100e17}
 .result-badge svg {width:52%;height:52%}
-.result-status h1 {
-  position:relative;width:min(100%,280px);margin:0 auto;padding:10px 16px;
-  border-radius:5px;color:var(--result-tone);
-  background:
-    repeating-linear-gradient(0deg,#10161a26 0 1px,transparent 1px 3px),
-    linear-gradient(170deg,#59636b,#3c464e 36%,#2b343c 66%,#374149);
-  box-shadow:inset 0 0 0 1px #1c2329,inset 0 2px #74808a,inset 0 -3px #20282e,0 3px #101419;
+.result-title {
+  width:min(100%,280px);margin:0 auto;padding:10px 16px;color:var(--result-tone);
   font-size:clamp(23px,8.08cqw,34px);line-height:1.05;text-shadow:0 3px #160f18;
   font-weight:800;white-space:nowrap;text-transform:uppercase;
 }
-.result-plate-bolt {
-  position:absolute;width:12px;height:12px;top:50%;transform:translateY(-50%);
-  pointer-events:none;
-}
-.result-plate-bolt:first-child {left:7px}
-.result-plate-bolt:last-child {right:7px}
 /* This heading receives programmatic focus to announce the dialog; it isn't a control. */
 .result-status h1:focus {outline:none}
 .result-waves {margin-top:clamp(16px,3cqh,24px);text-align:center}

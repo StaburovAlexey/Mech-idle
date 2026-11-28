@@ -2,6 +2,7 @@ import { bindUpgradeTabs } from './battle-ui';
 import { currencyIcon } from './currency-ui';
 import type { Profile } from './game';
 import { emptyLobbyRewards, QUESTS, questProgress, VISIT_REWARDS, visitAvailable, type LobbyRewardId } from './lobby-rewards';
+import { steelPlate } from './steel-plate';
 import './lobby-rewards.css';
 
 const calendar = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4m8-4v4m-7 8 2 2 4-4"/></svg>';
@@ -9,8 +10,10 @@ const checklist = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 const tab=(id:string,text:string,icon:string,active:boolean)=>`<button class="battle-upgrade-tab" type="button" role="tab" id="rewards-tab-${id}" aria-controls="rewards-${id}" aria-selected="${active}" tabindex="${active?0:-1}"><span aria-hidden="true">${icon}</span>${text}${active?'':'<b class="reward-count" hidden></b>'}</button>`;
 export const lobbyRewardsMarkup=`<div class="lobby-rewards">
  <div class="reward-tabs" role="tablist" aria-label="Категории наград">${tab('visits','За вход',calendar,true)}${tab('quests','Задания',checklist,false)}</div>
- <section id="rewards-visits" role="tabpanel" aria-labelledby="rewards-tab-visits"></section>
- <section id="rewards-quests" role="tabpanel" aria-labelledby="rewards-tab-quests" hidden></section>
+ <div class="reward-panes">
+  <section id="rewards-visits" role="tabpanel" aria-labelledby="rewards-tab-visits"></section>
+  <section id="rewards-quests" role="tabpanel" aria-labelledby="rewards-tab-quests" hidden></section>
+ </div>
  <p class="reward-feedback" role="status"></p>
 </div>`;
 const label = (kind:'parts'|'scrap', amount:number)=>kind==='parts'
@@ -25,7 +28,11 @@ const button=(id:LobbyRewardId,text:string,disabled:boolean)=>`<button class="ti
 export function bindLobbyRewards(root:HTMLElement, refreshLayout:()=>void, claim:(id:LobbyRewardId)=>void) {
  const visits=root.querySelector<HTMLElement>('#rewards-visits')!,quests=root.querySelector<HTMLElement>('#rewards-quests')!;
  const badge=root.querySelector<HTMLElement>('.reward-count')!,feedback=root.querySelector<HTMLElement>('.reward-feedback')!;
- const dispose=bindUpgradeTabs(root,refreshLayout);
+ const dispose=bindUpgradeTabs(root,()=>{
+  const scrollPanel=root.closest<HTMLElement>('.chain-panel-content');
+  if(scrollPanel)scrollPanel.scrollTop=0;
+  refreshLayout();
+ });
  root.addEventListener('click',event=>{
   const action=(event.target as HTMLElement).closest<HTMLButtonElement>('[data-lobby-reward]');
   if(!action||action.disabled)return;
@@ -45,7 +52,8 @@ export function bindLobbyRewards(root:HTMLElement, refreshLayout:()=>void, claim
     <h3>Семь посещений</h3><p class="reward-copy">Забирай одну награду в день.</p>
     <div class="reward-cells">${VISIT_REWARDS.map((reward,i)=>{
      const today=i===progress.visits&&available,done=i<progress.visits;
-     return `<div class="reward-day${i===6?' last':''}${today?' today':''}${done?' done':''}"><span>День ${i+1}${done?' · ✓':today?' · Сегодня':i===6?' · Бонус':''}</span><div>${amounts(reward)}</div></div>`;
+     return steelPlate('div',`reward-day${i===6?' last':''}${today?' today':''}${done?' done':''}`,
+      `<span>День ${i+1}${done?' · ✓':today?' · Сегодня':i===6?' · Бонус':''}</span><div>${amounts(reward)}</div>`);
     }).join('')}</div>
    </section>
    ${button('visit',complete?'Все награды получены':available?`Забрать награду дня ${progress.visits+1}`:'Сегодня уже получено',blocked||!available)}
@@ -56,9 +64,9 @@ export function bindLobbyRewards(root:HTMLElement, refreshLayout:()=>void, claim
      const current=questProgress(profile,q.id),done=progress.claimed.includes(q.id),canClaim=!done&&current>=q.target;
      if(canClaim)ready++;
      const fraction=Math.min(100,100*current/q.target);
-     return `<article class="quest${canClaim?' is-ready':''}"><h3>${q.title}</h3><p class="reward-copy">${current} / ${q.target} ${q.unit}</p>
+     return steelPlate('article',`quest${canClaim?' is-ready':''}`,`<h3>${q.title}</h3><p class="reward-copy">${current} / ${q.target} ${q.unit}</p>
       <div class="quest-progress" aria-hidden="true"><i style="width:${fraction}%"></i></div>
-      <div class="quest-info"><div class="reward-amounts">${amounts(q)}</div>${canClaim?button(q.id,'Забрать',blocked):`<span class="quest-status">${done?'✓ Получено':'В процессе'}</span>`}</div></article>`;
+      <div class="quest-info"><div class="reward-amounts">${amounts(q)}</div>${canClaim?button(q.id,'Забрать',blocked):`<span class="quest-status">${done?'✓ Получено':'В процессе'}</span>`}</div>`);
     }).join('')}</div>`;
    badge.textContent=String(ready);badge.hidden=!ready;
    if(ready)badge.setAttribute('aria-label',`Наград к получению: ${ready}`);
