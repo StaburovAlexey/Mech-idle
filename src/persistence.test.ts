@@ -117,35 +117,44 @@ describe('independent lifecycle pause reasons', () => {
 });
 
 describe('exclusive profile writer lock', () => {
-  afterEach(() => vi.unstubAllGlobals());
-  it('denies write ownership when Web Locks is unavailable', async () => {
-    vi.stubGlobal('navigator', {}); expect(await new TabLock().acquire()).toBe(false);
+  afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
+  it('distinguishes missing or denied browser APIs from a busy game', async () => {
+    for (const navigator of [
+      {},
+      Object.defineProperty({}, 'locks', { get: () => { throw new Error('SecurityError'); } }),
+      { locks: { request: () => Promise.reject(new Error('disabled')) } },
+      { locks: { request: () => { throw new Error('SecurityError'); } } },
+    ]) {
+      vi.stubGlobal('navigator', navigator);
+      expect(await new TabLock().acquire()).toBe('unavailable');
+    }
   });
-  it('denies ownership when accessing the lock API throws', async () => {
-    vi.stubGlobal('navigator', Object.defineProperty({}, 'locks', { get: () => { throw new Error('SecurityError'); } }));
-    expect(await new TabLock().acquire()).toBe(false);
-  });
-  it('denies ownership when requesting a browser lock fails', async () => {
-    vi.stubGlobal('navigator', { locks: { request: () => Promise.reject(new Error('disabled')) } });
-    expect(await new TabLock().acquire()).toBe(false);
-  });
-  it('denies ownership when the browser throws synchronously during lock setup', async () => {
-    vi.stubGlobal('navigator', { locks: { request: () => { throw new Error('SecurityError'); } } });
-    expect(await new TabLock().acquire()).toBe(false);
-  });
-  it('allows one tab, rejects the second, then permits reacquisition after release', async () => {
-    let held = false;
-    const requests: Promise<void>[] = [];
-    const request = vi.fn((name: string, options: { ifAvailable: boolean }, callback: (lock: object | null) => Promise<void>) => {
-      expect(name).toBe('oplot-profile-writer-v1'); expect(options).toEqual({ ifAvailable: true });
-      if (held) return callback(null);
-      held = true; const result = Promise.resolve(callback({ name })).finally(() => { held = false; }); requests.push(result); return result;
-    });
+  it('waits briefly for the previous owner but never writes while it holds the lock', async () => {
+    vi.useFakeTimers();
+    let owner: Promise<void> | undefined;
+    const request = (name: string, { signal }: { signal: AbortSignal }, callback: (lock: object) => void | Promise<void>) => {
+      const take = () => {
+        const promise = Promise.resolve(callback({ name })).finally(() => { if (owner === promise) owner = undefined; });
+        owner = promise;
+        return promise;
+      };
+      if (!owner) return take();
+      return new Promise<void>((resolve, reject) => {
+        signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+        void owner!.then(() => { if (!signal.aborted) void take().then(resolve, reject); });
+      });
+    };
     vi.stubGlobal('navigator', { locks: { request } });
     const first = new TabLock(), second = new TabLock();
-    expect(await first.acquire()).toBe(true); expect(held).toBe(true); expect(await second.acquire()).toBe(false);
-    first.release(); await requests[0]; expect(held).toBe(false);
-    expect(await second.acquire()).toBe(true); second.release(); await requests[1]; expect(held).toBe(false);
-    second.release(); expect(held).toBe(false);
+    expect(await first.acquire()).toBe('acquired');
+    const timedOut = second.acquire();
+    const denied = expect(timedOut).resolves.toBe('busy');
+    await vi.advanceTimersByTimeAsync(1200);
+    await denied;
+    const waiting = second.acquire();
+    first.release();
+    await expect(waiting).resolves.toBe('acquired');
+    second.release();
+    await owner;
   });
 });

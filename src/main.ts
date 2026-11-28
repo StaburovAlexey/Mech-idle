@@ -39,6 +39,7 @@ type MenuPage = 'title' | 'workshop' | 'shop';
 let menuPage: MenuPage = 'title';
 let repository:SaveRepository|null=null, writable=false, saveBlocked=false, fatal=false, saveTimer=0, uiTimer=0, toastTimer=0, accumulator=0, last=performance.now();
 let scene:SceneView|null=null;
+let pageExiting=false;
 const pause=new PauseManager(),lock=new TabLock(),platform=new LocalPlatformAdapter(),sound=new Sound();
 const battleMenu=new BattleMenuController(pause);
 const announcements=new MenuAnnouncements(TEST_ANNOUNCEMENTS);
@@ -358,7 +359,11 @@ function animate(now:number){
  requestAnimationFrame(animate);
 }
 document.addEventListener('visibilitychange',()=>{if(document.hidden){pause.add('hidden');save();sound.suspend();}else{pause.remove('hidden');accumulator=0;last=performance.now();}});
-window.addEventListener('pagehide',()=>save());
+window.addEventListener('pagehide',()=>{
+ save();pageExiting=true;writable=false;lock.release();
+});
+// A history-restored document has relinquished its lock and must read the latest save.
+window.addEventListener('pageshow',event=>{if(event.persisted&&pageExiting)location.reload();});
 window.addEventListener('blur',()=>{pause.add('focus');accumulator=0;save();sound.suspend();});
 window.addEventListener('focus',()=>{pause.remove('focus');accumulator=0;last=performance.now();});
 window.addEventListener('keydown',e=>{
@@ -370,12 +375,34 @@ window.addEventListener('keydown',e=>{
  if(['1','2','3','4'].includes(e.key))buy(STAT_KEYS[Number(e.key)-1]);
 });
 
+async function openSave(){
+ const ownership=await lock.acquire();
+ if(pageExiting){lock.release();return;}
+ writable=ownership==='acquired';
+ if(!writable){
+  saveBlocked=true;
+  const explanation=ownership==='busy'
+   ? 'Сохранение пока занято другой сессией игры. Если это был предыдущий запуск, попробуйте снова. Если игра открыта в другом окне, сначала закройте его.'
+   : 'Браузер не дал безопасный доступ к сохранению. Откройте игру напрямую в обычном окне актуального браузера и попробуйте снова. Прогресс не изменён.';
+  modal('Защита сохранения',explanation,[{label:'Повторить',action:()=>void openSave().then(()=>renderUI())}],false);
+  return;
+ }
+ try{
+  repository=new SaveRepository(localStorage);
+  const loaded=repository.load();
+  if(loaded.state)state=loaded.state;
+  if(loaded.warning)notify(loaded.warning);
+  saveBlocked=loaded.blocked;
+  if(saveBlocked)showSaveRecovery();
+ }catch{
+  saveBlocked=true;
+  notify('Браузер запретил локальное сохранение. Разрешите данные сайта и обновите страницу.');
+ }
+}
 async function init(){
  try {
   await platform.init();
-  writable=await lock.acquire();
-  if(!writable){saveBlocked=true;notify('Игра уже открыта в другой вкладке либо браузер не поддерживает безопасную запись. Закройте другую вкладку и обновите эту страницу.');modal('Защита сохранения','Одновременно можно играть только в одной вкладке. Закройте другую вкладку с игрой, затем обновите страницу. Используйте современный браузер с поддержкой Web Locks.',[{label:'Обновить',action:()=>location.reload()}],false);}
-  if(writable){try{repository=new SaveRepository(localStorage);const loaded=repository.load();if(loaded.state)state=loaded.state;if(loaded.warning)notify(loaded.warning);saveBlocked=loaded.blocked;if(saveBlocked)showSaveRecovery();}catch{saveBlocked=true;notify('Браузер запретил локальное сохранение. Разрешите данные сайта и обновите страницу.');}}
+  await openSave();
   try{scene=new SceneView($('#arena'));}catch(e){fatal=true;const el=document.createElement('div');el.className='fatal';el.innerHTML='<strong>⬡</strong><h2>Для 3D-арены нужен WebGL2</h2><p>Откройте игру в актуальном Chrome, Edge, Firefox или Safari с включённым аппаратным ускорением. Ваше сохранение не изменено.</p>';$('#arena').append(el);console.error('Scene initialization failed',e);}
   renderUI(true);
   const setup=Promise.all([scene?.assetsReady, startup&&loadInterface()]);
