@@ -1,0 +1,45 @@
+/* A reserved row keeps the card off the title and menu, even on short displays. */
+.title-panel:has(.menu-announcement-slot:not([hidden])) {
+  grid-template-rows: var(--screen-header-reserve) auto minmax(min-content,1fr) auto;
+}
+.title-panel:has(.menu-announcement-slot:not([hidden])) .title-console { grid-row: 3; }
+.title-panel:has(.menu-announcement-slot:not([hidden])) .title-tip { grid-row: 4; }
+.menu-announcement-slot {
+  grid-row: 2; grid-column: 1/-1; width: 100%; max-width: 480px;
+  overflow: clip; overflow-clip-margin: 4px; padding-bottom: 4px;
+}
+.menu-announcement-slot[hidden] { display: none; }
+.menu-announcement {
+  display: grid; grid-template-columns: 38px minmax(0,1fr) auto 38px;
+  align-items: center; gap: 7px; padding: 9px 8px 9px 11px;
+  border: 1px solid #66704e; border-left: 3px solid #a6d96a; border-radius: 9px;
+  background: linear-gradient(145deg,#333a32,#25282b 62%,#25272a);
+  box-shadow: inset 0 1px #a3b18942,0 3px #16181b,0 7px 16px #120e1b9c;
+}
+.menu-announcement-icon {
+  height: 38px; display: grid; place-items: center; border: 1px solid #82905f; border-radius: 6px;
+  color: #c8e59c; background: #384832; box-shadow: inset 0 0 0 2px #283228;
+}
+.menu-announcement-icon svg { width: 21px; }
+.menu-announcement-copy strong {
+  display: block; font-size: clamp(10px,3.05vw,13px); line-height: 1.13;
+  font-weight: 800; color: #e3f2c4; text-transform: uppercase;
+}
+.menu-announcement-copy p { font-size: clamp(9px,2.8vw,12px); line-height: 1.2; color: #fff0da; margin: 4px 0 0; }
+.menu-announcement-close {
+  min-height: 38px; padding: 0; color: #e1d7c9; border: 0;
+  border-radius: 6px; background: #ffffff0b; font-size: 19px;
+}
+.menu-announcement-action {
+  min-height: 38px; padding: 4px 8px; white-space: nowrap; border-radius: 6px;
+  border: 1px solid #99b76d; background: #455b33; box-shadow: inset 0 1px #d5e8af42,0 2px #202c1c;
+  color: #edf5d1; font-size: clamp(9px,2.7vw,11px); font-weight: 800;
+}
+.menu-announcement-action:disabled { opacity: .5; }
+.menu-announcement-action i { font-style: normal; color: #cceca6; }
+@media (max-width: 355px) {
+  .menu-announcement { grid-template-columns: 29px minmax(0,1fr) auto 30px; gap: 5px; padding-inline: 7px; }
+  .menu-announcement-icon { height: 29px; }
+  .menu-announcement-icon svg { width: 17px; }
+  .menu-announcement-action { padding-inline: 5px; }
+}
