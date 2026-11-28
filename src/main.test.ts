@@ -366,7 +366,7 @@ describe('main menu', () => {
     click('#workshop-tab-repair');
     expect(element('#workshop-list-repair').querySelectorAll('button')).toHaveLength(3);
     click('#workshop-tab-modules');
-    expect(element('#workshop-list-modules').querySelectorAll('button')).toHaveLength(2);
+    expect(element('#workshop-list-modules').querySelectorAll('button')).toHaveLength(4);
     click('#workshop-tab-attack');
     click('#workshop-critical');
     expect(saved().profile.enhancements?.critical).toBe(1);
@@ -385,7 +385,7 @@ describe('main menu', () => {
     expect(element('#workshop-pulse .workshop-current').textContent).toBe('Купи в магазине');
     click('#workshop-back');click('#open-module-shop');
     expect(element('#screen-heading').textContent).toBe('МАГАЗИН');
-    expect(element('.module-shop-rack').querySelectorAll('button')).toHaveLength(3);
+    expect(element('.module-shop-rack').querySelectorAll('button')).toHaveLength(5);
     advanceFrames(2);expect(fakes.render.mock.calls.at(-1)?.[0].phase).toBe('shop');
     expect(element('#shop-pulse .module-shop-more').textContent).toBe('Подробнее');
     expect(element('#shop-pulse .workshop-price').textContent?.trim()).toBe('8');
@@ -417,6 +417,23 @@ describe('main menu', () => {
     click('#open-workshop');click('#workshop-tab-modules');click('#workshop-pulse');
     expect(saved().profile.enhancements?.pulse).toBe(2);
     expect(saved().profile.crystals).toBe(10);
+  });
+
+  it('buys loot modules with scrap and upgrades them only when both balances cover the price', async () => {
+    const initial=createState();initial.profile.crystals=15;initial.profile.scrap=16;
+    await boot(initial);
+    click('#open-module-shop');click('#shop-lootDetector');
+    expect(button('#module-detail-buy').getAttribute('aria-label')).toBe('Купить за 5 обломков');
+    click('#module-detail-buy');expect(saved().profile).toMatchObject({crystals:15,scrap:11,enhancements:{lootDetector:1}});
+    click('#module-detail-close');click('#shop-lootExtractor');click('#module-detail-buy');
+    expect(saved().profile.scrap).toBe(4);
+    click('#module-detail-close');click('#module-shop-back');click('#open-workshop');click('#workshop-tab-modules');
+    expect(button('#workshop-lootExtractor').disabled).toBe(true);
+    click('#workshop-lootDetector');
+    expect(saved().profile).toMatchObject({crystals:9,scrap:0,enhancements:{lootDetector:2,lootExtractor:1}});
+    click('#workshop-back');click('#start');
+    expect(saved().run!.enhancements?.levels).toMatchObject({lootDetector:2,lootExtractor:1});
+    expect(document.querySelector('#upgrade-lootDetector')).toBeNull();
   });
 
   it('opens details with too few crystals but does not allow a purchase', async () => {

@@ -1,23 +1,49 @@
 /** Loot randomness is isolated from enemy spawning and critical-hit rolls. */
 export type PickupKind = 'parts' | 'scrap';
-export interface Pickup { id: string; kind: PickupKind; x: number; y: number; born: number }
+export interface Pickup { id: string; kind: PickupKind; x: number; y: number; born: number; quantity?: number }
 export const PICKUP_LAND_SECONDS = .65;
 export const PICKUP_LIFETIME_SECONDS = 10;
 const PICKUP_FADE_SECONDS = .7;
 const pickupExpiresAt = (pickup: Pickup) => pickup.born + PICKUP_LAND_SECONDS + PICKUP_LIFETIME_SECONDS;
 
+export const MAX_PICKUP_PILES = 3;
+
 export const PICKUP_KINDS = ['parts', 'scrap'] as const;
 
-export function pickupDrops(seed: number, id: string): PickupKind[] {
+function lootRoll(seed: number, id: string) {
  let n = (seed ^ Math.imul(Number(id.split(':').at(-1)), 0x9e3779b1)) >>> 0;
  n = Math.imul(n ^ (n >>> 16), 0x7feb352d);
  n = Math.imul(n ^ (n >>> 15), 0x846ca68b);
- const roll = ((n ^ (n >>> 16)) >>> 0) / 0x100000000;
+ return ((n ^ (n >>> 16)) >>> 0) / 0x100000000;
+}
+
+export function legacyPickupDrops(seed: number, id: string): PickupKind[] {
+ const roll = lootRoll(seed,id);
  // Preserve the original 30% total and all existing primary drops in saved runs.
  if (roll < .025) return ['parts','scrap'];
  if (roll < .15) return ['parts'];
  if (roll < .175) return ['scrap','parts'];
  return roll < .30 ? ['scrap'] : [];
+}
+
+const growth = (level:number) => (level-1)/(level+3);
+export const lootChance = (level:number) => level ? .11+.06*growth(level) : .08;
+export function pickupQuantityOdds(level:number): [number,number,number] {
+ if (!level) return [75,20,5];
+ const g = growth(level);
+ return [60-20*g,30+10*g,10+10*g];
+}
+export function pickupDrops(seed:number, id:string, detector = 0): PickupKind[] {
+ const roll = lootRoll(seed,id)/lootChance(detector);
+ if (roll < .0625) return ['parts','scrap'];
+ if (roll < .5) return ['parts'];
+ if (roll < .5625) return ['scrap','parts'];
+ return roll < 1 ? ['scrap'] : [];
+}
+export function pickupQuantity(seed:number, id:string, kind:PickupKind, extractor:number) {
+ const [one,two] = pickupQuantityOdds(extractor);
+ const roll = lootRoll(seed ^ (kind==='parts' ? 0x4f1bbcdc : 0x6d2b79f5),id)*100;
+ return roll < one ? 1 : roll < one+two ? 2 : 3;
 }
 
 export const pickupLanded = (pickup: Pickup, time: number) => time >= pickup.born + PICKUP_LAND_SECONDS - 1e-8;
@@ -50,10 +76,14 @@ export const pickupSource = (id: string) => id.endsWith(':bonus') ? id.slice(0,-
 export function groupPickups(items: readonly Pickup[], time: number) {
  const piles = new Map<string,Pickup[]>();
  const airborne: Pickup[] = [];
+ const visibleSources = new Set<string>();
  for (const item of items) {
   if (pickupExpired(item,time)) continue;
+  const source = pickupSource(item.id);
+  if (!visibleSources.has(source) && visibleSources.size >= MAX_PICKUP_PILES) continue;
+  visibleSources.add(source);
   if (!pickupLanded(item,time)) {airborne.push(item);continue;}
-  const source = pickupSource(item.id), pile = piles.get(source);
+  const pile = piles.get(source);
   if (pile) pile.push(item);
   else piles.set(source,[item]);
  }

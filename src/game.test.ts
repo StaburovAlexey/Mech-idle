@@ -1,4 +1,4 @@
-import { groupPickups, pickupDrops, pickupPose, pickupVisibility, PICKUP_LAND_SECONDS } from './pickup';
+import { groupPickups, legacyPickupDrops, lootChance, pickupDrops, pickupQuantity, pickupQuantityOdds, pickupPose, pickupVisibility, PICKUP_LAND_SECONDS } from './pickup';
 import { describe, it, expect } from 'vitest';
 import { PORTAL_RISE_SECONDS } from './portalTiming';
 import { SPAWN_RADIUS, WORLD_LIMIT, type SpawnGeometry } from './spawnGeometry';
@@ -34,26 +34,28 @@ function clearAtNextTick(s: GameState): GameState {
 
 
 describe('battle pickups', () => {
-  it('keeps the 30% total while allowing both resources in about 5% of kills', () => {
+  it('rolls 8% loot overall and about 1% mixed, with scalable module odds', () => {
     let any=0,both=0;
     for(let seed=1;seed<=10000;seed++){
       const kinds=pickupDrops(seed,'enemy:7');
       if(kinds.length)any++;
       if(kinds.length===2){expect(new Set(kinds).size).toBe(2);both++;}
     }
-    expect(any).toBeGreaterThan(2850);expect(any).toBeLessThan(3150);
-    expect(both).toBeGreaterThan(420);expect(both).toBeLessThan(580);
+    expect(any).toBeGreaterThan(700);expect(any).toBeLessThan(900);
+    expect(both).toBeGreaterThan(70);expect(both).toBeLessThan(130);
+    expect(lootChance(1)).toBe(.11);expect(lootChance(5)).toBe(.14);
+    expect(pickupQuantityOdds(5)).toEqual([50,35,15]);
   });
   it.each(['parts','scrap'] as const)('drops %s at death and awards it once, after landing, across reload', kind => {
     let seed=1;
-    while(pickupDrops(seed,'enemy:1').join()!==kind)seed++;
+    while(pickupDrops(seed,'enemy:1').join()!==kind || pickupQuantity(seed,'enemy:1',kind,0)!==3)seed++;
     const state=startRun(createState(),seed), run=state.run!;
     const target=enemy(state);
     run.enemies.push(target);run.spawned=1;run.spawnCooldown=2;run.shotCooldown=1;
     run.bullets.push({id:`${run.id}:${run.nextEntityId++}`,targetId:target.id,x:target.x,y:target.y,damage:10,speed:16});
     const killed=step(state);
     const [item]=killed.run!.pickups!;
-    expect(item).toMatchObject({id:target.id,kind,born:killed.run!.time});
+    expect(item).toMatchObject({id:target.id,kind,born:killed.run!.time,quantity:3});
     expect(killed.run!.rngState).toBe(run.rngState);
     expect(killed.profile.crystals).toBe(0);
     expect(collectPickups(killed,[item.id])).toBe(killed);
@@ -65,7 +67,7 @@ describe('battle pickups', () => {
     expect(loaded.run?.pickups).toEqual([item]);
     expect(collectPickups(setPaused(loaded,true),[item.id]).profile.crystals).toBe(0);
     const collected=collectPickups(loaded,[item.id]);
-    expect(collected.profile[kind==='parts'?'crystals':'scrap']).toBe(1);
+    expect(collected.profile[kind==='parts'?'crystals':'scrap']).toBe(item.quantity);
     expect(collected.run?.pickups).toEqual([]);
     expect(collectPickups(collected,[item.id])).toBe(collected);
     expect(parseState(serializeState(collected))).toEqual(collected);
@@ -91,10 +93,26 @@ describe('battle pickups', () => {
     const ids=items.map(item=>item.id);
     expect(collectPickups(loaded,[...ids,'missing'])).toBe(loaded);
     const collected=collectPickups(loaded,[...ids,ids[0]]);
-    expect(collected.profile).toMatchObject({crystals:1,scrap:1});
+    expect(collected.profile).toMatchObject({crystals:items.find(i=>i.kind==='parts')!.quantity,scrap:items.find(i=>i.kind==='scrap')!.quantity});
     expect(collected.run!.pickups).toEqual([]);
     expect(collectPickups(collected,ids)).toBe(collected);
     expect(parseState(serializeState(collected))).toEqual(collected);
+  });
+  it('caps new drops at three source piles while preserving older saves', () => {
+    const seed=37, state=startRun(createState(),seed), run=state.run!;
+    const oldIds = Array.from({length:98},(_,i)=>`${run.id}:${i+1}`).filter(id=>legacyPickupDrops(seed,id).length).slice(0,3);
+    run.nextEntityId=100;run.paidKillIds=oldIds;run.kills=3;run.spawned=3;run.spawnCooldown=2;
+    run.pickups=oldIds.map(id=>({id,kind:legacyPickupDrops(seed,id)[0],x:2,y:2,born:0}));
+    const loaded=parseState(serializeState(state))!;
+    expect(loaded.run!.pickups).toEqual(run.pickups);
+    const r=loaded.run!;
+    while(!pickupDrops(seed,`${r.id}:${r.nextEntityId}`).length)r.nextEntityId++;
+    const target=enemy(loaded);
+    r.enemies=[target];r.spawned++;r.bullets.push({id:`${r.id}:${r.nextEntityId++}`,targetId:target.id,x:target.x,y:target.y,damage:10,speed:16});
+    const after=step(loaded);
+    expect(after.run!.kills).toBe(4);
+    expect(after.run!.pickups).toEqual(run.pickups);
+    expect(after.run!.pickups!.every(i=>i.quantity===undefined)).toBe(true);
   });
   it('fades settled loot over the last fraction of its allotted lifetime', () => {
     const item = {id:'enemy:1',kind:'parts' as const,x:0,y:0,born:1};

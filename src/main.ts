@@ -7,7 +7,7 @@ import './workshop-gates.css';
 import './module-shop.css';
 import './battle-dock.css';
 import { bootScreen, loadInterface, waitForBoot } from './boot';
-import { COMBAT_KEYS, SHOP_MODULES, type ShopModule } from './combat-upgrades';
+import { COMBAT_KEYS, WORKSHOP_KEYS, SHOP_MODULES, type ShopModule } from './combat-upgrades';
 import { workshopMarkup, renderWorkshopCombatUpgrade } from './workshop-ui';
 import { moduleShopMarkup, moduleDetailContent, renderShopCard, renderModuleDetail } from './module-shop';
 import { MenuAnnouncements, TEST_ANNOUNCEMENTS } from './menu-announcement';
@@ -132,8 +132,8 @@ for(const stat of STAT_KEYS)$(`#upgrade-${stat}`).onclick=()=>buy(stat);
 for (const key of COMBAT_KEYS) $(`#upgrade-${key}`).onclick=()=>{
  if(screen!=='combat'||!writable||saveBlocked||fatal||battleMenu.open||pause.reasons.has('dialog'))return;
  const next=buyCombatUpgrade(state,key);
- if(next===state)return;
- state=next;sound.play('upgrade');save();renderUI();
+ if(next===state||!save(next))return;
+ state=next;sound.play('upgrade');renderUI();
 };
 function toggleSound(){const enabled=sound.toggle();$('#sound').textContent=enabled?'♫':'♪';$('#sound').setAttribute('aria-label',enabled?'Выключить звук':'Включить звук');$('#sound').setAttribute('aria-pressed',String(enabled));if(pause.paused)sound.suspend();renderUI();}
 $('#sound').onclick=toggleSound;
@@ -174,11 +174,11 @@ function canSpendCrystals(){
  return writable&&!saveBlocked&&!fatal&&!gatesMoving&&screen==='menu'&&!state.run;
 }
 function applyCrystalPurchase(next: GameState){
- if(next===state)return;
- state=next;sound.play('upgrade');save();renderUI();
+ if(next===state||!save(next))return;
+ state=next;sound.play('upgrade');renderUI();
 }
 function bindCrystalModules(){
- for(const key of COMBAT_KEYS) $(`#workshop-${key}`).onclick=()=>{
+ for(const key of WORKSHOP_KEYS) $(`#workshop-${key}`).onclick=()=>{
   if(canSpendCrystals()&&menuPage==='workshop'&&!pause.reasons.has('dialog'))
    applyCrystalPurchase(buyWorkshopCombatUpgrade(state,key));
  };
@@ -192,7 +192,7 @@ function openModuleDetail(key: ShopModule, source: HTMLButtonElement){
  });
  if(!panel)return;
  const buyButton=$<HTMLButtonElement>('#module-detail-buy');
- const render=()=>renderModuleDetail(area,key,state.profile.enhancements?.[key]??0,state.profile.crystals,!canSpendCrystals()||panel.busy);
+ const render=()=>renderModuleDetail(area,key,state.profile.enhancements?.[key]??0,state.profile.crystals,!canSpendCrystals()||panel.busy,state.profile.scrap??0);
  panel.onBusyChange=render;
  buyButton.onclick=()=>{
   if(panel.busy||!canSpendCrystals()||menuPage!=='shop')return;
@@ -302,8 +302,8 @@ function renderUI(force=false){
  $('#arena-note').textContent=battle?'Автоогонь · покупайте модули за золото':'Один оплот. Тридцать волн.';
  const boss=run?.enemies.find(e=>e.kind==='boss');$('#boss').classList.toggle('hidden',!boss||!battle);if(boss)$('#boss-fill').style.width=`${boss.hp/boss.maxHp*100}%`;
  $('#shop-title').textContent=battle?'Боевые модули · золото':'Мастерская · детали';$('#shop-note').textContent=battle?'Улучшения действуют сразу':'Усиливают старт будущих забегов';
- if(screen==='menu'&&menuPage==='workshop') for(const key of COMBAT_KEYS) {
-  renderWorkshopCombatUpgrade($<HTMLButtonElement>(`#workshop-${key}`),key,state.profile.enhancements?.[key]??0,state.profile.crystals,fatal||saveBlocked||!writable||!!run);
+ if(screen==='menu'&&menuPage==='workshop') for(const key of WORKSHOP_KEYS) {
+  renderWorkshopCombatUpgrade($<HTMLButtonElement>(`#workshop-${key}`),key,state.profile.enhancements?.[key]??0,state.profile.crystals,fatal||saveBlocked||!writable||!!run,state.profile.scrap??0);
  }
  if(screen==='menu'&&menuPage==='shop') for(const key of SHOP_MODULES) {
   renderShopCard($<HTMLButtonElement>(`#shop-${key}`),key,state.profile.enhancements?.[key]??0);

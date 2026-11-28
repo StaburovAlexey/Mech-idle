@@ -1,5 +1,5 @@
-import { pickupDrops, pickupExpired, pickupLanded, pickupSource, type Pickup } from './pickup';
-import { COMBAT_UPGRADES, combatEffect, combatUpgradePrice, createEnhancements, workshopCombatPrice, isShopModule, type CombatEnhancements, type CombatUpgrade, type CombatUpgradeLevels, type ShopModule } from './combat-upgrades';
+import { legacyPickupDrops, MAX_PICKUP_PILES, pickupQuantity, pickupDrops, pickupExpired, pickupLanded, pickupSource, type Pickup } from './pickup';
+import { COMBAT_UPGRADES, combatEffect, combatUpgradePrice, createEnhancements, moduleCost, isLootModule, isShopModule, type CombatEnhancements, type CombatUpgrade, type CombatUpgradeLevels, type ShopModule } from './combat-upgrades';
 import { PORTAL_RISE_SECONDS } from './portalTiming';
 import { clampToSpawnCircle, onSpawnCircle, SPAWN_RADIUS, spawnPoint, validSpawnGeometry, WORLD_LIMIT, type SpawnGeometry } from './spawnGeometry';
 /** Deterministic, fixed-step game simulation. No wall clock, browser, or renderer dependencies. */
@@ -144,7 +144,7 @@ export function buyRunUpgrade(state: GameState, stat: StatKey): GameState {
 /** Combat-only purchases are separate from the permanent workshop stat schema. */
 export function buyCombatUpgrade(state: GameState, key: CombatUpgrade): GameState {
   const run = state.run;
-  if (!run || !Object.hasOwn(COMBAT_UPGRADES, key)) return state;
+  if (!run || !Object.hasOwn(COMBAT_UPGRADES, key) || isLootModule(key)) return state;
   const level = run.enhancements?.levels[key] ?? 0;
   if (key === 'scanner' && level > 0) return state;
   const price = combatUpgradePrice(key, level - (state.profile.enhancements?.[key] ?? 0));
@@ -160,11 +160,12 @@ export function buyCombatUpgrade(state: GameState, key: CombatUpgrade): GameStat
 function buyPermanentCombatUpgrade(state: GameState, key: CombatUpgrade): GameState {
   if (state.run || !Object.hasOwn(COMBAT_UPGRADES, key)) return state;
   const level = state.profile.enhancements?.[key] ?? 0;
-  const price = workshopCombatPrice(key, level);
-  if (state.profile.crystals < price) return state;
+  const cost = moduleCost(key, level);
+  if (state.profile.crystals < cost.parts || (state.profile.scrap ?? 0) < cost.scrap) return state;
   const next = clone(state);
   (next.profile.enhancements ??= {})[key] = level + 1;
-  next.profile.crystals -= price;
+  next.profile.crystals -= cost.parts;
+  if (cost.scrap) next.profile.scrap = (state.profile.scrap ?? 0) - cost.scrap;
   next.events = [];
   return next;
 }
@@ -367,9 +368,13 @@ function damageEnemy(state: GameState, enemy: Enemy, damage: number): void {
   const reward = BASE_ENEMIES[enemy.kind].reward;
   run.gold += reward; run.earnedGold += reward;
   state.events.push({ type: 'kill', id: enemy.id, kind: enemy.kind, x: enemy.x, y: enemy.y, amount: reward });
-  pickupDrops(run.seed, enemy.id).forEach((kind, index) => {
-    (run.pickups ??= []).push({ id: index ? enemy.id + ':bonus' : enemy.id, kind, x: enemy.x, y: enemy.y, born: run.time });
-  });
+  if (new Set(run.pickups?.map(item=>pickupSource(item.id))).size < MAX_PICKUP_PILES) {
+    const {lootDetector=0,lootExtractor=0} = run.enhancements?.levels ?? {};
+    pickupDrops(run.seed, enemy.id, lootDetector).forEach((kind, index) => {
+      (run.pickups ??= []).push({ id: index ? enemy.id + ':bonus' : enemy.id, kind, x: enemy.x, y: enemy.y, born: run.time,
+        quantity:pickupQuantity(run.seed,enemy.id,kind,lootExtractor) });
+    });
+  }
   const salvage = effect(run, 'salvage');
   if (salvage > 0 && run.enhancements && ++run.enhancements.salvageKills === 5) {
     run.enhancements.salvageKills = 0;
@@ -387,8 +392,8 @@ export function collectPickups(state: GameState, ids: readonly string[]): GameSt
   const selected = new Set(ids);
   const pickups = run.pickups.filter(item => selected.has(item.id) && pickupLanded(item, run.time) && !pickupExpired(item, run.time));
   if (pickups.length !== selected.size) return state;
-  const parts = pickups.filter(item => item.kind === 'parts').length;
-  const scrap = pickups.length - parts;
+  const parts = pickups.reduce((n,item) => n + (item.kind==='parts' ? item.quantity??1 : 0),0);
+  const scrap = pickups.reduce((n,item) => n + (item.kind==='scrap' ? item.quantity??1 : 0),0);
   if (state.profile.crystals + parts > 1e9 || (state.profile.scrap ?? 0) + scrap > 1e9) return state;
   const next = clone(state);
   next.events = [];
@@ -639,13 +644,14 @@ export function validateState(value: unknown, allowLegacy = false): value is Gam
     if (!Array.isArray(r.pickups) || r.pickups.length > r.kills * 2) return false;
     const pending = new Set<string>(), paid = new Set(r.paidKillIds);
     for (const d of r.pickups) {
-      if (!object(d) || !keys(d, ['id','kind','x','y','born']) || !str(d.id) || pending.has(d.id) ||
+      if (!object(d) || !keys(d, ['id','kind','x','y','born',...(Object.hasOwn(d,'quantity')?['quantity']:[])]) || !str(d.id) || pending.has(d.id) ||
           !position(d) || !num(d.born, 0, r.time)) return false;
       const source = pickupSource(d.id), bonus = source !== d.id;
       if (!paid.has(source)) return false;
-      const [primary, secondary] = pickupDrops(r.seed, source);
+      const modern = Object.hasOwn(d,'quantity');
+      const [primary, secondary] = modern ? pickupDrops(r.seed, source, r.enhancements?.levels.lootDetector) : legacyPickupDrops(r.seed, source);
       const kind = bonus ? secondary : primary;
-      if (!kind || kind !== d.kind) return false;
+      if (!kind || kind !== d.kind || (modern && d.quantity!==pickupQuantity(r.seed,source,kind,r.enhancements?.levels.lootExtractor??0))) return false;
       pending.add(d.id);
     }
   }
