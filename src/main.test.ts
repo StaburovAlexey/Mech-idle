@@ -211,6 +211,23 @@ describe('main menu', () => {
     click('#menu-help'); advanceFrames();
     expect(fakes.render.mock.calls.at(-1)![1]).toBe(0);
   });
+  it('buys an improvement for crystals in the workshop and carries it into battle', async () => {
+    const initial=createState(); initial.profile.crystals=10;
+    await boot(initial); click('#open-workshop');
+    expect(element('#workshop-list-special').hasAttribute('hidden')).toBe(true);
+    click('#workshop-tab-special');
+    expect(element('#workshop-list-special').hasAttribute('hidden')).toBe(false);
+    expect(element('#workshop-list-special').querySelectorAll('button')).toHaveLength(9);
+    click('#workshop-critical');
+    expect(saved().profile.enhancements?.critical).toBe(1);
+    expect(saved().profile.crystals).toBe(4);
+    expect(element('#workshop-critical .workshop-current').textContent).toBe('10%');
+    click('#workshop-back'); click('#start');
+    expect(saved().run?.enhancements?.levels.critical).toBe(1);
+    expect(element('#upgrade-critical .upgrade-price').textContent).toBe('◈ 26');
+    expect(element('#upgrade-critical .upgrade-value').textContent).toMatch(/^10%/);
+  });
+
   it('prioritizes the saved run and does not open a workshop during it', async () => {
     await boot(fundedRun());
     expect(button('#start').disabled).toBe(true);
@@ -232,7 +249,7 @@ describe('fullscreen battle actual UI flows', () => {
     expect(hidden('#battle-menu-overlay')).toBe(true);
     expect(element('#panel').children.length).toBe(0);
     expect(document.querySelectorAll('#arena canvas').length).toBe(1);
-    expect(document.querySelectorAll('#upgrades .upgrade').length).toBe(4);
+    expect(document.querySelectorAll('#upgrades .upgrade').length).toBe(13);
     expect(element('#battle-wave').textContent).toBe('1 / 30');
     expect(element('#battle-hp').textContent).toBe('100 / 100');
     expect(element('#battle-gold').textContent).toBe('0');
@@ -252,7 +269,7 @@ describe('fullscreen battle actual UI flows', () => {
       expect(hud.contains(element(selector)), `${selector} belongs to the reserved status row`).toBe(true);
       expect(workspace.contains(element(selector)), `${selector} must not cover the arena`).toBe(false);
     }
-    expect(upgrades.querySelectorAll('.upgrade')).toHaveLength(4);
+    expect(upgrades.querySelectorAll('.upgrade')).toHaveLength(13);
     expect(hud.contains(upgrades)).toBe(false);
     expect(workspace.contains(upgrades)).toBe(false);
   });

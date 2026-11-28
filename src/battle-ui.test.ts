@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
-import { BattleMenuController, battleHudMarkup, battleMenuMarkup, bossBarMarkup, battleUpgradeDockMarkup, bindBattleUpgradeTabs, upgradeButtonsMarkup, STAT_LABELS, isInteractiveTarget } from './battle-ui';
+import { BattleMenuController, battleHudMarkup, battleMenuMarkup, bossBarMarkup, battleUpgradeDockMarkup, bindUpgradeTabs, upgradeButtonsMarkup, STAT_LABELS, isInteractiveTarget } from './battle-ui';
 import { STAT_KEYS } from './game';
 import { PauseManager } from './persistence';
 import { readFileSync } from 'node:fs';
@@ -102,11 +102,11 @@ describe('battle controls and keyboard target semantics', () => {
   it('switches labelled upgrade categories by click and keyboard without cloning or losing cards', () => {
     document.body.innerHTML = `<section id="dock">${battleUpgradeDockMarkup}</section>`;
     const dock = document.getElementById('dock')!;
-    bindBattleUpgradeTabs(dock);
+    bindUpgradeTabs(dock);
     const tabs = [...dock.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
     const visible = () => [...dock.querySelectorAll('[role="tabpanel"]:not([hidden])')];
     expect(visible().map(panel => panel.id)).toEqual(['battle-upgrades-attack']);
-    expect([...dock.querySelectorAll('.upgrade')].map(card => (card as HTMLElement).dataset.stat).sort()).toEqual([...STAT_KEYS].sort());
+    expect([...dock.querySelectorAll('.upgrade[data-stat]')].map(card => (card as HTMLElement).dataset.stat).sort()).toEqual([...STAT_KEYS].sort());
     tabs[1].click();
     expect(visible()[0].querySelector('#upgrade-maxHp')).not.toBeNull();
     tabs[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
@@ -114,7 +114,8 @@ describe('battle controls and keyboard target semantics', () => {
     expect(document.activeElement).toBe(tabs[2]);
     expect(tabs.map(tab => tab.getAttribute('aria-selected'))).toEqual(['false','false','true','false']);
     tabs[3].click();
-    expect(visible()[0].querySelectorAll('.upgrade')).toHaveLength(0);
+    expect(visible()[0].querySelectorAll('.upgrade')).toHaveLength(2);
+    expect(visible()[0].querySelector('#upgrade-scanner')).not.toBeNull();
   });
 
   it('keeps the boss and notice in the status component without adding secondary controls', () => {
