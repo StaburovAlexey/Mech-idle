@@ -47,7 +47,7 @@
   border: 1px solid #110f13;
   background: linear-gradient(135deg,#494147,#2c292f 52%,#222026);
   box-shadow: inset 0 1px #8c7d7e, inset 0 -2px #19171a, 0 2px 3px #100e13;
-  color: #fff0da;
+  color: #fff0da; text-align: left;
 }
 .workshop-icon {
   width: clamp(30px,9vw,52px); aspect-ratio: 1; padding: 5px;
@@ -56,7 +56,8 @@
   box-shadow: inset 0 0 0 2px #252c23, 0 2px #18181b;
 }
 .workshop-icon svg { width: 100%; }
-.workshop-data h2 {
+.workshop-name {
+  display: block;
   margin: 0 0 3px; line-height: 1.1; text-transform: uppercase;
   font-family: "Oplot Display",sans-serif; font-size: clamp(11px,3.25vw,23px); font-weight: 400;
 }
@@ -65,9 +66,21 @@
   font-size: clamp(11px,3.1vw,18px); color: #ded1c4; font-variant-numeric: tabular-nums;
 }
 .workshop-next { color: #bee68a; }
-.workshop-buy { display: grid; grid-template-columns: 1fr; gap: 4px; width: clamp(52px,17vw,100px); }
-.workshop-buy .title-button { min-height: 44px; font-size: clamp(13px,4.65vw,24px); padding-inline: 2px; }
-.workshop-level { justify-self: center; color: #c9b9ae; font-size: 10px; line-height: 1; font-variant-numeric: tabular-nums; }
+.workshop-price {
+  display: grid; place-items: center; min-height: 42px; min-width: clamp(52px,17vw,100px);
+  max-width: min(28vw,134px); padding: 3px 6px; border-radius: 7px;
+  color: #fff0da; border: 1px solid #8fb666;
+  background: linear-gradient(#719745,#2c471f);
+  box-shadow: inset 0 1px #d2efa66b, inset 0 -2px #152612, 0 2px 4px #130f16;
+  font: clamp(13px,4.1vw,23px)/1.15 "Oplot Display",sans-serif;
+  white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.workshop-row:disabled .workshop-price {
+  color: #d4c6be; border-color: #74666c; background: linear-gradient(#51464d,#332b31);
+  box-shadow: inset 0 1px #8e7b826b, inset 0 -2px #271d25, 0 2px 4px #130f16;
+}
+.workshop-row:not(:disabled):active { transform: translateY(1px); }
+.workshop-row:focus-visible { outline: 2px solid #fff2d6; outline-offset: 2px; }
 #workshop-back {
   grid-row: 4; grid-column: 1; min-height: 49px;
   font-size: clamp(18px,5.5vw,30px);
