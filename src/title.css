@@ -68,21 +68,27 @@
 .title-logo::after { bottom: 0; transform: rotate(180deg); }
 .title-logo span { display: block; }
 /* Counter styling stays shared beyond the main menu. */
-.title-bank { display: flex; flex: none; gap: 4px; justify-content: flex-end; }
+.title-bank { display: flex; flex: 0 1 auto; min-width: 0; gap: clamp(5px,1.5cqw,13px); justify-content: flex-end; }
 .title-balance {
-  display: flex; align-items: center; gap: 4px; padding: 4px 6px;
-  color: #fff0da; background: #191820db; border: 1px solid #a3937b9c; border-radius: 4px;
-  font-size: clamp(11px,3.1cqw,14px); font-variant-numeric: tabular-nums; white-space: nowrap;
+  display: flex; align-items: center; gap: clamp(3px,1.2cqw,8px); min-width: 0;
+  min-height: clamp(31px,9.6cqw,49px); color: #fff0da; background: none;
+  font-size: clamp(14px,4.2cqw,23px); text-shadow: var(--type-raised);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 .title-bank .currency-label { display: none; }
-.currency-icon { display: inline-block; object-fit: contain; vertical-align: -.17em; flex: none; }
+.title-balance .currency-icon { --currency-size: clamp(22px,6.7cqw,34px); }
+.title-balance strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.screen-header .title-logo { min-width: 0; }
+.currency-icon {
+  display: inline-block; object-fit: contain; vertical-align: -.17em; flex: none;
+  inline-size: var(--currency-size,18px); block-size: var(--currency-size,18px);
+  aspect-ratio: 1; max-inline-size: none;
+}
 .workshop-currency .currency-icon { display: block; }
-#module-detail-buy .currency-icon { width: 16px; height: 16px; }
+#module-detail-buy .currency-icon { --currency-size: 18px; }
 .topbar .title-bank { order: 1; }
 .topbar:has(.title-bank) .pill { display: none; }
 @container game (max-width: 380px) {
-  .title-balance { gap: 3px; padding-inline: 4px; }
-  .title-balance .currency-icon { width: 16px; height: 16px; }
   .topbar .top-actions { flex-wrap: wrap; justify-content: flex-end; }
   .topbar .title-bank { order: -1; }
 }
@@ -153,7 +159,7 @@
     linear-gradient(var(--fill-top),var(--fill-bottom));
   box-shadow: 0 1px var(--edge), inset 0 1px var(--light), inset 0 -2px var(--depth);
 }
-.title-button span { transform: scaleY(1.13); }
+.title-button > span:not(:has(.currency-icon)) { transform: scaleY(1.13); }
 .title-primary { --light: #cfff8f; --edge: #76aa40; --fill-top: #5e8d36; --fill-bottom: #2b481f; --depth: #1d311a; }
 .title-button:disabled {
   --light: #836d6f; --edge: #594c50; --fill-top: #493f44; --fill-bottom: #30272e; --depth: #241c22;
@@ -215,4 +221,8 @@
   .title-panel { --title-space: 12px; gap: 12px 7px; }
   .title-console { margin-bottom: 0; padding-block: 20px 18px; gap: 6px; }
   .title-button { min-height: 44px; }
+}
+
+@container game (max-width: 335px) {
+  .screen-header .title-logo { font-size: calc(var(--screen-heading-size) * .94); }
 }
