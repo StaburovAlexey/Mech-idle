@@ -1,9 +1,14 @@
-/* Bars stay in normal flow; content scrolls inside the rack, not the arena. */
+/* Keep the arena visible through the spaces between controls. */
+.shell.in-battle :is(.battle-hud,.upgrades) {
+  z-index: 5; pointer-events: none;
+}
+.shell.in-battle :is(.battle-hud,.upgrades) button,
+.shell.in-battle .battle-upgrade-list { pointer-events: auto; }
 .shell.in-battle .battle-hud {
   display: flex; flex-direction: column; align-items: stretch;
   gap: 4px; padding: max(6px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right))
     6px max(8px,env(safe-area-inset-left));
-  background: #c7c5b4; border: 0;
+  background: transparent; border: 0;
 }
 .shell.in-battle .battle-resources {
   grid-template-columns: minmax(0,1.2fr) repeat(2,minmax(0,1fr)) minmax(0,1.6fr) auto;
@@ -67,7 +72,7 @@
 .shell.in-battle .upgrades {
   --dock-row: clamp(46px,7.4dvh,68px);
   --dock-rows: 1;
-  display: block; width: 100%; margin: 0; border: 0; background: #c9c5b3;
+  display: block; width: 100%; margin: 0; border: 0; background: transparent;
   padding: 0 env(safe-area-inset-right) max(5px,env(safe-area-inset-bottom)) env(safe-area-inset-left);
 }
 .shell.in-battle .battle-upgrade-tabs,
@@ -90,6 +95,7 @@
 .shell.in-battle .battle-upgrade-rack {
   padding: calc(var(--rim) + 2px) calc(var(--rim) + 3px);
 }
+.shell.in-battle .battle-upgrade-rack::after { content: none; }
 .shell.in-battle .battle-upgrade-list {
   display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); align-content: start;
   grid-auto-rows: var(--dock-row); gap: 5px; padding: 2px;
@@ -135,8 +141,8 @@
 .shell.in-battle .battle-upgrade-tab:focus-visible,
 .shell.in-battle .battle-menu-toggle:focus-visible { outline: 2px solid #fff2d6; outline-offset: -3px; }
 .battle-upgrade-empty {
-  grid-column: 1/-1; align-self: center; margin: 0; padding: 6px;
-  text-align: center; color: #d0c4b8; font-size: 12px;
+  grid-column: 1/-1; place-self: center; margin: 0; padding: 6px 9px;
+  border-radius: 5px; background: #242126e6; text-align: center; color: #fff0da; font-size: 12px;
 }
 
 @media (max-width: 600px) {

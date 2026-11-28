@@ -112,8 +112,7 @@
 .modal .button-row{flex-wrap:wrap;gap:8px}
 .modal .button-row button{min-width:110px}
 
-/* Combat keeps the existing three normal-flow rows. Neither HUD region covers
-   the scene, and changing this skin does not change the camera or game world. */
+/* Combat controls reserve their own rows above a full-height scene. */
 .battle-hud,.battle-menu-overlay{display:none}
 body.battle-active{overflow:hidden;overscroll-behavior:none}
 .shell.in-battle{
@@ -126,7 +125,7 @@ body.battle-active{overflow:hidden;overscroll-behavior:none}
 .shell.in-battle .foot,.shell.in-battle .arena-top,.shell.in-battle .arena-bottom,
 .shell.in-battle .floating-message,.shell.in-battle>#notice{display:none}
 .shell.in-battle .workspace{
-  grid-row:2;grid-column:1;display:block;position:relative;min-height:0;
+  grid-row:1/-1;grid-column:1;display:block;position:relative;min-height:0;
   min-width:0;height:100%;margin:0;padding:0;gap:0;overflow:hidden;
 }
 .shell.in-battle .arena-wrap{
