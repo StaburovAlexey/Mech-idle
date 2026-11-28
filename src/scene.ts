@@ -6,6 +6,7 @@ import { computeEnemyPose, type AttackPhase, type PartPose } from './enemyAnimat
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { ImportedMechs, loadOplotModels } from './oplotModels';
 import { TitleMech } from './title-mech';
+import { splitTurretMount } from './turretMount';
 import { createPortalMesh, PORTAL_CLOSE, PORTAL_CAPACITY, spawnRise } from './spawnPortal';
 import { TURRET_RANGE } from './game';
 import { CITY_YAW, sandHeight } from './sandTerrain';
@@ -382,7 +383,9 @@ export class SceneView {
       const base = turret.scene.getObjectByName('Base');
       const head = turret.scene.getObjectByName('Head');
       const barrel = turret.scene.getObjectByName('Barrel');
-      if (!base || !head || !barrel) throw new Error('Missing PolygonDan turret parts');
+      if (!(base instanceof THREE.Mesh) || !head || !barrel) throw new Error('Missing PolygonDan turret parts');
+      const swivel = splitTurretMount(base);
+      turret.scene.add(swivel);
       if (!this.disposed) {
         this.titleMech.setModel(mechs[3]); // George, the green two-antenna mech in the title reference.
         this.workshopTurret.setModel(turret);
@@ -393,9 +396,9 @@ export class SceneView {
       for (const old of this.turretBase.children) old.visible = false;
       this.turretBase.add(base);
       const recoil = new THREE.Group(); recoil.add(barrel);
-      this.turretHead.add(head, recoil); this.barrel = recoil;
+      this.turretHead.add(swivel, head, recoil); this.barrel = recoil;
       this.flash.position.set(0, 1.68, 2.43);
-      for (const part of [base, head, barrel, ...mechs.map(mech => mech.scene)]) part.traverse(object => {
+      for (const part of [base, swivel, head, barrel, ...mechs.map(mech => mech.scene)]) part.traverse(object => {
         if (object instanceof THREE.Mesh) object.castShadow = true;
       });
       this.sun.shadow.needsUpdate = true;
