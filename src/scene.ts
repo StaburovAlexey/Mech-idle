@@ -121,6 +121,7 @@ export class SceneView {
   private importedMechs?: ImportedMechs;
   private readonly titleMech = new TitleMech();
   private readonly workshopTurret = new TitleMech(true);
+  private readonly shopMech = new TitleMech();
   private presentation?: TitleMech;
   private turretGlow = new THREE.Group();
   private barrel: THREE.Group;
@@ -389,6 +390,7 @@ export class SceneView {
       if (!this.disposed) {
         this.titleMech.setModel(mechs[3]); // George, the green two-antenna mech in the title reference.
         this.workshopTurret.setModel(turret);
+        this.shopMech.setModel(mechs[2]); // Stan, the ranged mech.
       }
       for (const { scene } of [turret, ...mechs]) this.registerAsset(scene);
       if (this.disposed) return;
@@ -433,6 +435,7 @@ export class SceneView {
     this.renderer.setSize(width, height, false);
     this.titleMech?.resize(width, height);
     this.workshopTurret?.resize(width, height);
+    this.shopMech?.resize(width, height);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, MAX_RENDER_DPR));
     this.fieldViewport = arenaViewport(width, height);
     configureArenaCamera(this.camera, this.fieldViewport.width, this.fieldViewport.height);
@@ -451,7 +454,7 @@ export class SceneView {
 
   render(frame: SceneFrame, dt: number) {
     if (this.disposed) return;
-    const presentation = frame.phase === 'title' ? this.titleMech : frame.phase === 'workshop' ? this.workshopTurret : undefined;
+    const presentation = frame.phase === 'title' ? this.titleMech : frame.phase === 'workshop' ? this.workshopTurret : frame.phase === 'shop' ? this.shopMech : undefined;
     if (presentation) {
       if (this.presentation !== presentation) presentation.enter();
       this.presentation = presentation;
@@ -594,6 +597,7 @@ export class SceneView {
     if (this.disposed) return; this.disposed = true; this.observer.disconnect();
     this.titleMech?.dispose();
     this.workshopTurret?.dispose();
+    this.shopMech?.dispose();
     this.importedMechs?.dispose();
     this.sun.shadow.dispose();
     this.scene.traverse(object => { if (object instanceof THREE.Mesh) { this.allGeometries.add(object.geometry); const ms = Array.isArray(object.material) ? object.material : [object.material]; ms.forEach(m => this.allMaterials.add(m)); if (object instanceof THREE.InstancedMesh) object.dispose(); } });

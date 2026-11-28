@@ -1,4 +1,4 @@
-.shell.at-workshop {
+.shell:is(.at-workshop,.at-module-shop) {
   max-width: none; width: 100%; padding: 0; gap: 0;
   background: linear-gradient(180deg,#241b241b,transparent 35%,#211a2133 63%,#17131e4a),
     #3c2928 url('/assets/ui/workshop/outdoor-workshop.webp') center top / cover no-repeat;
@@ -77,10 +77,10 @@
   font-size: clamp(18px,5.5vw,30px);
 }
 @media (orientation: landscape), (min-width: 800px) {
-  .shell.at-workshop { background-position: center 34%; }
+  .shell:is(.at-workshop,.at-module-shop) { background-position: center 34%; }
 }
 @media (orientation: landscape) and (max-height: 480px) {
-  .shell.at-workshop { background-position: center 46%; }
+  .shell:is(.at-workshop,.at-module-shop) { background-position: center 46%; }
 }
 @media (min-width: 800px) {
   .workshop-hero { aspect-ratio: auto; height: clamp(168px,29svh,260px); }

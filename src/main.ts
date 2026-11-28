@@ -2,9 +2,12 @@ import './style.css';
 import './title.css';
 import './workshop.css';
 import './workshop-gates.css';
+import './module-shop.css';
 import './battle-dock.css';
 import { COMBAT_KEYS } from './combat-upgrades';
 import { workshopMarkup, renderWorkshopCombatUpgrade } from './workshop-ui';
+import { moduleShopMarkup, SHOP_MODULES } from './module-shop';
+import type { CombatUpgrade } from './combat-upgrades';
 import { titleMarkup } from './title-ui';
 import {createState,startRun,step,buyRunUpgrade,buyCombatUpgrade,buyMetaUpgrade,buyWorkshopCombatUpgrade,setPaused,getStats,calculateStats,runPrice,metaPrice,STAT_KEYS,DT,type GameState,type StatKey} from './game';
 import {SceneView,type SceneFrame, type SceneSpawn} from './scene';
@@ -29,7 +32,8 @@ const labels=STAT_LABELS;
 const fmt=(n:number)=>{const value=Math.round(n*1e6)/1e6;return Number.isInteger(value)?String(value):value.toFixed(1).replace('.',',');};
 const coins=(n:number)=>n.toLocaleString('ru-RU');
 let state:GameState=createState(), screen:'menu'|'combat'|'result'='menu', renderedScreen='';
-let workshopOpen=false;
+type MenuPage = 'title' | 'workshop' | 'shop';
+let menuPage: MenuPage = 'title';
 let repository:SaveRepository|null=null, writable=false, saveBlocked=false, fatal=false, saveTimer=0, uiTimer=0, toastTimer=0, accumulator=0, last=performance.now();
 let scene:SceneView|null=null;
 const pause=new PauseManager(),lock=new TabLock(),platform=new LocalPlatformAdapter(),sound=new Sound();
@@ -50,16 +54,17 @@ function modal(title:string,text:string,actions:{label:string,action:()=>void,se
 }
 function downloadCorrupt(){if(!repository)return;const blob=new Blob([repository.raw()],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='oplot-save-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
 function showSaveRecovery(){modal('Сохранение повреждено','Старые данные оставлены на устройстве. Сначала можно скачать копию. Новый профиль удалит текущее локальное сохранение и его резервную копию.',[{label:'Скачать копию',secondary:true,action:()=>{downloadCorrupt();showSaveRecovery();}},{label:'Новый профиль',action:()=>modal('Начать с нуля?','Кристаллы, постоянные улучшения и незаконченный забег будут удалены на этом устройстве.',[{label:'Отмена',secondary:true,action:showSaveRecovery},{label:'Удалить и начать',action:()=>{repository?.reset();state=createState();saveBlocked=false;$('#notice').classList.add('hidden');save();renderUI(true);}}],false)}],false);}
-function openMenu(){battleMenu.close();screen='menu';workshopOpen=false;pause.add('menu');accumulator=0;save();renderUI(true);$(state.run?'#resume':'#start').focus();}
-function setWorkshop(open:boolean){
- workshopOpen=open;renderUI(true);
+function openMenu(){battleMenu.close();screen='menu';menuPage='title';pause.add('menu');accumulator=0;save();renderUI(true);$(state.run?'#resume':'#start').focus();}
+function setMenuPage(page: MenuPage){
+ menuPage=page;renderUI(true);
  window.scrollTo(0,0);
 }
-async function showWorkshop(open:boolean,animated=true){
- if(screen!=='menu'||open===workshopOpen||gatesMoving||(open&&state.run))return;
- const focus=()=>$(open?'#screen-heading':'#open-workshop').focus({preventScroll:true});
+async function showMenuPage(page: MenuPage,animated=true){
+ if(screen!=='menu'||page===menuPage||gatesMoving||(page!=='title'&&state.run))return;
+ const previous=menuPage;
+ const focus=()=>$(page!=='title'?'#screen-heading':previous==='shop'?'#open-module-shop':'#open-workshop').focus({preventScroll:true});
  if(!animated||!gates.firstElementChild?.animate||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches){
-  setWorkshop(open);focus();return;
+  setMenuPage(page);focus();return;
  }
  const shell=$('.shell');
  const leaves=[...gates.children] as HTMLElement[];
@@ -74,7 +79,7 @@ async function showWorkshop(open:boolean,animated=true){
  try {
   closing=slide(true);
   await Promise.allSettled(closing.map(a=>a.finished));
-  setWorkshop(open);
+  setMenuPage(page);
   // Keep the doors shut for a short beat so the screen redraw happens offstage.
   await new Promise<void>(resolve=>window.setTimeout(resolve,250));
   opening=slide(false);
@@ -88,7 +93,7 @@ async function showWorkshop(open:boolean,animated=true){
 function resume(){if(!state.run||fatal||saveBlocked||!writable)return;screen='combat';pause.remove('menu');battleMenu.close();state=setPaused(state,false);accumulator=0;last=performance.now();renderUI(true);$(pause.reasons.has('user')?'#unpause':'#battle-menu-toggle').focus();}
 function launch(){if(state.run||fatal||saveBlocked||!writable)return;const seed=crypto.getRandomValues(new Uint32Array(1))[0];state=startRun(state,seed);screen='combat';pause.remove('menu');pause.remove('user');battleMenu.close();accumulator=0;last=performance.now();save();renderUI(true);$('#battle-menu-toggle').focus();toast('Волна 1 · оборона запущена');}
 function togglePause(){if(screen!=='combat'||!state.run)return;if(pause.reasons.has('user'))pause.remove('user');else pause.add('user');accumulator=0;save();renderUI();}
-function buy(stat:StatKey){if(!writable||saveBlocked||fatal||screen==='result'||(screen==='menu'&&!workshopOpen)||battleMenu.open||pause.reasons.has('dialog'))return;const before=state;state=screen==='combat'?buyRunUpgrade(state,stat):buyMetaUpgrade(state,stat);if(state!==before){sound.play('upgrade');save();toast(screen==='combat'?'Модуль улучшен · действует сразу':'Стартовые параметры улучшены');renderUI();}}
+function buy(stat:StatKey){if(!writable||saveBlocked||fatal||screen==='result'||(screen==='menu'&&menuPage!=='workshop')||battleMenu.open||pause.reasons.has('dialog'))return;const before=state;state=screen==='combat'?buyRunUpgrade(state,stat):buyMetaUpgrade(state,stat);if(state!==before){sound.play('upgrade');save();toast(screen==='combat'?'Модуль улучшен · действует сразу':'Стартовые параметры улучшены');renderUI();}}
 $('#upgrades').innerHTML=battleUpgradeDockMarkup;
 bindUpgradeTabs($('#upgrades'));
 for(const stat of STAT_KEYS)$(`#upgrade-${stat}`).onclick=()=>buy(stat);
@@ -133,21 +138,24 @@ drawerElement.addEventListener('keydown',event=>{
  const i=buttons.indexOf(document.activeElement as HTMLButtonElement);
  event.preventDefault();buttons[(i+(event.shiftKey?-1:1)+buttons.length)%buttons.length]?.focus();
 });
+function bindCrystalModules(keys: readonly CombatUpgrade[], page: 'workshop'|'shop'){
+ for(const key of keys) $(`#${page}-${key}`).onclick=()=>{
+  if(!writable||saveBlocked||fatal||gatesMoving||menuPage!==page||screen!=='menu'||pause.reasons.has('dialog'))return;
+  const next=buyWorkshopCombatUpgrade(state,key);
+  if(next===state)return;
+  state=next;sound.play('upgrade');save();renderUI();
+ };
+}
 function drawPanel(){
- const panel=$('#panel');panel.className=screen==='menu'?(workshopOpen?'workshop-panel':'title-panel'):`panel ${screen}-panel`;
- if(screen==='menu')panel.innerHTML=workshopOpen?workshopMarkup:titleMarkup;
+ const panel=$('#panel');panel.className=screen==='menu'?(menuPage==='shop'?'module-shop-panel':menuPage==='workshop'?'workshop-panel':'title-panel'):`panel ${screen}-panel`;
+ if(screen==='menu')panel.innerHTML=menuPage==='shop'?moduleShopMarkup:menuPage==='workshop'?workshopMarkup:titleMarkup;
  else if(screen==='combat')panel.innerHTML='';
  else panel.innerHTML=`<div class="result-emblem">${state.result?.outcome==='victory'?'★':'⬡'}</div><div class="eyebrow">${state.result?.outcome==='victory'?'Периметр защищён':'Связь с оплотом потеряна'}</div><h1>${state.result?.outcome==='victory'?'Колосс<br>повержен.':'Забег<br>завершён.'}</h1><p>${state.result?.outcome==='victory'?'Все 30 волн пройдены. Вы удержали сектор.':'Кристаллы сохранены. Усильте стартовые параметры и вернитесь в бой.'}</p><div class="combat-stats"><div class="stat-box"><span>Пройдено волн</span><strong>${state.result?.completedWaves??0} / 30</strong></div><div class="stat-box crystals"><span>Заработано</span><strong>+${state.result?.earnedCrystals??0} ◇</strong></div><div class="stat-box"><span>Уничтожено мехов</span><strong>${state.result?.kills??0}</strong></div><div class="stat-box"><span>Время обороны</span><strong>${Math.floor((state.result?.duration??0)/60)}:${String(Math.floor((state.result?.duration??0)%60)).padStart(2,'0')}</strong></div></div><p class="hint">Временное золото и боевые модули сброшены. Улучшения мастерской остаются с вами.</p><button class="main-button panel-bottom" id="to-workshop">В мастерскую</button>`;
  if(screen==='menu'){
-  if(workshopOpen){
-   $('#workshop-back').onclick=()=>showWorkshop(false);
+  if(menuPage==='workshop'){
+   $('#workshop-back').onclick=()=>showMenuPage('title');
    bindUpgradeTabs($('.workshop-rack'));
-   for(const key of COMBAT_KEYS) $(`#workshop-${key}`).onclick=()=>{
-    if(!writable||saveBlocked||fatal||gatesMoving||!workshopOpen||screen!=='menu'||pause.reasons.has('dialog'))return;
-    const next=buyWorkshopCombatUpgrade(state,key);
-    if(next===state)return;
-    state=next;sound.play('upgrade');save();renderUI();
-   };
+   bindCrystalModules(COMBAT_KEYS,'workshop');
    for(const stat of STAT_KEYS){
     const card=$(`[data-workshop-stat="${stat}"]`);
     card.onclick=()=>{
@@ -158,9 +166,13 @@ function drawPanel(){
     };
    }
   }
-  else{$('#start').onclick=launch;$('#resume').onclick=resume;$('#open-workshop').onclick=()=>showWorkshop(true);$('#menu-help').onclick=showHelp;}
+  else if(menuPage==='shop'){
+   $('#module-shop-back').onclick=()=>showMenuPage('title');
+   bindCrystalModules(SHOP_MODULES,'shop');
+  }
+  else{$('#open-module-shop').onclick=()=>showMenuPage('shop');$('#start').onclick=launch;$('#resume').onclick=resume;$('#open-workshop').onclick=()=>showMenuPage('workshop');$('#menu-help').onclick=showHelp;}
  }
- if(screen==='result')$('#to-workshop').onclick=()=>{openMenu();void showWorkshop(true,false);};
+ if(screen==='result')$('#to-workshop').onclick=()=>{openMenu();void showMenuPage('workshop',false);};
  renderedScreen=screen;
 }
 function renderUI(force=false){
@@ -169,18 +181,20 @@ function renderUI(force=false){
  const stats=getStats(state),run=state.run,battle=screen==='combat';
  if(screen==='menu'){
   $('#menu-crystals').textContent=coins(state.profile.crystals);
-  if(!workshopOpen){
+  if(menuPage==='title'){
    const start=$<HTMLButtonElement>('#start'), resume=$<HTMLButtonElement>('#resume');
    start.disabled=!!run||fatal||saveBlocked||!writable;
    resume.disabled=!run||fatal||saveBlocked||!writable;
    start.classList.toggle('title-primary',!run);resume.classList.toggle('title-primary',!!run);
    resume.setAttribute('aria-label',run?`Продолжить забег · волна ${run.wave}`:'Продолжить');
    $<HTMLButtonElement>('#open-workshop').disabled=!!run;
+   $<HTMLButtonElement>('#open-module-shop').disabled=!!run;
    if(run)$('#menu-hint').textContent=`Сохранена волна ${run.wave}. Мастерская откроется после забега.`;
   }
  }
- $('.shell').classList.toggle('at-front-menu',screen==='menu'&&!workshopOpen);
- $('.shell').classList.toggle('at-workshop',screen==='menu'&&workshopOpen);
+ $('.shell').classList.toggle('at-front-menu',screen==='menu'&&menuPage==='title');
+ $('.shell').classList.toggle('at-workshop',screen==='menu'&&menuPage==='workshop');
+ $('.shell').classList.toggle('at-module-shop',screen==='menu'&&menuPage==='shop');
  $('.shell').classList.toggle('in-battle',battle);
  document.body.classList.toggle('battle-active',battle);
  $('#battle-hud').classList.toggle('hidden',!battle);
@@ -208,10 +222,13 @@ function renderUI(force=false){
  $('#arena-note').textContent=battle?'Автоогонь · покупайте модули за золото':'Один оплот. Тридцать волн.';
  const boss=run?.enemies.find(e=>e.kind==='boss');$('#boss').classList.toggle('hidden',!boss||!battle);if(boss)$('#boss-fill').style.width=`${boss.hp/boss.maxHp*100}%`;
  $('#shop-title').textContent=battle?'Боевые модули · золото':'Мастерская · кристаллы';$('#shop-note').textContent=battle?'Улучшения действуют сразу':'Усиливают старт будущих забегов';
- if(screen==='menu'&&workshopOpen) for(const key of COMBAT_KEYS) {
-  renderWorkshopCombatUpgrade($<HTMLButtonElement>(`#workshop-${key}`),key,state.profile.enhancements?.[key]??0,state.profile.crystals,fatal||saveBlocked||!writable||!!run);
+ if(screen==='menu'&&menuPage!=='title') {
+  const prefix=menuPage;
+  for(const key of (prefix==='shop'?SHOP_MODULES:COMBAT_KEYS)) {
+   renderWorkshopCombatUpgrade($<HTMLButtonElement>(`#${prefix}-${key}`),key,state.profile.enhancements?.[key]??0,state.profile.crystals,fatal||saveBlocked||!writable||!!run);
+  }
  }
- for(const stat of STAT_KEYS){const inWorkshop=screen==='menu'&&workshopOpen,btn=$<HTMLButtonElement>(inWorkshop?`[data-workshop-stat="${stat}"]`:`#upgrade-${stat}`),level=battle?run?.levels[stat]??0:state.profile.meta[stat],price=battle?runPrice(stat,level):metaPrice(stat,level),budget=battle?run?.gold??0:state.profile.crystals;
+ for(const stat of STAT_KEYS){const inWorkshop=screen==='menu'&&menuPage==='workshop',btn=$<HTMLButtonElement>(inWorkshop?`[data-workshop-stat="${stat}"]`:`#upgrade-${stat}`),level=battle?run?.levels[stat]??0:state.profile.meta[stat],price=battle?runPrice(stat,level):metaPrice(stat,level),budget=battle?run?.gold??0:state.profile.crystals;
  let nextValue=0,current=battle?stats[stat]:calculateStats(state.profile.meta)[stat];
  if(battle&&run){const nextLevel={...run.levels,[stat]:level+1};nextValue=calculateStats(state.profile.meta,nextLevel)[stat];}else nextValue=calculateStats({...state.profile.meta,[stat]:level+1})[stat];
  btn.disabled=budget<price||(!battle&&!!run)||screen==='result'||fatal||saveBlocked||!writable||battleMenu.open;
@@ -232,7 +249,7 @@ function renderUI(force=false){
 }
 function frameForScene(spawns: SceneSpawn[]):SceneFrame{
  const r=state.run,stats=getStats(state),target=r?.enemies.find(e=>e.id===r.targetId);
- return {range:stats.range,paused:pause.paused,enemies:r?.enemies.map(e=>({...e,kind:e.kind==='ordinary'?'normal':e.kind}))??[],bullets:r?.bullets??[],enemyProjectiles:r?.enemyProjectiles??[],warnings:r?.warnings??[],spawns,target:target??null,turretHPfraction:r?r.hp/stats.maxHp:1,phase:screen==='menu'?(workshopOpen?'workshop':'title'):screen,elapsed:r?.time??0,shooting:state.events.some(e=>e.type==='shot')};
+ return {range:stats.range,paused:pause.paused,enemies:r?.enemies.map(e=>({...e,kind:e.kind==='ordinary'?'normal':e.kind}))??[],bullets:r?.bullets??[],enemyProjectiles:r?.enemyProjectiles??[],warnings:r?.warnings??[],spawns,target:target??null,turretHPfraction:r?r.hp/stats.maxHp:1,phase:screen==='menu'?menuPage:screen,elapsed:r?.time??0,shooting:state.events.some(e=>e.type==='shot')};
 }
 function animate(now:number){
  const spawns: SceneSpawn[] = [];
@@ -247,7 +264,7 @@ function animate(now:number){
  }else accumulator=0;
  if(scene){
   const frame=frameForScene(spawns);
-  const animatePresentation=(frame.phase==='title'||frame.phase==='workshop')&&!document.hidden&&!pause.reasons.has('focus')&&!pause.reasons.has('dialog');
+  const animatePresentation=(frame.phase==='title'||frame.phase==='workshop'||frame.phase==='shop')&&!document.hidden&&!pause.reasons.has('focus')&&!pause.reasons.has('dialog');
   scene.render(frame,animatePresentation||!pause.paused?delta:0);
  }
  uiTimer+=delta;saveTimer+=delta;toastTimer-=delta;
@@ -263,7 +280,7 @@ window.addEventListener('blur',()=>{pause.add('focus');accumulator=0;save();soun
 window.addEventListener('focus',()=>{pause.remove('focus');accumulator=0;last=performance.now();});
 window.addEventListener('keydown',e=>{
  if(gatesMoving||e.repeat||$('#modal-root').children.length||e.ctrlKey||e.metaKey||e.altKey)return;
- if(e.key==='Escape'&&screen==='menu'&&workshopOpen){e.preventDefault();showWorkshop(false);return;}
+ if(e.key==='Escape'&&screen==='menu'&&menuPage!=='title'){e.preventDefault();showMenuPage('title');return;}
  if(e.key==='Escape'&&screen==='combat'){e.preventDefault();battleMenu.open?closeBattleMenu():openBattleMenu();return;}
  if(battleMenu.open||isInteractiveTarget(e.target))return;
  if(e.key===' '&&screen==='combat'){e.preventDefault();togglePause();}
