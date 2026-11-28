@@ -28,5 +28,6 @@ export const titleMarkup = `
     <div class="title-bulb">${bulb}</div>
     <div><strong>Совет</strong><div class="title-tip-text">
       ${TITLE_TIPS.map((tip, i) => i === 0 ? `<p id="menu-hint" class="current">${tip}</p>` : `<p>${tip}</p>`).join('')}
+      <p class="title-tip-code" aria-hidden="true"><span></span><span></span></p>
     </div></div>
   `)}`;
