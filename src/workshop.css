@@ -102,3 +102,8 @@
   display: block; margin-bottom: 4px; color: #e1d2c2;
   font-size: clamp(9px,2.6cqw,14px); line-height: 1.15;
 }
+
+@container game (height < 780px) and (orientation: portrait) {
+  .workshop-hero { max-height: 28cqh; }
+  .workshop-list { height: clamp(174px,32cqh,285px); }
+}

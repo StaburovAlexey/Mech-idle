@@ -1,4 +1,4 @@
-/** Keep one logical frame, fitting it inside the phone safe area or desktop window. */
+/** Fit the fixed desktop frame, with native scale in responsive portrait. */
 export function bindGameFrame(stage: HTMLElement) {
   const viewport = stage.parentElement!;
   const fit = () => {
