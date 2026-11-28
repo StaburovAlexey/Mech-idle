@@ -88,10 +88,8 @@
 }
 .shell.in-battle .battle-upgrade-tab[aria-selected="true"] > span { color: #d9ee9d; }
 .shell.in-battle .battle-upgrade-rack {
-  --rim: 12px;
   padding: calc(var(--rim) + 2px) calc(var(--rim) + 3px);
 }
-.shell.in-battle .battle-upgrade-rack::before { border-width: 16px; }
 .shell.in-battle .battle-upgrade-list {
   display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); align-content: start;
   grid-auto-rows: var(--dock-row); gap: 5px; padding: 2px;

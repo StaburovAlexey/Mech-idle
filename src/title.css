@@ -73,7 +73,7 @@
 .title-bank span { color: #a9e875; }
 
 .armored-frame {
-  --rim: 18px;
+  --rim: 12px;
   position: relative; isolation: isolate;
   border-radius: 13px;
   box-shadow: 0 3px 0 #191418, 0 6px 0 #0f0e11, 2px 11px 18px #1810159e;
@@ -82,8 +82,8 @@
   content: ''; position: absolute; pointer-events: none;
 }
 .armored-frame::before {
-  /* Match the source image's 24-unit slices at 1:1. Only the edges tile. */
-  z-index: -1; inset: 0; border: 24px solid transparent;
+  /* Scale the source image’s 24-unit corners to the shared 16px frame. Only the edges tile. */
+  z-index: -1; inset: 0; border: 16px solid transparent;
   border-image: url('/assets/ui/shared/armored-frame.svg') 24 round;
 }
 .armored-frame::after {
