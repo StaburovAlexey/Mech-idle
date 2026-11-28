@@ -380,12 +380,12 @@ async function init(){
   }));
   scene?.prepare();
   const show=()=>{
-   if(startup)mountTitleAnnouncements();
    last=performance.now();
    requestAnimationFrame(animate);
   };
   if(startup)await startup.reveal(show);else show();
   root.inert=false;
+  if(startup)mountTitleAnnouncements();
   $('#modal-root').querySelector('button')?.focus();
   if(scene)platform.gameReady();
  } catch(error){
