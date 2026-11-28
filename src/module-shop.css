@@ -1,0 +1,44 @@
+.at-module-shop > :is(.topbar,.foot,.section-head,.upgrades) { display: none; }
+.shell.at-module-shop .workspace {
+  display: grid; position: relative; isolation: isolate; flex: none;
+  width: 100%; max-width: 1000px; min-height: 100svh; margin: 0 auto;
+  grid-template: var(--screen-header-reserve) minmax(255px,1fr) auto / minmax(0,1fr);
+  gap: clamp(12px,3.3svh,34px);
+  padding: max(14px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right))
+    max(36px,6svh,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));
+}
+.module-shop-panel { display: contents; }
+.shell.at-module-shop .arena-wrap {
+  grid-area: 2 / 1; align-self: end; justify-self: start; z-index: 1;
+  width: 48%; height: clamp(218px,39svh,440px); min-height: 0; max-height: none;
+  overflow: visible; margin: 0 0 6px; border: 0; border-radius: 0; background: transparent;
+  pointer-events: none;
+}
+.at-module-shop .arena-wrap::before {
+  content: ''; position: absolute; inset: auto 10% 3% 4%; height: 8%;
+  background: radial-gradient(ellipse,#2b1723ac,transparent 70%); transform: skewX(-16deg);
+}
+.at-module-shop .arena { background: transparent; }
+.at-module-shop .arena-wrap > :not(.arena),.at-module-shop .arena .fatal { display: none; }
+.module-shop-rack {
+  grid-area: 2 / 1; z-index: 2; justify-self: end; align-self: end;
+  width: 63%; max-width: 530px; display: grid; gap: clamp(6px,1.1svh,12px);
+  padding: calc(var(--rim) + 3px) calc(var(--rim) + 3px);
+}
+.module-shop-rack .workshop-row {
+  min-height: clamp(54px,8.8svh,88px);
+  grid-template-columns: auto minmax(0,1fr);
+  grid-template-rows: auto auto; gap: 2px clamp(5px,1.6vw,14px);
+  padding-inline: clamp(4px,1.3vw,12px);
+}
+.module-shop-rack .workshop-icon { grid-row: 1 / span 2; width: clamp(23px,7vw,46px); padding: 3px; }
+.module-shop-rack .workshop-name { font-size: clamp(10px,3vw,22px); overflow-wrap: anywhere; }
+.module-shop-rack .workshop-values { font-size: clamp(9px,2.35vw,15px); }
+.module-shop-rack .workshop-price { grid-column: 2; justify-content: start; font-size: clamp(15px,4.7vw,25px); }
+.module-shop-rack .workshop-price:has(.workshop-currency.hidden) { display: none; }
+#module-shop-back { grid-row: 3; min-height: 49px; font-size: clamp(18px,5.5vw,30px); }
+
+@media (min-width: 700px) {
+  .shell.at-module-shop .workspace { padding-inline: 26px; }
+  .shell.at-module-shop .arena-wrap { width: 54%; }
+}

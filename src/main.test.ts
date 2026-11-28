@@ -235,6 +235,25 @@ describe('main menu', () => {
     expect(element('#upgrade-critical .upgrade-value').textContent).toMatch(/^10%/);
   });
 
+  it('opens the module shop, saves purchases to the shared workshop inventory, and restores focus', async () => {
+    const initial=createState();initial.profile.crystals=20;
+    await boot(initial);click('#open-module-shop');
+    expect(element('#screen-heading').textContent).toBe('МАГАЗИН');
+    expect(element('.shell').classList.contains('at-module-shop')).toBe(true);
+    expect(element('.module-shop-rack').querySelectorAll('button')).toHaveLength(3);
+    advanceFrames(2);
+    expect(fakes.render.mock.calls.at(-1)?.[0].phase).toBe('shop');
+    key('1');
+    expect(saved().profile.meta.damage).toBe(0);
+    click('#shop-scanner');
+    expect(saved().profile.crystals).toBe(14);
+    expect(button('#shop-scanner').disabled).toBe(true);
+    click('#module-shop-back');expect(document.activeElement).toBe(button('#open-module-shop'));
+    click('#open-workshop');click('#workshop-tab-modules');
+    expect(button('#workshop-scanner').disabled).toBe(true);
+    expect(element('#workshop-scanner .workshop-current').textContent).toBe('Включён');
+  });
+
   it('prioritizes the saved run and does not open a workshop during it', async () => {
     await boot(fundedRun());
     expect(button('#start').disabled).toBe(true);
