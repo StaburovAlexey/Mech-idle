@@ -14,10 +14,10 @@ export const STAT_LABELS:Record<StatKey,{title:string,unit:string}>={damage:{tit
 export const SHORT_STAT_LABELS:Record<StatKey,string>={damage:'Урон',maxHp:'Корпус',attackSpeed:'Темп',regen:'Ремонт'};
 export function upgradeButtonsMarkup(stats: readonly StatKey[] = STAT_KEYS){return stats.map(stat=>`<button class="upgrade" aria-label="${STAT_LABELS[stat].title}" type="button" data-stat="${stat}" id="upgrade-${stat}"><span class="battle-card-icon" aria-hidden="true">${statIcon(stat)}</span><div class="upgrade-top"><span class="upgrade-title"><span class="stat-label-full">${STAT_LABELS[stat].title}</span><span class="stat-label-short" aria-hidden="true">${SHORT_STAT_LABELS[stat]}</span></span></div><div class="upgrade-data"><span class="upgrade-value"></span><span class="upgrade-price"></span></div><div class="upgrade-sub"></div></button>`).join('');}
 const upgradeCategories: { id: string; label: string; icon: string; stats: StatKey[] }[] = [
- {id:'attack',label:'Атака',icon:'◎',stats:['damage','attackSpeed']},
- {id:'defense',label:'Защита',icon:'⬡',stats:['maxHp']},
- {id:'repair',label:'Ремонт',icon:'✚',stats:['regen']},
- {id:'modules',label:'Модули',icon:'◇',stats:[]},
+ {id:'attack',label:'Атака',icon:statIcon('damage'),stats:['damage','attackSpeed']},
+ {id:'defense',label:'Защита',icon:statIcon('maxHp'),stats:['maxHp']},
+ {id:'repair',label:'Ремонт',icon:statIcon('regen'),stats:['regen']},
+ {id:'modules',label:'Модули',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Zm0 9 8-4.5M12 12 4 7.5M12 12v9"/></svg>',stats:[]},
 ];
 
 export const battleUpgradeDockMarkup = `
@@ -65,9 +65,9 @@ export class BattleMenuController {
 
 export const battleHudMarkup = `<div class="battle-resources" aria-label="Ресурсы и состояние турели">
  <div class="battle-resource wave"><span>Волна</span><strong id="battle-wave">1 / 30</strong></div>
- <div class="battle-resource gold"><span>◈ Золото</span><strong id="battle-gold">0</strong></div>
- <div class="battle-resource crystals"><span aria-label="Кристаллы">◇ Крист.</span><strong id="battle-crystals">0</strong></div>
- <div class="battle-resource health" role="group" aria-label="Здоровье корпуса"><div class="health-track" aria-hidden="true"><div class="health-fill" id="battle-hp-fill"></div></div><strong id="battle-hp">100 / 100</strong></div>
+ <div class="battle-resource gold" role="group" aria-label="Золото"><i class="battle-currency-icon" aria-hidden="true"></i><span aria-hidden="true">Золото</span><strong id="battle-gold">0</strong></div>
+ <div class="battle-resource crystals" role="group" aria-label="Кристаллы"><i class="battle-currency-icon" aria-hidden="true"></i><span aria-hidden="true">Крист.</span><strong id="battle-crystals">0</strong></div>
+ <div class="battle-resource health" role="group" aria-label="Здоровье корпуса"><svg class="battle-hp-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 21 3.7 13a5.4 5.4 0 0 1 7.7-7.6l.6.6.6-.6a5.4 5.4 0 0 1 7.7 7.6Z"/></svg><div class="health-track" aria-hidden="true"><div class="health-fill" id="battle-hp-fill"></div></div><strong id="battle-hp">100 / 100</strong></div>
  <button type="button" class="battle-menu-toggle" id="battle-menu-toggle" aria-label="Открыть меню боя" aria-haspopup="dialog" aria-expanded="false" aria-controls="battle-menu-overlay"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="m10 2-.6 2.5-2 .9-2.4-1.1-2 3.4 2 1.7v2.2l-2 1.7 2 3.4 2.4-1.1 2 .9.6 2.5h4l.6-2.5 2-.9 2.4 1.1 2-3.4-2-1.7V9.4l2-1.7-2-3.4-2.4 1.1-2-.9L14 2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" transform="translate(0 1.5)"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button></div><div id="battle-notice" class="battle-notice hidden" role="status"></div>`;
 
 export const battleMenuMarkup = `<section class="battle-menu-panel" role="dialog" aria-modal="true" aria-labelledby="battle-menu-title" tabindex="-1">
