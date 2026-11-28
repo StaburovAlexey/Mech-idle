@@ -54,7 +54,7 @@
   align-self: start; isolation: isolate; margin: 0; padding: .21em .18em .18em;
   font: 800 var(--screen-heading-size)/.88 var(--oplot-font);
   min-width: 10ch;
-  letter-spacing: -.045em; text-shadow: .012em .027em #a4714f, .022em .053em #634330, .04em .075em #372429, .055em .11em .06em #120d17c9;
+  letter-spacing: -.045em; text-shadow: 0 .065em var(--type-depth);
   transform: skewX(-9deg);
 }
 .title-logo::before, .title-logo::after {
@@ -165,7 +165,7 @@
   box-shadow: inset 0 0 0 2px #192b24, 0 2px 3px #0e171c;
 }
 .title-bulb svg { width: 68%; }
-.title-tip strong { color: #a6e270; font: 700 clamp(13px,3vw,21px)/1.2 var(--oplot-font); text-shadow: var(--type-green); text-transform: uppercase; }
+.title-tip strong { color: #a6e270; font: 700 clamp(13px,3vw,21px)/1.2 var(--oplot-font); text-transform: uppercase; }
 .title-tip p { margin: 2px 0 0; font-size: clamp(12px,2.7vw,18px); line-height: 1.38; }
 .modal { max-height: calc(100dvh - 28px); overflow: auto; }
 
