@@ -139,10 +139,8 @@
 .shell.in-battle .battle-upgrade-list .upgrade:focus-visible,
 .shell.in-battle .battle-upgrade-tab:focus-visible,
 .shell.in-battle .battle-menu-toggle:focus-visible { outline: 2px solid #fff2d6; outline-offset: -3px; }
-.battle-upgrade-empty {
-  grid-column: 1/-1; place-self: center; margin: 0; padding: 6px 9px;
-  border-radius: 5px; background: #242126e6; text-align: center; color: #fff0da; font-size: 12px;
-}
+.shell.in-battle .battle-upgrade-list [data-combat-upgrade] .upgrade-value { font-size: clamp(9px,2.35vw,13px); }
+.shell.in-battle .battle-upgrade-list [data-combat-upgrade] .upgrade-price { white-space: nowrap; }
 
 @media (max-width: 600px) {
   .shell.in-battle .battle-resources { grid-template-columns: repeat(12,minmax(0,1fr)); }

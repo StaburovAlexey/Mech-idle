@@ -1,3 +1,4 @@
+import { COMBAT_UPGRADES, combatEffect, combatUpgradePrice, createEnhancements, workshopCombatPrice, type CombatEnhancements, type CombatUpgrade, type CombatUpgradeLevels } from './combat-upgrades';
 import { PORTAL_RISE_SECONDS } from './portalTiming';
 import { clampToSpawnCircle, onSpawnCircle, SPAWN_RADIUS, spawnPoint, validSpawnGeometry, WORLD_LIMIT, type SpawnGeometry } from './spawnGeometry';
 /** Deterministic, fixed-step game simulation. No wall clock, browser, or renderer dependencies. */
@@ -9,7 +10,7 @@ export type StatKey = typeof STAT_KEYS[number];
 export type Levels = Record<StatKey, number>;
 export type EnemyKind = 'ordinary' | 'fast' | 'ranged' | 'boss';
 export type AttackPhase = 'approach' | 'windup' | 'strike' | 'recovery';
-export interface Profile { crystals: number; meta: Levels; runCounter: number }
+export interface Profile { crystals: number; meta: Levels; runCounter: number; enhancements?: CombatUpgradeLevels }
 export interface Stats { damage: number; maxHp: number; attackSpeed: number; regen: number; range: number }
 export interface Enemy { id: string; kind: EnemyKind; x: number; y: number; hp: number; maxHp: number; damage: number; speed: number; attackInterval: number; attackCooldown: number; attackPhase: AttackPhase; attackTime: number; attackDuration: number; emergingUntil?: number }
 export interface Bullet { id: string; targetId: string; x: number; y: number; damage: number; speed: number }
@@ -24,6 +25,7 @@ export interface Run {
   shotCooldown: number; targetId: string | null; nextEntityId: number;
   lastSector: number; sectorStreak: number; paidKillIds: string[]; lastPaidWave: number;
   kills: number; earnedGold: number; earnedCrystals: number;
+  enhancements?: CombatEnhancements;
   spawnMode?: 'circle';
   combatMode?: 'telegraphed';
   /** Read only by the one-time migration of old viewport-based saves. */
@@ -38,6 +40,7 @@ export type GameEvent =
   | { type: 'enemyShot'; id: string; sourceId: string; x: number; y: number; targetX: number; targetY: number }
   | { type: 'hit' | 'kill'; id: string; kind: EnemyKind; x: number; y: number; amount: number }
   | { type: 'turretHit' | 'heal'; amount: number }
+  | { type: 'upgradeProc'; upgrade: CombatUpgrade }
   | { type: 'waveComplete' | 'waveStart'; wave: number }
   | { type: 'runEnded'; outcome: 'defeat' | 'victory' };
 export interface GameState { version: 1; profile: Profile; run: Run | null; result: RunResult | null; events: GameEvent[] }
@@ -111,6 +114,7 @@ export function startRun(state: GameState, seed = 1): GameState {
     spawnCooldown: 0, shotCooldown: 0, targetId: null, nextEntityId: 1,
     lastSector: -1, sectorStreak: 0, paidKillIds: [], lastPaidWave: 0, kills: 0, earnedGold: 0, earnedCrystals: 0,
     spawnMode: 'circle', combatMode: 'telegraphed',
+    ...(next.profile.enhancements ? { enhancements: { ...createEnhancements(), levels: { ...next.profile.enhancements } } } : {}),
   };
   next.result = null;
   next.events = [{ type: 'waveStart', wave: 1 }];
@@ -135,6 +139,69 @@ export function buyRunUpgrade(state: GameState, stat: StatKey): GameState {
   applyRunLevels(next);
   return next;
 }
+/** Combat-only purchases are separate from the permanent workshop stat schema. */
+export function buyCombatUpgrade(state: GameState, key: CombatUpgrade): GameState {
+  const run = state.run;
+  if (!run || !Object.hasOwn(COMBAT_UPGRADES, key)) return state;
+  const level = run.enhancements?.levels[key] ?? 0;
+  if (key === 'scanner' && level > 0) return state;
+  const price = combatUpgradePrice(key, level - (state.profile.enhancements?.[key] ?? 0));
+  if (run.gold < price) return state;
+  const next = clone(state), r = next.run!;
+  const enhancements = r.enhancements ??= createEnhancements();
+  enhancements.levels[key] = level + 1;
+  r.gold -= price;
+  next.events = [];
+  return next;
+}
+
+export function buyWorkshopCombatUpgrade(state: GameState, key: CombatUpgrade): GameState {
+  if (state.run || !Object.hasOwn(COMBAT_UPGRADES, key)) return state;
+  const level = state.profile.enhancements?.[key] ?? 0;
+  const price = workshopCombatPrice(key, level);
+  if (state.profile.crystals < price) return state;
+  const next = clone(state);
+  (next.profile.enhancements ??= {})[key] = level + 1;
+  next.profile.crystals -= price;
+  next.events = [];
+  return next;
+}
+
+function effect(run: Run, key: CombatUpgrade): number {
+  return combatEffect(key, run.enhancements?.levels[key] ?? 0);
+}
+function proc(state: GameState, upgrade: CombatUpgrade): void {
+  state.events.push({ type: 'upgradeProc', upgrade });
+}
+function restoreHull(state: GameState, amount: number, maxHp = getStats(state).maxHp): void {
+  const run = state.run!;
+  const healed = Math.min(amount, maxHp - run.hp);
+  if (run.hp <= 0 || healed <= 0) return;
+  run.hp += healed;
+  state.events.push({ type: 'heal', amount: healed });
+}
+function damageHull(state: GameState, amount: number, melee: boolean): void {
+  const run = state.run!, upgrades = run.enhancements;
+  if (melee && upgrades) {
+    const mitigation = effect(run, 'dampen');
+    if (mitigation > 0) {
+      if (run.time < upgrades.dampenUntil) amount *= 1 - mitigation;
+      else upgrades.dampenUntil = run.time + 1.2;
+    }
+  }
+  run.hp -= amount;
+  state.events.push({ type: 'turretHit', amount });
+  const emergency = effect(run, 'emergency');
+  if (upgrades && emergency > 0 && upgrades.emergencyWave !== run.wave && run.hp > 0) {
+    const maxHp = getStats(state).maxHp;
+    if (run.hp < maxHp * .25) {
+      upgrades.emergencyWave = run.wave;
+      restoreHull(state, maxHp * emergency, maxHp);
+      proc(state, 'emergency');
+    }
+  }
+}
+
 /** Permanent workshop purchases are available only between runs, so run base stats cannot change mid-combat. */
 export function buyMetaUpgrade(state: GameState, stat: StatKey): GameState {
   if (state.run || !STAT_KEYS.includes(stat) || state.profile.crystals < metaPrice(stat, state.profile.meta[stat])) return state;
@@ -221,8 +288,7 @@ function strike(state: GameState, enemy: Enemy, hitIndex: number): void {
     state.events.push({ type: 'enemyShot', id: projectile.id, sourceId: enemy.id, x: projectile.x, y: projectile.y, targetX: 0, targetY: 0 });
   } else {
     const amount = enemy.damage / attackConfig(enemy.kind).hitOffsets.length;
-    r.hp -= amount;
-    state.events.push({ type: 'turretHit', amount });
+    damageHull(state, amount, true);
   }
 }
 function advanceEnemy(state: GameState, enemy: Enemy): void {
@@ -234,7 +300,8 @@ function advanceEnemy(state: GameState, enemy: Enemy): void {
   if (enemy.attackPhase === 'approach') {
     enemy.attackCooldown = Math.max(0, enemy.attackCooldown - DT);
     if (d > config.range) {
-      const move = Math.min(enemy.speed * DT, d - config.range);
+      const slowed = (state.run!.enhancements?.pulseUntil ?? 0) > state.run!.time && d <= 4;
+      const move = Math.min(enemy.speed * (slowed ? .6 : 1) * DT, d - config.range);
       enemy.x -= enemy.x / d * move; enemy.y -= enemy.y / d * move;
     }
     if (Math.hypot(enemy.x, enemy.y) <= config.range + 1e-7) {
@@ -265,8 +332,11 @@ function advanceEnemyProjectiles(state: GameState): void {
   for (const projectile of r.enemyProjectiles) {
     const distance = Math.hypot(projectile.x, projectile.y);
     if (distance <= projectile.speed * DT + .15) {
-      r.hp -= projectile.damage;
-      state.events.push({ type: 'turretHit', amount: projectile.damage });
+      const upgrades = r.enhancements, cooldown = effect(r, 'deflect');
+      if (upgrades && cooldown > 0 && r.time >= upgrades.deflectReady) {
+        upgrades.deflectReady = r.time + cooldown;
+        proc(state, 'deflect');
+      } else damageHull(state, projectile.damage, false);
     } else {
       projectile.x -= projectile.x / distance * projectile.speed * DT;
       projectile.y -= projectile.y / distance * projectile.speed * DT;
@@ -275,6 +345,46 @@ function advanceEnemyProjectiles(state: GameState): void {
   }
   r.enemyProjectiles = surviving;
 }
+function damageEnemy(state: GameState, enemy: Enemy, damage: number): void {
+  const run = state.run!;
+  if (enemy.hp <= 0) return;
+  enemy.hp -= damage;
+  state.events.push({ type: 'hit', id: enemy.id, kind: enemy.kind, x: enemy.x, y: enemy.y, amount: damage });
+  if (enemy.hp > 0 || run.paidKillIds.includes(enemy.id)) return;
+  run.paidKillIds.push(enemy.id); run.kills++;
+  const reward = BASE_ENEMIES[enemy.kind].reward;
+  run.gold += reward; run.earnedGold += reward;
+  state.events.push({ type: 'kill', id: enemy.id, kind: enemy.kind, x: enemy.x, y: enemy.y, amount: reward });
+  const salvage = effect(run, 'salvage');
+  if (salvage > 0 && run.enhancements && ++run.enhancements.salvageKills === 5) {
+    run.enhancements.salvageKills = 0;
+    restoreHull(state, salvage);
+    proc(state, 'salvage');
+  }
+}
+
+function hitWithBullet(state: GameState, target: Enemy, bullet: Bullet, dx: number, dy: number): void {
+  const run = state.run!, pierce = effect(run, 'pierce'), splash = effect(run, 'splash');
+  damageEnemy(state, target, bullet.damage);
+  if (!pierce && !splash) return;
+  const others = run.enemies.filter(e => e !== target && e.hp > 0 && e.emergingUntil === undefined);
+  if (pierce > 0) {
+    // Pick one nearby unit behind the target along the last flight segment.
+    if (Math.hypot(dx, dy) < 1e-6) { dx = target.x; dy = target.y; }
+    const direction = Math.hypot(dx, dy);
+    let closest: Enemy | undefined, best = 2.4;
+    if (direction > 1e-6) for (const e of others) {
+      const x = e.x - target.x, y = e.y - target.y;
+      const forward = (x * dx + y * dy) / direction, cross = Math.abs(x * dy - y * dx) / direction;
+      if (forward > 0 && forward < best && cross <= .55) { closest = e; best = forward; }
+    }
+    if (closest) damageEnemy(state, closest, bullet.damage * pierce);
+  }
+  if (splash > 0) for (const e of others) {
+    if (Math.hypot(e.x - target.x, e.y - target.y) <= 1.4) damageEnemy(state, e, bullet.damage * splash);
+  }
+}
+
 function endRun(state: GameState, outcome: 'defeat' | 'victory'): void {
   const r = state.run!;
   state.result = { outcome, runId: r.id, wave: r.wave, completedWaves: r.lastPaidWave, kills: r.kills, earnedGold: r.earnedGold, earnedCrystals: r.earnedCrystals, duration: r.time, finalStats: getStats(state) };
@@ -311,17 +421,27 @@ function advanceTick(state: GameState): void {
   // Resolve already-fired bolts, then animation strikes, before friendly projectile deaths.
   // New bolts begin traveling next tick. Simultaneous boss/turret death remains defeat.
   advanceEnemyProjectiles(state);
+  const upgrades = r.enhancements, pulse = effect(r, 'pulse');
+  if (upgrades && pulse > 0 && r.time >= upgrades.pulseReady &&
+      r.enemies.some(e => e.hp > 0 && e.emergingUntil === undefined && e.attackPhase === 'approach' && Math.hypot(e.x, e.y) <= 4)) {
+    upgrades.pulseReady = r.time + pulse;
+    upgrades.pulseUntil = r.time + 1;
+    proc(state, 'pulse');
+  }
   for (const enemy of r.enemies) advanceEnemy(state, enemy);
   const canAim = (e: Enemy) => e.hp > 0 && e.emergingUntil === undefined;
   const inRange = (e: Enemy) => Math.hypot(e.x, e.y) <= stats.range + 1e-7;
+  const prioritizeRanged = effect(r, 'scanner') > 0;
   const target = r.enemies.find(e => e.id === r.targetId && canAim(e)) ??
     r.enemies.filter(e => canAim(e) && inRange(e))
-      .sort((a, b) => Math.hypot(a.x, a.y) - Math.hypot(b.x, b.y) || Number(a.id.split(':').pop()) - Number(b.id.split(':').pop()))[0];
+      .sort((a, b) => (prioritizeRanged ? Number(b.kind === 'ranged') - Number(a.kind === 'ranged') : 0) || Math.hypot(a.x, a.y) - Math.hypot(b.x, b.y) || Number(a.id.split(':').pop()) - Number(b.id.split(':').pop()))[0];
   r.targetId = target?.id ?? null;
   r.shotCooldown -= DT;
   if (!target || !inRange(target)) r.shotCooldown = Math.max(0, r.shotCooldown);
   else if (r.shotCooldown <= 1e-9) {
-    const bullet: Bullet = { id: newId(r), targetId: target.id, x: 0, y: 0, damage: stats.damage, speed: 16 };
+    const chance = effect(r, 'critical'), critical = chance > 0 && random(r) < chance;
+    const bullet: Bullet = { id: newId(r), targetId: target.id, x: 0, y: 0, damage: stats.damage * (critical ? 2 : 1), speed: 16 };
+    if (critical) proc(state, 'critical');
     r.bullets.push(bullet); r.shotCooldown = Math.max(0, r.shotCooldown + 1 / stats.attackSpeed);
     state.events.push({ type: 'shot', id: bullet.id, targetId: target.id, x: 0, y: 0, targetX: target.x, targetY: target.y });
   }
@@ -331,14 +451,7 @@ function advanceTick(state: GameState): void {
     if (!target) continue;
     const dx = target.x - bullet.x, dy = target.y - bullet.y, distance = Math.hypot(dx, dy);
     if (distance <= bullet.speed * DT + .12) {
-      target.hp -= bullet.damage;
-      state.events.push({ type: 'hit', id: target.id, kind: target.kind, x: target.x, y: target.y, amount: bullet.damage });
-      if (target.hp <= 0 && !r.paidKillIds.includes(target.id)) {
-        r.paidKillIds.push(target.id); r.kills++;
-        const reward = BASE_ENEMIES[target.kind].reward;
-        r.gold += reward; r.earnedGold += reward;
-        state.events.push({ type: 'kill', id: target.id, kind: target.kind, x: target.x, y: target.y, amount: reward });
-      }
+      hitWithBullet(state, target, bullet, dx, dy);
     } else { bullet.x += dx / distance * bullet.speed * DT; bullet.y += dy / distance * bullet.speed * DT; surviving.push(bullet); }
   }
   r.enemies = r.enemies.filter(e => e.hp > 0);
@@ -441,11 +554,15 @@ const int = (v: unknown, min = 0, max = 1e9): v is number => num(v, min, max) &&
 const str = (v: unknown): v is string => typeof v === 'string' && v.length > 0 && v.length < 100;
 const keys = (v: Record<string, any>, names: string[]) => Object.keys(v).length === names.length && names.every(n => Object.hasOwn(v, n));
 function validLevels(v: unknown): v is Levels { return object(v) && keys(v, [...STAT_KEYS]) && STAT_KEYS.every(k => Number.isSafeInteger(v[k]) && v[k] >= 0); }
+function validCombatLevels(v: unknown): v is CombatUpgradeLevels {
+ return object(v) && Object.entries(v).every(([key, level]) =>
+   Object.hasOwn(COMBAT_UPGRADES, key) && int(level, 1, key === 'scanner' ? 1 : 256));
+}
 function validStats(v: unknown): v is Stats { return object(v) && keys(v, ['damage','maxHp','attackSpeed','regen','range']) && num(v.damage, 10, Number.MAX_VALUE) && num(v.maxHp, 100, Number.MAX_VALUE) && num(v.attackSpeed, 1, Number.MAX_VALUE) && num(v.regen, 0, Number.MAX_VALUE) && (v.range === TURRET_RANGE || v.range === 10); }
 export function validateState(value: unknown, allowLegacy = false): value is GameState {
   if (!object(value) || !keys(value, ['version','profile','run','result','events']) || value.version !== 1 || !Array.isArray(value.events) || value.events.length !== 0) return false;
   const p = value.profile;
-  if (!object(p) || !keys(p, ['crystals','meta','runCounter']) || !int(p.crystals) || !validLevels(p.meta) || !int(p.runCounter)) return false;
+  if (!object(p) || !keys(p, ['crystals','meta','runCounter', ...(Object.hasOwn(p,'enhancements') ? ['enhancements'] : [])]) || !int(p.crystals) || !validLevels(p.meta) || !int(p.runCounter) || (Object.hasOwn(p,'enhancements') && !validCombatLevels(p.enhancements))) return false;
   if (value.result !== null) {
     const r = value.result;
     if (!object(r) || !keys(r, ['outcome','runId','wave','completedWaves','kills','earnedGold','earnedCrystals','duration','finalStats']) || !['defeat','victory'].includes(r.outcome) || !str(r.runId) || !int(r.wave,1,30) || !int(r.completedWaves,0,30) || !int(r.kills,0,MAX_RUN_KILLS) || !int(r.earnedGold,0,MAX_RUN_GOLD) || !int(r.earnedCrystals,0,30) || r.earnedCrystals !== r.completedWaves || !num(r.duration,0,1e7) || !validStats(r.finalStats) || (r.outcome === 'victory' && (r.wave !== 30 || r.completedWaves !== 30)) || (r.outcome === 'defeat' && r.completedWaves !== r.wave - 1)) return false;
@@ -453,7 +570,7 @@ export function validateState(value: unknown, allowLegacy = false): value is Gam
   if (value.run === null) return true;
   if (value.result !== null) return false;
   const r = value.run;
-  if (!object(r) || !keys(r, ['id','seed','rngState','wave','phase','paused','time','tick','phaseTime','hp','gold','levels','activeLevels','enemies','bullets','warnings','spawned','spawnCooldown','shotCooldown','targetId','nextEntityId','lastSector','sectorStreak','paidKillIds','lastPaidWave','kills','earnedGold','earnedCrystals', ...(Object.hasOwn(r, 'combatMode') ? ['combatMode','enemyProjectiles'] : []), ...(Object.hasOwn(r, 'spawnMode') ? ['spawnMode'] : []), ...(Object.hasOwn(r, 'spawnGeometry') ? ['spawnGeometry'] : []), ...(Object.hasOwn(r, 'nextArrival') ? ['nextArrival'] : [])])) return false;
+  if (!object(r) || !keys(r, ['id','seed','rngState','wave','phase','paused','time','tick','phaseTime','hp','gold','levels','activeLevels','enemies','bullets','warnings','spawned','spawnCooldown','shotCooldown','targetId','nextEntityId','lastSector','sectorStreak','paidKillIds','lastPaidWave','kills','earnedGold','earnedCrystals', ...(Object.hasOwn(r, 'combatMode') ? ['combatMode','enemyProjectiles'] : []), ...(Object.hasOwn(r, 'spawnMode') ? ['spawnMode'] : []), ...(Object.hasOwn(r, 'enhancements') ? ['enhancements'] : []), ...(Object.hasOwn(r, 'spawnGeometry') ? ['spawnGeometry'] : []), ...(Object.hasOwn(r, 'nextArrival') ? ['nextArrival'] : [])])) return false;
   const telegraphed = Object.hasOwn(r, 'combatMode');
   if (telegraphed && (r.combatMode !== 'telegraphed' || !Array.isArray(r.enemyProjectiles) || r.enemyProjectiles.length > MAX_ENEMY_PROJECTILES)) return false;
   const circle = Object.hasOwn(r, 'spawnMode');
@@ -461,6 +578,16 @@ export function validateState(value: unknown, allowLegacy = false): value is Gam
   if (Object.hasOwn(r, 'spawnGeometry') !== Object.hasOwn(r, 'nextArrival')) return false;
   if (Object.hasOwn(r, 'spawnGeometry') && !validSpawnGeometry(r.spawnGeometry) || Object.hasOwn(r, 'nextArrival') && !num(r.nextArrival, 0, 1e7)) return false;
   if (!str(r.id) || r.id !== `run-${p.runCounter}-${r.seed}` || !int(r.seed,1,0xffffffff) || !int(r.rngState,1,0xffffffff) || !int(r.wave,1,30) || !['combat','interwave'].includes(r.phase) || typeof r.paused !== 'boolean' || !num(r.time,0,1e7) || !int(r.tick,0,3e8) || Math.abs(r.time-r.tick*DT)>1e-6 || !num(r.phaseTime,0,1e7) || !validLevels(r.levels) || !validLevels(r.activeLevels) || STAT_KEYS.some(k=>r.activeLevels[k]>r.levels[k])) return false;
+  if (Object.hasOwn(r, 'enhancements')) {
+    const u = r.enhancements;
+    if (!object(u) || !keys(u, ['levels','deflectReady','dampenUntil','emergencyWave','salvageKills','pulseReady','pulseUntil']) ||
+        !validCombatLevels(u.levels) ||
+        !num(u.deflectReady, 0, r.time + 8 + 1e-8) || !num(u.dampenUntil, 0, r.time + 1.2 + 1e-8) ||
+        !int(u.emergencyWave, 0, r.wave) || !int(u.salvageKills, 0, 4) ||
+        !num(u.pulseReady, 0, r.time + 10 + 1e-8) || !num(u.pulseUntil, 0, r.time + 1 + 1e-8)) return false;
+  }
+  if (p.enhancements && (Object.keys(p.enhancements) as CombatUpgrade[]).some(key =>
+      (r.enhancements?.levels[key] ?? 0) < p.enhancements[key]!)) return false;
   const stats = calculateStats(p.meta,r.activeLevels);
   if (!num(r.hp,Number.MIN_VALUE,stats.maxHp + 1e-6) || !int(r.gold,0,MAX_RUN_GOLD) || !int(r.spawned,0,waveConfig(r.wave).count) || !num(r.spawnCooldown,-1e7,telegraphed ? 7.71 : 1.71) || !num(r.shotCooldown,0,1.01) || !int(r.nextEntityId,1,100000) || !int(r.lastSector,-1,11) || !int(r.sectorStreak,0,2) || !int(r.lastPaidWave,0,29) || !int(r.kills,0,MAX_RUN_KILLS) || !int(r.earnedGold,0,MAX_RUN_GOLD) || !int(r.earnedCrystals,0,29) || r.lastPaidWave!==r.earnedCrystals || r.gold>r.earnedGold || r.lastPaidWave !== (r.phase === 'combat' ? r.wave-1 : r.wave) || (r.phase === 'interwave' && (r.wave===30 || r.phaseTime>=2.000001))) return false;
   if (!Array.isArray(r.enemies) || r.enemies.length>30 || !Array.isArray(r.warnings) || r.warnings.length>(circle ? telegraphed ? MAX_SPAWN_GROUP : 1 : 30) || r.warnings.length>r.spawned || !Array.isArray(r.bullets) || r.bullets.length>100 || !Array.isArray(r.paidKillIds) || r.paidKillIds.length!==r.kills || new Set(r.paidKillIds).size!==r.paidKillIds.length) return false;
@@ -498,7 +625,7 @@ export function validateState(value: unknown, allowLegacy = false): value is Gam
     ids.add(w.id);
   }
   for (const b of r.bullets) {
-    if (!object(b) || !keys(b,['id','targetId','x','y','damage','speed']) || !validId(b.id) || ids.has(b.id) || !position(b) || !num(b.damage,10,stats.damage+1e-9) || b.speed!==16 || !r.enemies.some((e: Enemy)=>e.id===b.targetId)) return false;
+    if (!object(b) || !keys(b,['id','targetId','x','y','damage','speed']) || !validId(b.id) || ids.has(b.id) || !position(b) || !num(b.damage,10,stats.damage * (r.enhancements?.levels.critical ? 2 : 1) + 1e-9) || b.speed!==16 || !r.enemies.some((e: Enemy)=>e.id===b.targetId)) return false;
     ids.add(b.id);
   }
   const sourceIds = new Set<string>();

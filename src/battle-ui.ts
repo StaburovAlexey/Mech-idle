@@ -1,3 +1,4 @@
+import { COMBAT_UPGRADES, COMBAT_KEYS, combatValueLabel, combatUpgradePrice, type CombatUpgrade } from './combat-upgrades';
 import { armoredFrame } from './armored-frame';
 import type { PauseManager } from './persistence';
 import {STAT_KEYS,type StatKey} from './game';
@@ -12,7 +13,32 @@ export const statIcon = (stat: StatKey) => `<svg viewBox="0 0 24 24" fill="none"
 
 export const STAT_LABELS:Record<StatKey,{title:string,unit:string}>={damage:{title:'Сила атаки',unit:'урона'},maxHp:{title:'Бронекорпус',unit:'HP'},attackSpeed:{title:'Темп стрельбы',unit:'/с'},regen:{title:'Ремонт',unit:'HP/с'}};
 export const SHORT_STAT_LABELS:Record<StatKey,string>={damage:'Урон',maxHp:'Корпус',attackSpeed:'Темп',regen:'Ремонт'};
-export function upgradeButtonsMarkup(stats: readonly StatKey[] = STAT_KEYS){return stats.map(stat=>`<button class="upgrade" aria-label="${STAT_LABELS[stat].title}" type="button" data-stat="${stat}" id="upgrade-${stat}"><span class="battle-card-icon" aria-hidden="true">${statIcon(stat)}</span><div class="upgrade-top"><span class="upgrade-title"><span class="stat-label-full">${STAT_LABELS[stat].title}</span><span class="stat-label-short" aria-hidden="true">${SHORT_STAT_LABELS[stat]}</span></span></div><div class="upgrade-data"><span class="upgrade-value"></span><span class="upgrade-price"></span></div><div class="upgrade-sub"></div></button>`).join('');}
+function upgradeCard(id: string, title: string, short: string, icon: StatKey, extra = '') {
+ return `<button class="upgrade" aria-label="${title}" type="button" ${extra} id="upgrade-${id}"><span class="battle-card-icon" aria-hidden="true">${statIcon(icon)}</span><div class="upgrade-top"><span class="upgrade-title"><span class="stat-label-full">${title}</span><span class="stat-label-short" aria-hidden="true">${short}</span></span></div><div class="upgrade-data"><span class="upgrade-value"></span><span class="upgrade-price"></span></div><div class="upgrade-sub"></div></button>`;
+}
+export function upgradeButtonsMarkup(stats: readonly StatKey[] = STAT_KEYS) {
+ return stats.map(stat=>upgradeCard(stat,STAT_LABELS[stat].title,SHORT_STAT_LABELS[stat],stat,`data-stat="${stat}"`)).join('');
+}
+function combatUpgradeCard(key: CombatUpgrade) {
+ const o = COMBAT_UPGRADES[key];
+ return upgradeCard(key,o.title,o.title,o.icon,`data-combat-upgrade="${key}"`);
+}
+
+export function renderCombatUpgrade(button: HTMLButtonElement, key: CombatUpgrade, level: number, gold: number, blocked: boolean, permanent = 0) {
+ const { title, description } = COMBAT_UPGRADES[key];
+ const price = key==='scanner'&&level>0 ? Infinity : combatUpgradePrice(key,level-permanent), owned=price===Infinity;
+ const current=combatValueLabel(key,level), next=combatValueLabel(key,level+1), coins=price.toLocaleString('ru-RU');
+ button.disabled = blocked || owned || gold < price;
+ button.classList.toggle('affordable',!button.disabled);
+ const value = button.querySelector('.upgrade-value')!;
+ const text = owned ? current : !level ? next : `${current} → ${next}`;
+ if (value.textContent !== text) value.textContent = text;
+ const cost = button.querySelector('.upgrade-price')!, costText = owned ? '' : `◈ ${coins}`;
+ if (cost.textContent !== costText) cost.textContent = costText;
+ button.title = description;
+ button.setAttribute('aria-label',`${title}. ${description}. ${owned?current:`Сейчас: ${current}. После покупки: ${next}. Цена: ${coins} золота.`}`);
+}
+
 const upgradeCategories: { id: string; label: string; icon: string; stats: StatKey[] }[] = [
  {id:'attack',label:'Атака',icon:statIcon('damage'),stats:['damage','attackSpeed']},
  {id:'defense',label:'Защита',icon:statIcon('maxHp'),stats:['maxHp']},
@@ -26,11 +52,11 @@ export const battleUpgradeDockMarkup = `
  </div>
  ${armoredFrame('section','battle-upgrade-rack',upgradeCategories.map(({id,stats},i)=>`
   <div class="battle-upgrade-list" role="tabpanel" id="battle-upgrades-${id}" aria-labelledby="battle-tab-${id}" tabindex="0"${i===0?'':' hidden'}>
-   ${stats.length?upgradeButtonsMarkup(stats):'<p class="battle-upgrade-empty">Боевых модулей пока нет</p>'}
+   ${upgradeButtonsMarkup(stats)}${COMBAT_KEYS.filter(key=>COMBAT_UPGRADES[key].category===id).map(combatUpgradeCard).join('')}
   </div>`).join(''),'Боевые улучшения')}
 `;
 
-export function bindBattleUpgradeTabs(dock: HTMLElement) {
+export function bindUpgradeTabs(dock: HTMLElement) {
  const tabs=[...dock.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
  const panels=[...dock.querySelectorAll<HTMLElement>('[role="tabpanel"]')];
  function select(index: number) {
