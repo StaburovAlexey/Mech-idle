@@ -156,3 +156,51 @@ describe('combat-only upgrades',()=>{
   expect(step(saved).events).not.toContainEqual({type:'upgradeProc',upgrade:'pulse'});
  });
 });
+
+describe('passive scrap modules',()=>{
+ const keys=['hullArmor','boltScreen','fastTracker','finisher','waveRegen'] as const;
+ function equipped(wave=6) {
+  const profile=createState();
+  profile.profile.scrap=42;
+  const owned=keys.reduce((s,key)=>buyShopModule(s,key),profile);
+  const r=startRun(reload(owned),1).run!;
+  const state=battle(wave);state.run!.enhancements=r.enhancements;
+  return state;
+ }
+ it('unlocks for scrap, consumes both balances for upgrades, and cannot be bought for gold',()=>{
+  const start=createState();start.profile.crystals=10;start.profile.scrap=16;
+  expect(buyWorkshopCombatUpgrade(start,'waveRegen')).toBe(start);
+  const bought=buyShopModule(start,'waveRegen');
+  expect(bought.profile).toMatchObject({crystals:10,scrap:7,enhancements:{waveRegen:1}});
+  const poorlyFunded={...bought,profile:{...bought.profile,scrap:6}};
+  expect(buyWorkshopCombatUpgrade(poorlyFunded,'waveRegen')).toBe(poorlyFunded);
+  const upgraded=reload(buyWorkshopCombatUpgrade(bought,'waveRegen'));
+  expect(upgraded.profile).toMatchObject({crystals:0,scrap:0,enhancements:{waveRegen:2}});
+  const active=startRun(upgraded,123);active.run!.gold=1000;
+  expect(active.run!.enhancements?.levels.waveRegen).toBe(2);
+  expect(buyCombatUpgrade(active,'waveRegen')).toBe(active);
+ });
+ it('reduces melee and projectile damage by their own amounts',()=>{
+  const state=equipped(), r=state.run!;
+  const melee=enemy(state,attackConfig('ordinary').range);
+  melee.attackPhase='windup';melee.attackDuration=attackConfig('ordinary').windup;melee.attackTime=melee.attackDuration-DT;
+  const ranged=enemy(state,4,0,'ranged');rangedImpact(state,ranged);
+  expect(step(state).run!.hp).toBeCloseTo(r.hp-melee.damage*.92-ranged.damage*.9);
+ });
+ it('boosts fast and wounded targets without changing the damage of the stored projectile',()=>{
+  const state=equipped(), fast=enemy(state,4,0,'fast');
+  firingAt(state,fast);
+  const hit=step(state).events.find(e=>e.type==='hit');
+  expect(hit&&'amount' in hit ? hit.amount : undefined).toBeCloseTo(11.2);
+  const wounded=equipped(), second=enemy(wounded,4);
+  second.hp=second.maxHp*.5;firingAt(wounded,second);
+  const impact=step(wounded).events.find(e=>e.type==='hit');
+  expect(impact&&'amount' in impact ? impact.amount : undefined).toBeCloseTo(11.5);
+ });
+ it('restores hull once just before the next wave',()=>{
+  const state=equipped(),r=state.run!;r.hp=50;r.phase='interwave';r.phaseTime=2-DT;
+  const next=step(state);
+  expect(next.run!.wave).toBe(r.wave+1);expect(next.run!.hp).toBeCloseTo(54);
+  expect(step(next).run!.hp).toBeCloseTo(54);
+ });
+});

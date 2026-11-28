@@ -10,23 +10,33 @@ export const COMBAT_UPGRADES = {
   scanner: { title: 'Сканер', category: 'modules', icon: 'damage', price: 30, description: 'При выборе новой цели отдаёт приоритет стрелкам в радиусе огня' },
   lootDetector: { title: 'Детектор', category: 'modules', icon: 'damage', price: 0, description: 'Увеличивает шанс выпадения деталей и обломков' },
   lootExtractor: { title: 'Экстрактор', category: 'modules', icon: 'regen', price: 0, description: 'Увеличивает шанс получить больше единиц выпавшего ресурса' },
+  hullArmor: { title: 'Броня', category: 'modules', icon: 'maxHp', price: 0, description: 'Снижает урон от ударов ближнего боя' },
+  boltScreen: { title: 'Экран', category: 'modules', icon: 'maxHp', price: 0, description: 'Снижает урон от вражеских снарядов, которые попали в турель' },
+  fastTracker: { title: 'Трекер', category: 'modules', icon: 'damage', price: 0, description: 'Усиливает прямые попадания по быстрым мехам' },
+  finisher: { title: 'Добивание', category: 'modules', icon: 'damage', price: 0, description: 'Усиливает прямые попадания по врагам с половиной здоровья или меньше' },
+  waveRegen: { title: 'Регенератор', category: 'modules', icon: 'regen', price: 0, description: 'Восстанавливает часть корпуса в конце отдыха между волнами' },
   pulse: { title: 'Импульс', category: 'modules', icon: 'attackSpeed', price: 38, description: 'Замедляет движение мехов на 40% на 1 с в радиусе 4' },
 } as const;
 export type CombatUpgrade = keyof typeof COMBAT_UPGRADES;
 export type CombatUpgradeLevels = Partial<Record<CombatUpgrade, number>>;
-export const SHOP_MODULES = ['scanner', 'pulse', 'deflect', 'lootDetector', 'lootExtractor'] as const;
+const SCRAP_MODULE_COSTS = {
+  lootDetector:[5,6,4], lootExtractor:[7,9,6],
+  hullArmor:[6,6,4], boltScreen:[7,7,5], fastTracker:[6,6,4], finisher:[8,9,6], waveRegen:[9,10,7],
+} as const;
+type ScrapModule = keyof typeof SCRAP_MODULE_COSTS;
+export const SHOP_MODULES = ['scanner','pulse','deflect',...Object.keys(SCRAP_MODULE_COSTS) as ScrapModule[]] as const;
 export type ShopModule = typeof SHOP_MODULES[number];
 export const isShopModule = (key: CombatUpgrade): key is ShopModule => (SHOP_MODULES as readonly CombatUpgrade[]).includes(key);
-export const isLootModule = (key:CombatUpgrade) => key==='lootDetector'||key==='lootExtractor';
+export const isScrapModule = (key:CombatUpgrade): key is ScrapModule => Object.hasOwn(SCRAP_MODULE_COSTS,key);
 export const WORKSHOP_KEYS = Object.keys(COMBAT_UPGRADES) as CombatUpgrade[];
-export const COMBAT_KEYS = WORKSHOP_KEYS.filter(key => !isLootModule(key));
+export const COMBAT_KEYS = WORKSHOP_KEYS.filter(key => !isScrapModule(key));
 export type ModuleCost = {parts:number;scrap:number};
 export function moduleCost(key:CombatUpgrade, level:number): ModuleCost {
-  if (isLootModule(key)) {
-    const detector=key==='lootDetector';
-    if (!level) return {parts:0,scrap:detector?5:7};
+  if (isScrapModule(key)) {
+    const [unlock,parts,scrap] = SCRAP_MODULE_COSTS[key];
+    if (!level) return {parts:0,scrap:unlock};
     const scale=1.5**(level-1);
-    return {parts:Math.ceil((detector?6:9)*scale),scrap:Math.ceil((detector?4:6)*scale)};
+    return {parts:Math.ceil(parts*scale),scrap:Math.ceil(scrap*scale)};
   }
   return {parts:workshopCombatPrice(key,level),scrap:0};
 }
@@ -66,6 +76,11 @@ export function combatEffect(key: CombatUpgrade, level: number): number {
     case 'salvage': return level * 2;
     case 'scanner': return 1;
     case 'pulse': return 10 - 6 * growth;
+    case 'hullArmor': return .08 + .12 * growth;
+    case 'boltScreen': return .10 + .15 * growth;
+    case 'fastTracker': return .12 + .18 * growth;
+    case 'finisher': return .15 + .20 * growth;
+    case 'waveRegen': return .04 + .08 * growth;
     case 'lootDetector': case 'lootExtractor': return 0;
   }
 }

@@ -366,7 +366,7 @@ describe('main menu', () => {
     click('#workshop-tab-repair');
     expect(element('#workshop-list-repair').querySelectorAll('button')).toHaveLength(3);
     click('#workshop-tab-modules');
-    expect(element('#workshop-list-modules').querySelectorAll('button')).toHaveLength(4);
+    expect(element('#workshop-list-modules').querySelectorAll('button')).toHaveLength(9);
     click('#workshop-tab-attack');
     click('#workshop-critical');
     expect(saved().profile.enhancements?.critical).toBe(1);
@@ -385,7 +385,7 @@ describe('main menu', () => {
     expect(element('#workshop-pulse .workshop-current').textContent).toBe('Купи в магазине');
     click('#workshop-back');click('#open-module-shop');
     expect(element('#screen-heading').textContent).toBe('МАГАЗИН');
-    expect(element('.module-shop-rack').querySelectorAll('button')).toHaveLength(5);
+    expect(element('.module-shop-rack').querySelectorAll('button')).toHaveLength(10);
     advanceFrames(2);expect(fakes.render.mock.calls.at(-1)?.[0].phase).toBe('shop');
     expect(element('#shop-pulse .module-shop-more').textContent).toBe('Подробнее');
     expect(element('#shop-pulse .workshop-price').textContent?.trim()).toBe('8');

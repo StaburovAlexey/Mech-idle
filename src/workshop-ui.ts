@@ -1,6 +1,6 @@
 import { currencyIcon, priceText, priceMarkup } from './currency-ui';
 import { armoredScrollMarkup } from './armored-scroll';
-import { WORKSHOP_KEYS, COMBAT_UPGRADES, combatValueLabel, moduleCost, isLootModule, isShopModule, type CombatUpgrade } from './combat-upgrades';
+import { WORKSHOP_KEYS, COMBAT_UPGRADES, combatValueLabel, moduleCost, isScrapModule, isShopModule, type CombatUpgrade } from './combat-upgrades';
 import type { StatKey } from './game';
 import { STAT_LABELS, statIcon, UPGRADE_CATEGORIES } from './battle-ui';
 import { screenHeader, titleButton } from './title-ui';
@@ -20,7 +20,7 @@ function workshopCard(id: string, name: string, icon: StatKey, attribute: string
 
 function workshopCombatCard(key: CombatUpgrade) {
  const {title,icon,description}=COMBAT_UPGRADES[key];
- return workshopCard(key,title,icon,'data-workshop-combat',description,isLootModule(key));
+ return workshopCard(key,title,icon,'data-workshop-combat',description,isScrapModule(key));
 }
 
 export function renderWorkshopCombatUpgrade(button: HTMLButtonElement, key: CombatUpgrade, level: number, crystals: number, blocked: boolean, scrap = 0) {
@@ -30,7 +30,7 @@ export function renderWorkshopCombatUpgrade(button: HTMLButtonElement, key: Comb
  button.disabled=blocked||owned||locked||crystals<cost.parts||scrap<cost.scrap;
  button.querySelector('.workshop-current')!.textContent=current;
  button.querySelector('.workshop-next')!.textContent=owned||locked?'':`→ ${next}`;
- if(isLootModule(key)){
+ if(isScrapModule(key)){
   const price = button.querySelector<HTMLElement>('.workshop-price')!;
   price.classList.add('mixed-price');
   const key=owned||locked?'':priceText(cost);
