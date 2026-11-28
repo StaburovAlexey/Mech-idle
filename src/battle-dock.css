@@ -100,7 +100,6 @@
   grid-auto-rows: var(--dock-row); gap: 5px; padding: 2px;
   height: calc(var(--dock-rows) * (var(--dock-row) + 5px) - 1px);
   overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y pinch-zoom;
-  scrollbar-width: thin; scrollbar-color: #867a80 transparent;
 }
 .shell.in-battle .battle-upgrade-list[hidden] { display: none; }
 .shell.in-battle .battle-upgrade-list:focus-visible { outline: 2px solid #fff2d6; }

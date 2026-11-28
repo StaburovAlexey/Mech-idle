@@ -96,7 +96,6 @@
 .workshop-list {
   display: grid; align-content: start; gap: 7px;
   height: clamp(174px,36dvh,285px); overflow-y: auto; overscroll-behavior: contain; padding: 2px;
-  scrollbar-width: thin; scrollbar-color: #867a80 transparent;
 }
 .workshop-list[hidden] { display: none; }
 .workshop-description {

@@ -1,3 +1,4 @@
+import { armoredScrollMarkup, bindArmoredScrollbars } from './armored-scroll';
 import { COMBAT_UPGRADES, COMBAT_KEYS, combatValueLabel, combatUpgradePrice, type CombatUpgrade } from './combat-upgrades';
 import { armoredFrame } from './armored-frame';
 import type { PauseManager } from './persistence';
@@ -50,21 +51,23 @@ export const battleUpgradeDockMarkup = `
  <div class="battle-upgrade-tabs" role="tablist" aria-label="Категории улучшений">
   ${UPGRADE_CATEGORIES.map(({id,label,icon},i)=>`<button type="button" class="battle-upgrade-tab" role="tab" id="battle-tab-${id}" aria-controls="battle-upgrades-${id}" aria-selected="${i===0}" tabindex="${i===0?0:-1}"><span aria-hidden="true">${icon}</span>${label}</button>`).join('')}
  </div>
- ${armoredFrame('section','battle-upgrade-rack',UPGRADE_CATEGORIES.map(({id,stats},i)=>`
+ ${armoredFrame('section','battle-upgrade-rack',UPGRADE_CATEGORIES.map(({id,stats},i)=>armoredScrollMarkup(`
   <div class="battle-upgrade-list" role="tabpanel" id="battle-upgrades-${id}" aria-labelledby="battle-tab-${id}" tabindex="0"${i===0?'':' hidden'}>
    ${upgradeButtonsMarkup(stats)}${COMBAT_KEYS.filter(key=>COMBAT_UPGRADES[key].category===id).map(combatUpgradeCard).join('')}
-  </div>`).join(''),'Боевые улучшения')}
+  </div>`)).join(''),'Боевые улучшения')}
 `;
 
 export function bindUpgradeTabs(dock: HTMLElement) {
  const tabs=[...dock.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
  const panels=[...dock.querySelectorAll<HTMLElement>('[role="tabpanel"]')];
+ const scrollbars=bindArmoredScrollbars(dock);
  function select(index: number) {
   tabs.forEach((tab,i)=>{
    tab.tabIndex=i===index?0:-1;
    tab.setAttribute('aria-selected',String(i===index));
    panels[i].hidden=i!==index;
   });
+  scrollbars.refresh();
  }
  tabs.forEach((tab,i)=>{
   tab.onclick=()=>select(i);
@@ -76,6 +79,7 @@ export function bindUpgradeTabs(dock: HTMLElement) {
   };
  });
  select(0);
+ return scrollbars.dispose;
 }
 
 export const bossBarMarkup=`<div id="boss" class="boss-bar hidden"><b>КОЛОСС / ТЯЖЁЛЫЙ МЕХ</b><div class="boss-track"><div class="boss-fill" id="boss-fill"></div></div></div>`;
