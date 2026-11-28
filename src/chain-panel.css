@@ -29,7 +29,7 @@ body:has(.chain-panel-layer:not(.hidden)) { overflow: hidden; }
 .chain-panel-head small {
   color: #bbca90; font-size: 10px; text-transform: uppercase; letter-spacing: .1em;
 }
-.chain-panel-head h2 { margin: 2px 0 0; font-size: clamp(19px,5.8cqw,25px); line-height: 1.05; text-transform: uppercase; text-shadow: var(--type-raised); }
+.chain-panel-head h2 { margin: 2px 0 0; font-size: clamp(19px,5.8cqw,25px); line-height: 1.3; overflow-wrap: anywhere; text-transform: uppercase; text-shadow: var(--type-raised); }
 .chain-panel-close {
   min-height: 44px; padding: 0; border: 1px solid #18141b; border-radius: 7px; font-size: 23px;
   background: linear-gradient(#544850,#2b252d); box-shadow: inset 0 1px #897782,0 2px #171319;
