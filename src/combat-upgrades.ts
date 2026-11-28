@@ -11,6 +11,9 @@ export const COMBAT_UPGRADES = {
 } as const;
 export type CombatUpgrade = keyof typeof COMBAT_UPGRADES;
 export type CombatUpgradeLevels = Partial<Record<CombatUpgrade, number>>;
+export const SHOP_MODULES = ['scanner', 'pulse', 'deflect'] as const;
+export type ShopModule = typeof SHOP_MODULES[number];
+export const isShopModule = (key: CombatUpgrade): key is ShopModule => (SHOP_MODULES as readonly CombatUpgrade[]).includes(key);
 export const COMBAT_KEYS = Object.keys(COMBAT_UPGRADES) as CombatUpgrade[];
 
 export interface CombatEnhancements {

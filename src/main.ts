@@ -4,12 +4,11 @@ import './workshop.css';
 import './workshop-gates.css';
 import './module-shop.css';
 import './battle-dock.css';
-import { COMBAT_KEYS } from './combat-upgrades';
+import { COMBAT_KEYS, SHOP_MODULES, type ShopModule } from './combat-upgrades';
 import { workshopMarkup, renderWorkshopCombatUpgrade } from './workshop-ui';
-import { moduleShopMarkup, SHOP_MODULES } from './module-shop';
-import type { CombatUpgrade } from './combat-upgrades';
+import { moduleShopMarkup, moduleDetailMarkup, renderShopCard, renderModuleDetail } from './module-shop';
 import { titleMarkup } from './title-ui';
-import {createState,startRun,step,buyRunUpgrade,buyCombatUpgrade,buyMetaUpgrade,buyWorkshopCombatUpgrade,setPaused,getStats,calculateStats,runPrice,metaPrice,STAT_KEYS,DT,type GameState,type StatKey} from './game';
+import {createState,startRun,step,buyRunUpgrade,buyCombatUpgrade,buyMetaUpgrade,buyWorkshopCombatUpgrade,buyShopModule,setPaused,getStats,calculateStats,runPrice,metaPrice,STAT_KEYS,DT,type GameState,type StatKey} from './game';
 import {SceneView,type SceneFrame, type SceneSpawn} from './scene';
 import {SaveRepository,PauseManager,TabLock} from './persistence';
 import {LocalPlatformAdapter} from './platform';
@@ -138,13 +137,58 @@ drawerElement.addEventListener('keydown',event=>{
  const i=buttons.indexOf(document.activeElement as HTMLButtonElement);
  event.preventDefault();buttons[(i+(event.shiftKey?-1:1)+buttons.length)%buttons.length]?.focus();
 });
-function bindCrystalModules(keys: readonly CombatUpgrade[], page: 'workshop'|'shop'){
- for(const key of keys) $(`#${page}-${key}`).onclick=()=>{
-  if(!writable||saveBlocked||fatal||gatesMoving||menuPage!==page||screen!=='menu'||pause.reasons.has('dialog'))return;
-  const next=buyWorkshopCombatUpgrade(state,key);
-  if(next===state)return;
-  state=next;sound.play('upgrade');save();renderUI();
+function canSpendCrystals(){
+ return writable&&!saveBlocked&&!fatal&&!gatesMoving&&screen==='menu'&&!state.run;
+}
+function applyCrystalPurchase(next: GameState){
+ if(next===state)return;
+ state=next;sound.play('upgrade');save();renderUI();
+}
+function bindCrystalModules(){
+ for(const key of COMBAT_KEYS) $(`#workshop-${key}`).onclick=()=>{
+  if(canSpendCrystals()&&menuPage==='workshop'&&!pause.reasons.has('dialog'))
+   applyCrystalPurchase(buyWorkshopCombatUpgrade(state,key));
  };
+}
+function openModuleDetail(key: ShopModule, source: HTMLButtonElement){
+ const area=$('#modal-root'), shell=$('.shell');
+ if(screen!=='menu'||menuPage!=='shop'||gatesMoving||area.children.length)return;
+ area.innerHTML=moduleDetailMarkup(key);shell.inert=true;pause.add('dialog');
+ const layer=$('.module-detail-layer'), sheet=$('.module-detail-sheet');
+ const closeButton=$<HTMLButtonElement>('#module-detail-close'), buyButton=$<HTMLButtonElement>('#module-detail-buy');
+ const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+ let moving=false, closing=false, closeRequested=false;
+ const render=()=>renderModuleDetail(area,key,state.profile.enhancements?.[key]??0,state.profile.crystals,!canSpendCrystals()||moving||closing);
+ function animate(frames: Keyframe[], duration: number, done: ()=>void){
+  if(reduced||!sheet.animate){done();return;}
+  moving=true;render();
+  const animation=sheet.animate(frames,{duration,fill:'both'});
+  void animation.finished.then(()=>{animation.cancel();moving=false;done();},()=>{moving=false;done();});
+ }
+ function close(){
+  if(closing)return;
+  if(moving){closeRequested=true;return;}
+  closing=true;layer.classList.add('closing');render();
+  animate([{transform:'translateY(0)',easing:'ease-out'},{transform:'translateY(10px)',offset:.23,easing:'cubic-bezier(.55,0,.8,.45)'},{transform:'translateY(-100dvh)'}],460,()=>{
+   area.replaceChildren();area.onkeydown=null;shell.inert=false;pause.remove('dialog');source.focus({preventScroll:true});
+  });
+ }
+ closeButton.onclick=close;
+ layer.onclick=e=>{if(e.target===layer)close();};
+ buyButton.onclick=()=>{
+  if(moving||closing||!canSpendCrystals()||menuPage!=='shop')return;
+  applyCrystalPurchase(buyShopModule(state,key));render();closeButton.focus();
+ };
+ area.onkeydown=e=>{
+  if(e.key==='Escape'){e.preventDefault();e.stopPropagation();close();return;}
+  if(e.key!=='Tab')return;
+  const buttons=buyButton.disabled?[closeButton]:[closeButton,buyButton];
+  const index=buttons.indexOf(document.activeElement as HTMLButtonElement);
+  e.preventDefault();buttons[(index+(e.shiftKey?-1:1)+buttons.length)%buttons.length].focus();
+ };
+ render();
+ closeButton.focus();
+ animate([{transform:'translateY(-100dvh)',easing:'cubic-bezier(.26,.65,.44,1)'},{transform:'translateY(14px)',offset:.76,easing:'ease-out'},{transform:'translateY(0)'}],590,()=>{render();if(closeRequested)close();});
 }
 function drawPanel(){
  const panel=$('#panel');panel.className=screen==='menu'?(menuPage==='shop'?'module-shop-panel':menuPage==='workshop'?'workshop-panel':'title-panel'):`panel ${screen}-panel`;
@@ -155,7 +199,7 @@ function drawPanel(){
   if(menuPage==='workshop'){
    $('#workshop-back').onclick=()=>showMenuPage('title');
    bindUpgradeTabs($('.workshop-rack'));
-   bindCrystalModules(COMBAT_KEYS,'workshop');
+   bindCrystalModules();
    for(const stat of STAT_KEYS){
     const card=$(`[data-workshop-stat="${stat}"]`);
     card.onclick=()=>{
@@ -168,7 +212,7 @@ function drawPanel(){
   }
   else if(menuPage==='shop'){
    $('#module-shop-back').onclick=()=>showMenuPage('title');
-   bindCrystalModules(SHOP_MODULES,'shop');
+   for(const key of SHOP_MODULES){const card=$<HTMLButtonElement>(`#shop-${key}`);card.onclick=()=>openModuleDetail(key,card);}
   }
   else{$('#open-module-shop').onclick=()=>showMenuPage('shop');$('#start').onclick=launch;$('#resume').onclick=resume;$('#open-workshop').onclick=()=>showMenuPage('workshop');$('#menu-help').onclick=showHelp;}
  }
@@ -222,11 +266,11 @@ function renderUI(force=false){
  $('#arena-note').textContent=battle?'Автоогонь · покупайте модули за золото':'Один оплот. Тридцать волн.';
  const boss=run?.enemies.find(e=>e.kind==='boss');$('#boss').classList.toggle('hidden',!boss||!battle);if(boss)$('#boss-fill').style.width=`${boss.hp/boss.maxHp*100}%`;
  $('#shop-title').textContent=battle?'Боевые модули · золото':'Мастерская · кристаллы';$('#shop-note').textContent=battle?'Улучшения действуют сразу':'Усиливают старт будущих забегов';
- if(screen==='menu'&&menuPage!=='title') {
-  const prefix=menuPage;
-  for(const key of (prefix==='shop'?SHOP_MODULES:COMBAT_KEYS)) {
-   renderWorkshopCombatUpgrade($<HTMLButtonElement>(`#${prefix}-${key}`),key,state.profile.enhancements?.[key]??0,state.profile.crystals,fatal||saveBlocked||!writable||!!run);
-  }
+ if(screen==='menu'&&menuPage==='workshop') for(const key of COMBAT_KEYS) {
+  renderWorkshopCombatUpgrade($<HTMLButtonElement>(`#workshop-${key}`),key,state.profile.enhancements?.[key]??0,state.profile.crystals,fatal||saveBlocked||!writable||!!run);
+ }
+ if(screen==='menu'&&menuPage==='shop') for(const key of SHOP_MODULES) {
+  renderShopCard($<HTMLButtonElement>(`#shop-${key}`),key,state.profile.enhancements?.[key]??0);
  }
  for(const stat of STAT_KEYS){const inWorkshop=screen==='menu'&&menuPage==='workshop',btn=$<HTMLButtonElement>(inWorkshop?`[data-workshop-stat="${stat}"]`:`#upgrade-${stat}`),level=battle?run?.levels[stat]??0:state.profile.meta[stat],price=battle?runPrice(stat,level):metaPrice(stat,level),budget=battle?run?.gold??0:state.profile.crystals;
  let nextValue=0,current=battle?stats[stat]:calculateStats(state.profile.meta)[stat];
