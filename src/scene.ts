@@ -109,6 +109,7 @@ function matrix(x: number, y: number, z: number, ry = 0, sx = 1, sy = sx, sz = s
 
 /** Local visual assets with procedural fallback; simulation state is unchanged. */
 export class SceneView {
+  readonly assetsReady: Promise<boolean>;
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.OrthographicCamera(-16, 16, 10, -10, .1, 2000);
@@ -181,7 +182,7 @@ export class SceneView {
     this.scene.add(this.sun);
     const rim = new THREE.DirectionalLight(0x73e6f8, 1.45); rim.position.set(8, 7, -13); this.scene.add(rim);
     this.buildArena();
-    void this.loadCityModels();
+
     this.barrel = this.buildTurret();
     this.flash = new THREE.Mesh(new THREE.OctahedronGeometry(.24, 0), new THREE.MeshBasicMaterial({ color: 0xfff1ad, toneMapped: false, transparent: true, opacity: 1 }));
     this.flash.position.set(0, 1.66, 2.36); this.flash.scale.set(1, 1, 2.8); this.flash.visible = false; this.turretHead.add(this.flash);
@@ -202,7 +203,27 @@ export class SceneView {
     this.rangeRing.position.y = .076; this.rangeRing.scale.set(TURRET_RANGE, 1, TURRET_RANGE); this.scene.add(this.rangeRing);
     this.observer = new ResizeObserver(() => this.resize()); this.observer.observe(container);
     this.resize();
-    void this.loadModels();
+    this.assetsReady = Promise.all([this.loadCityModels(), this.loadModels()])
+      .then(results => results.every(Boolean));
+  }
+
+  /** Draw representative actors and FX once, before any screen is shown. */
+  prepare() {
+    const empty = { enemies: [], bullets: [], target: null, turretHPfraction: 1, paused: true };
+    this.render({
+      ...empty, phase: 'combat', target: { x: 4, y: 3 },
+      enemies: this.showcase.map(enemy => ({ ...enemy, hp: enemy.hp - 1 })),
+      bullets: [{ id: 'warm-shot', x: 1, y: 1 }],
+      enemyProjectiles: [{ id: 'warm-incoming', x: 2, y: 3 }],
+      warnings: [{ id: 'warm-portal', kind: 'normal', x: -3, y: -4, remaining: .2 }],
+      spawns: [{ id: 'warm-sparks', kind: 'normal', x: 3, y: 4, time: 0 }],
+    }, 0);
+    this.particles.length = 0;
+    this.arrivals.clear();
+    this.pulse = 0;
+    this.shadowTick = -1;
+    this.render({ ...empty, phase: 'combat' }, 0);
+    for (const phase of ['workshop', 'shop', 'title']) this.render({ ...empty, phase }, 0);
   }
 
   private addGeometry(g: THREE.BufferGeometry, material: THREE.Material = this.material, parent: THREE.Object3D = this.scene) {
@@ -361,7 +382,9 @@ export class SceneView {
       }
     });
     if (!this.disposed) this.sun.shadow.needsUpdate = true;
-    if (!this.disposed && results.every(result => result.status === 'fulfilled')) this.renderer.domElement.dataset.city = 'tevy';
+    const complete = results.every(result => result.status === 'fulfilled');
+    if (!this.disposed && complete) this.renderer.domElement.dataset.city = 'tevy';
+    return complete;
   }
 
   private registerAsset(scene: THREE.Object3D) {
@@ -406,8 +429,10 @@ export class SceneView {
       this.sun.shadow.needsUpdate = true;
       this.importedMechs = new ImportedMechs(mechs, this.scene);
       this.renderer.domElement.dataset.art = 'oplot';
+      return true;
     } catch (error) {
       console.warn('Local Oplot models unavailable; using procedural graphics', error);
+      return false;
     }
   }
 

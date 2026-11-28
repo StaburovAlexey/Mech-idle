@@ -1,0 +1,52 @@
+:root:has(#boot) { overflow:hidden; background:#050605; }
+html:has(#boot) body { margin:0; background:#050605; }
+body:has(#boot:not([data-phase="menu"])) #app { visibility:hidden; }
+#boot { position:fixed; inset:0; z-index:50; overflow:hidden; background:#050605; box-sizing:border-box; }
+#boot *, #boot *::before, #boot *::after { box-sizing:inherit; }
+#boot[data-phase="menu"] { background:transparent; }
+#boot-display {
+  position:absolute; inset:0; display:grid; place-items:center; isolation:isolate;
+  background:#151615; color:#eee4d3; font-family:"JetBrains Mono",ui-monospace,monospace; text-shadow:none;
+}
+#boot-display[hidden] { display:none; }
+#boot-beam {
+  position:absolute; inset:50% 3% auto; height:2px;
+  background:#dffbb8; border-radius:100%; box-shadow:0 0 8px #c6f58e;
+  transform:scaleX(0); opacity:0; pointer-events:none;
+}
+.boot-filter { position:absolute; width:0; height:0; pointer-events:none; }
+.boot-tracking { filter:url(#boot-tracking); }
+.boot-loader { animation:boot-spin 900ms linear infinite; }
+@keyframes boot-spin { to { transform:rotate(360deg); } }
+@media (prefers-reduced-motion:reduce) { .boot-loader { animation:none; } }
+#boot[data-phase="error"] .boot-loader { display:none; }
+#boot[data-phase="error"] .boot-console { flex-wrap:wrap; }
+#boot-retry { padding:8px 12px; border:1px solid #a6d96a; border-radius:5px; background:#242e1d; color:#fff1d7; cursor:pointer; }
+.noscript-message { color:#f8e9d2; }
+
+@font-face{font-family:'JetBrains Mono';src:url('/assets/ui/fonts/jetbrains-mono.woff');font-weight:100 800}
+.boot-terrain,.boot-grain{position:absolute;inset:0;pointer-events:none}
+.boot-terrain{z-index:-2;background:linear-gradient(0deg,#101111 1%,#17171730 52%,#171719b0 100%),radial-gradient(ellipse at 55% 39%,transparent 19%,#141311b0 99%),url('/assets/ui/title/sand-city.webp') 57% 43%/cover no-repeat}
+.boot-grain{z-index:-1;opacity:.18;background:repeating-linear-gradient(0deg,transparent 0 4px,#201722 4px 5px)}
+.boot-viewport{position:absolute;inset:max(21px,env(safe-area-inset-top)) max(21px,env(safe-area-inset-right)) max(21px,env(safe-area-inset-bottom)) max(21px,env(safe-area-inset-left));pointer-events:none;display:flex;justify-content:space-between;flex-direction:column}
+.boot-rule{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 9px;color:#f2ddae;font-size:10px;letter-spacing:.14em;font-weight:650}
+.boot-rule::before,.boot-rule::after{content:"";width:12px;height:12px;position:absolute;opacity:.82}
+.boot-top::before,.boot-top::after{top:0;border-top:1px solid #bc9d70}
+.boot-bottom::before,.boot-bottom::after{bottom:0;border-bottom:1px solid #bc9d70}
+.boot-rule::before{left:0;border-left:1px solid #bc9d70}
+.boot-rule::after{right:0;border-right:1px solid #bc9d70}
+.boot-signal{display:flex;align-items:center;gap:8px}
+.boot-signal::before{content:"";width:6px;height:6px;background:#cfe394;box-shadow:0 0 11px #cfe394ae;border-radius:50%}
+.boot-bottom{color:#b9ac95;font-size:9px}
+.boot-center{width:min(100% - 56px,369px);margin-top:-6vh}
+.boot-brand{text-align:center;margin-bottom:33px}
+.boot-label{display:flex;align-items:center;justify-content:center;gap:10px;font-size:11px;font-weight:800;letter-spacing:.19em;color:#f1d294}
+.boot-label::before,.boot-label::after{display:block;content:"";width:23px;height:1px;background:#cba55d}
+#boot-display h1{display:inline-block;color:#fff1d7;position:relative;margin:7px 0 0;padding:3px 13px 9px;font-size:clamp(49px,18vw,78px);line-height:1;font-weight:800;letter-spacing:-.06em;transform:skewX(-9deg);text-shadow:0 5px #332b20}
+#boot-display h1::after{content:"";position:absolute;left:0;right:0;bottom:0;height:4px;background:#a9de71;border-radius:2px;box-shadow:0 3px #35422c}
+.boot-console{display:flex;justify-content:center;align-items:center;gap:10px;padding:4px 0;text-shadow:0 2px 4px #100e0e,0 0 10px #100e0e}
+.boot-loader{width:25px;height:25px;flex:none}
+.boot-loader circle{fill:none;stroke-width:4.5}
+.boot-loader .boot-track{stroke:#515c40}
+.boot-loader .boot-arc{stroke:#c7ed96;stroke-linecap:round;stroke-dasharray:42 61;transform:rotate(-88deg);transform-origin:center;filter:drop-shadow(0 0 4px #a7d47865)}
+.boot-heading{margin:0;color:#f8e9d2;font-weight:800;font-size:clamp(12px,3.65vw,16px);line-height:1.2;letter-spacing:.045em}
