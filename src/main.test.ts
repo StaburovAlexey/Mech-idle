@@ -155,7 +155,7 @@ describe('startup', () => {
   ])('waits for both three seconds and model readiness ($ready after $loadMs ms)', async ({ ready, loadMs }) => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     const page = new DOMParser().parseFromString(readFileSync('index.html', 'utf8'), 'text/html');
-    document.body.append(page.querySelector('#boot')!);
+    document.body.append(page.querySelector('.boot-filter')!, page.querySelector('#boot')!);
     element('#app').inert = true;
     vi.stubGlobal('matchMedia', () => ({ matches: true }));
     let finish!: (ok: boolean) => void;

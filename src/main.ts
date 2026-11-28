@@ -9,6 +9,7 @@ import { COMBAT_KEYS, SHOP_MODULES, type ShopModule } from './combat-upgrades';
 import { workshopMarkup, renderWorkshopCombatUpgrade } from './workshop-ui';
 import { moduleShopMarkup, moduleDetailMarkup, renderShopCard, renderModuleDetail } from './module-shop';
 import { MenuAnnouncements, TEST_ANNOUNCEMENTS } from './menu-announcement';
+import { rotateTitleTips } from './title-tips';
 import { titleMarkup } from './title-ui';
 import {createState,startRun,step,buyRunUpgrade,buyCombatUpgrade,buyMetaUpgrade,buyWorkshopCombatUpgrade,buyShopModule,setPaused,getStats,calculateStats,runPrice,metaPrice,STAT_KEYS,DT,type GameState,type StatKey} from './game';
 import {SceneView,type SceneFrame, type SceneSpawn} from './scene';
@@ -214,12 +215,15 @@ function openModuleDetail(key: ShopModule, source: HTMLButtonElement){
  closeButton.focus();
  animate([{transform:'translateY(-100dvh)',easing:'cubic-bezier(.26,.65,.44,1)'},{transform:'translateY(14px)',offset:.76,easing:'ease-out'},{transform:'translateY(0)'}],590,()=>{render();if(closeRequested)close();});
 }
-function mountTitleAnnouncements(){
+let disposeTitleTips: (()=>void) | undefined;
+function mountTitleWidgets(){
+ disposeTitleTips=rotateTitleTips($('.title-tip'));
  announcements.mount($('.menu-announcement-slot'),destination=>{void showMenuPage(destination);},
   ()=>!state.run&&!gatesMoving, ()=>$(state.run?'#resume':'#start').focus({preventScroll:true}));
 }
 let disposeWorkshopTabs: (()=>void) | undefined;
 function drawPanel(){
+ disposeTitleTips?.();disposeTitleTips=undefined;
  disposeWorkshopTabs?.();disposeWorkshopTabs=undefined;
  const panel=$('#panel');panel.className=screen==='menu'?(menuPage==='shop'?'module-shop-panel':menuPage==='workshop'?'workshop-panel':'title-panel'):`panel ${screen}-panel`;
  if(screen==='menu')panel.innerHTML=menuPage==='shop'?moduleShopMarkup:menuPage==='workshop'?workshopMarkup:titleMarkup;
@@ -248,7 +252,7 @@ function drawPanel(){
    $('#open-module-shop').onclick=()=>showMenuPage('shop');
    $('#start').onclick=()=>enterBattle(true);$('#resume').onclick=()=>enterBattle(false);
    $('#open-workshop').onclick=()=>showMenuPage('workshop');$('#menu-help').onclick=showHelp;
-   if(!root.inert)mountTitleAnnouncements();
+   if(!root.inert)mountTitleWidgets();
   }
  }
  if(screen==='result')$('#to-workshop').onclick=()=>{openMenu();void showMenuPage('workshop',false);};
@@ -385,7 +389,7 @@ async function init(){
   };
   if(startup)await startup.reveal(show);else show();
   root.inert=false;
-  if(startup)mountTitleAnnouncements();
+  if(startup)mountTitleWidgets();
   $('#modal-root').querySelector('button')?.focus();
   if(scene)platform.gameReady();
  } catch(error){

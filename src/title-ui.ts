@@ -1,3 +1,4 @@
+import { TITLE_TIPS } from './title-tips';
 import { armoredFrame } from './armored-frame';
 
 // Native controls stay separate from the decorative art and retain normal focus/disabled behavior.
@@ -25,5 +26,7 @@ export const titleMarkup = `
   `, 'Главное меню')}
   ${armoredFrame('aside', 'title-tip', `
     <div class="title-bulb">${bulb}</div>
-    <div><strong>Совет</strong><p id="menu-hint">Улучшай турель между боями.</p></div>
+    <div><strong>Совет</strong><div class="title-tip-text">
+      ${TITLE_TIPS.map((tip, i) => i === 0 ? `<p id="menu-hint" class="current">${tip}</p>` : `<p>${tip}</p>`).join('')}
+    </div></div>
   `)}`;
