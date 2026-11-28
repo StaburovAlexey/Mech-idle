@@ -44,8 +44,6 @@ body:has(.chain-panel-layer:not(.hidden)) { overflow: hidden; }
 .battle-menu-panel {
   display: grid; gap: 10px; padding: 3px;
 }
-.battle-menu-head { display: grid; grid-template-columns: minmax(0,1fr) 44px; align-items: center; gap: 8px; }
-.battle-menu-head h2 { margin: 0; font-size: clamp(19px,5.8cqw,25px); text-transform: uppercase; }
+.battle-menu-panel h2 { margin: 0; text-align: center; font-size: clamp(19px,5.8cqw,25px); text-transform: uppercase; }
 .battle-menu-panel .menu-actions { display: grid; gap: 8px; }
 .battle-menu-panel .title-button { min-height: 44px; font-size: clamp(13px,4cqw,18px); }
-.battle-menu-head .title-button { font-size: 22px; }

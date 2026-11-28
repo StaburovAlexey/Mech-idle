@@ -34,8 +34,8 @@ if(!params.has('embed')){
  for(const key of COMBAT_KEYS) renderCombatUpgrade(get(`#upgrade-${key}`) as HTMLButtonElement,key,1,148,false);
  get('#menu-damage').textContent='18';get('#menu-speed').textContent='1,4 /с';get('#menu-regen').textContent='1,5 HP/с';get('#menu-progress').textContent='6 / 30';
  const close=()=>{get('#battle-menu-overlay').classList.add('hidden');get('#battle-menu-toggle').setAttribute('aria-expanded','false');get('#battle-menu-toggle').focus();};
- get('#battle-menu-toggle').onclick=()=>{get('#battle-menu-overlay').classList.remove('hidden');drawerScrollbars.refresh();get('#battle-menu-toggle').setAttribute('aria-expanded','true');get('#battle-menu-close').focus();};
- get('#battle-menu-close').onclick=close;get('#battle-menu-return').onclick=close;
+ get('#battle-menu-toggle').onclick=()=>{get('#battle-menu-overlay').classList.remove('hidden');drawerScrollbars.refresh();get('#battle-menu-toggle').setAttribute('aria-expanded','true');get('#battle-menu-return').focus({preventScroll:true});};
+ get('#battle-menu-return').onclick=close;
  get('#battle-menu-overlay').onclick=event=>{if(event.target===get('#battle-menu-overlay'))close();};
  document.addEventListener('keydown',event=>{if(event.key==='Escape')close();});
  const resize=()=>{const stage=get('#review-scene'),v=arenaViewport(stage.clientWidth,stage.clientHeight),field=get('#review-field');Object.assign(field.style,{left:`${v.x}px`,top:`${v.y}px`,width:`${v.width}px`,height:`${v.height}px`});};
