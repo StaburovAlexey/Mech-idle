@@ -60,12 +60,10 @@ function setMenuPage(page: MenuPage){
  menuPage=page;renderUI(true);
  window.scrollTo(0,0);
 }
-async function showMenuPage(page: MenuPage,animated=true){
- if(screen!=='menu'||page===menuPage||gatesMoving||(page!=='title'&&state.run))return;
- const previous=menuPage;
- const focus=()=>$(page!=='title'?'#screen-heading':previous==='shop'?'#open-module-shop':'#open-workshop').focus({preventScroll:true});
+async function throughGates(swap:()=>void,finish:()=>void,animated=true){
+ if(gatesMoving)return;
  if(!animated||!gates.firstElementChild?.animate||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches){
-  setMenuPage(page);focus();return;
+  swap();finish();return;
  }
  const shell=$('.shell');
  const leaves=[...gates.children] as HTMLElement[];
@@ -75,12 +73,12 @@ async function showMenuPage(page: MenuPage,animated=true){
    duration:closing?320:390,easing:closing?'cubic-bezier(.61,.04,.88,.52)':'cubic-bezier(.15,.68,.24,1)',fill:'forwards',
   });
  });
- gatesMoving=true;shell.inert=true;gates.hidden=false;
+ gatesMoving=true;shell.inert=true;gates.hidden=false;pause.add('gates');
  let closing:Animation[]=[];let opening:Animation[]=[];
  try {
   closing=slide(true);
   await Promise.allSettled(closing.map(a=>a.finished));
-  setMenuPage(page);
+  swap();
   // Keep the doors shut for a short beat so the screen redraw happens offstage.
   await new Promise<void>(resolve=>window.setTimeout(resolve,250));
   opening=slide(false);
@@ -88,11 +86,32 @@ async function showMenuPage(page: MenuPage,animated=true){
  } finally {
   gates.hidden=true;
   for(const animation of [...opening,...closing])animation.cancel();
-  shell.inert=false;gatesMoving=false;focus();
+  shell.inert=false;gatesMoving=false;pause.remove('gates');finish();
  }
 }
-function resume(){if(!state.run||fatal||saveBlocked||!writable)return;screen='combat';pause.remove('menu');battleMenu.close();state=setPaused(state,false);accumulator=0;last=performance.now();renderUI(true);$(pause.reasons.has('user')?'#unpause':'#battle-menu-toggle').focus();}
-function launch(){if(state.run||fatal||saveBlocked||!writable)return;const seed=crypto.getRandomValues(new Uint32Array(1))[0];state=startRun(state,seed);screen='combat';pause.remove('menu');pause.remove('user');battleMenu.close();accumulator=0;last=performance.now();save();renderUI(true);$('#battle-menu-toggle').focus();toast('Волна 1 · оборона запущена');}
+function showMenuPage(page: MenuPage,animated=true){
+ if(screen!=='menu'||page===menuPage||(page!=='title'&&state.run))return;
+ const previous=menuPage;
+ return throughGates(()=>setMenuPage(page),()=>{
+  $(page!=='title'?'#screen-heading':previous==='shop'?'#open-module-shop':'#open-workshop').focus({preventScroll:true});
+ },animated);
+}
+function enterBattle(newRun:boolean){
+ if(screen!=='menu'||menuPage!=='title'||newRun===!!state.run||fatal||saveBlocked||!writable)return;
+ return throughGates(()=>{
+  if(newRun){
+   state=startRun(state,crypto.getRandomValues(new Uint32Array(1))[0]);
+   pause.remove('user');
+   save();
+  }else state=setPaused(state,false);
+  screen='combat';pause.remove('menu');battleMenu.close();
+  renderUI(true);window.scrollTo(0,0);
+ },()=>{
+  accumulator=0;last=performance.now();
+  $(pause.reasons.has('user')?'#unpause':'#battle-menu-toggle').focus({preventScroll:true});
+  if(newRun)toast('Волна 1 · оборона запущена');
+ });
+}
 function togglePause(){if(screen!=='combat'||!state.run)return;if(pause.reasons.has('user'))pause.remove('user');else pause.add('user');accumulator=0;save();renderUI();}
 function buy(stat:StatKey){if(!writable||saveBlocked||fatal||screen==='result'||(screen==='menu'&&menuPage!=='workshop')||battleMenu.open||pause.reasons.has('dialog'))return;const before=state;state=screen==='combat'?buyRunUpgrade(state,stat):buyMetaUpgrade(state,stat);if(state!==before){sound.play('upgrade');save();toast(screen==='combat'?'Модуль улучшен · действует сразу':'Стартовые параметры улучшены');renderUI();}}
 $('#upgrades').innerHTML=battleUpgradeDockMarkup;
@@ -221,7 +240,7 @@ function drawPanel(){
   }
   else {
    $('#open-module-shop').onclick=()=>showMenuPage('shop');
-   $('#start').onclick=launch;$('#resume').onclick=resume;
+   $('#start').onclick=()=>enterBattle(true);$('#resume').onclick=()=>enterBattle(false);
    $('#open-workshop').onclick=()=>showMenuPage('workshop');$('#menu-help').onclick=showHelp;
    announcements.mount($('.menu-announcement-slot'),destination=>{void showMenuPage(destination);},
     ()=>!state.run&&!gatesMoving, ()=>$(state.run?'#resume':'#start').focus({preventScroll:true}));

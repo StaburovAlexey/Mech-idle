@@ -95,6 +95,16 @@ async function boot(state?: GameState) {
     expect(frameCallback).not.toBeNull();
   });
 }
+function mockGateMotion() {
+  const gates = element('.workshop-gates');
+  const completion: Array<() => void> = [];
+  for (const leaf of gates.children) {
+    Object.defineProperty(leaf, 'animate', { value: vi.fn(() => ({
+      finished: new Promise<void>(resolve => completion.push(resolve)), cancel: vi.fn(),
+    })) });
+  }
+  return { gates, completion };
+}
 function openDrawer() {
   button('#battle-menu-toggle').focus();
   click('#battle-menu-toggle');
@@ -182,13 +192,7 @@ describe('main menu', () => {
   });
   it('switches only after both metal gates close and restores focus when they reopen', async () => {
     await boot();
-    const gates = element('.workshop-gates');
-    const completion: Array<() => void> = [];
-    for (const leaf of gates.children) {
-      Object.defineProperty(leaf, 'animate', { value: vi.fn(() => ({
-        finished: new Promise<void>(resolve => completion.push(resolve)), cancel: vi.fn(),
-      })) });
-    }
+    const { gates, completion } = mockGateMotion();
     click('#open-workshop');
     click('#open-workshop');
     expect(gates.hidden).toBe(false);
@@ -319,6 +323,36 @@ describe('main menu', () => {
 });
 
 describe('fullscreen battle actual UI flows', () => {
+  it.each(['#start', '#resume'])('holds the battle until the shared gates reopen for %s', async trigger => {
+    const profile = trigger === '#resume' ? fundedRun() : undefined;
+    await boot(profile);
+    const { gates, completion } = mockGateMotion();
+    click(trigger);
+    click(trigger);
+    expect(completion).toHaveLength(2);
+    expect(gates.hidden).toBe(false);
+    expect(element('.shell').inert).toBe(true);
+    completion[0]();
+    await Promise.resolve();
+    expect(hidden('#battle-hud')).toBe(true);
+    completion[1]();
+    await vi.waitFor(() => expect(hidden('#battle-hud')).toBe(false));
+    const battleStart = profile?.run?.time ?? 0;
+    advanceFrames(3);
+    expect(elapsed()).toBe(battleStart);
+    expect(fakes.pause!.paused).toBe(true);
+    await vi.waitFor(() => expect(completion).toHaveLength(4));
+    expect(gates.hidden).toBe(false);
+    advanceFrames(3);
+    expect(elapsed()).toBe(battleStart);
+    completion[2](); completion[3]();
+    await vi.waitFor(() => expect(gates.hidden).toBe(true));
+    expect(element('.shell').inert).toBe(false);
+    expect(document.activeElement).toBe(button('#battle-menu-toggle'));
+    advanceFrames(3);
+    expect(elapsed()).toBeGreaterThan(battleStart);
+  });
+
   it('New Run swaps the workshop for a compact battle HUD and exactly four upgrade buttons', async () => {
     await boot();
     expect(element('.shell').classList.contains('in-battle')).toBe(false);
