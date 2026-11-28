@@ -1,4 +1,4 @@
-import { animateRunRewards,runResultMarkup } from './run-result-ui';
+import { animateRunResult,runResultMarkup } from './run-result-ui';
 import { bindGameSettings, gameSettingsMarkup, readGameSettings, saveGameSettings } from './game-settings';
 import { armoredScrollMarkup, bindArmoredScrollbars } from './armored-scroll';
 import { animateChainSheet, openChainPanel } from './chain-panel';
@@ -329,7 +329,7 @@ function drawPanel(){
  disposeTitleTips?.();disposeTitleTips=undefined;
  disposeWorkshopTabs?.();disposeWorkshopTabs=undefined;
  disposeShopScrollbars?.();disposeShopScrollbars=undefined;
- const panel=$('#panel');panel.className=screen==='menu'?(menuPage==='shop'?'module-shop-panel':menuPage==='workshop'?'workshop-panel':'title-panel') :screen==='result'?'run-result-screen':'panel combat-panel';
+ const panel=$('#panel');panel.className=screen==='menu'?(menuPage==='shop'?'module-shop-panel':menuPage==='workshop'?'workshop-panel':'title-panel') :screen==='result'?'run-result-screen chain-panel-layer':'panel combat-panel';
  if(screen==='menu')panel.innerHTML=menuPage==='shop'?moduleShopMarkup:menuPage==='workshop'?workshopMarkup(state.profile.enhancements):titleMarkup;
  else if(screen==='combat')panel.innerHTML='';
  else if(state.result)panel.innerHTML=runResultMarkup(state.result);
@@ -363,12 +363,15 @@ function drawPanel(){
  if(screen==='result'&&state.result){
   $('#result-claim').onclick=()=>void collectRunResult(false);
   $('#result-claim-ad').onclick=()=>void collectRunResult(true);
-  disposeRunResult=animateRunRewards(panel,state.result,()=>{
-   resultReady=true;renderResultActions();
-   if(!platform.resultAdAvailable)$(".result-message").textContent='Реклама недоступна';
-  });
  }
  renderedScreen=screen;
+}
+function startRunResult(){
+ if(screen!=='result'||!state.result||disposeRunResult||root.inert)return;
+ disposeRunResult=animateRunResult($('#panel'),state.result,()=>{
+  resultReady=true;renderResultActions();
+  if(!platform.resultAdAvailable)$(".result-message").textContent='Реклама недоступна';
+ });
 }
 function renderUI(force=false){
  const layoutChanged=force||renderedScreen!==screen;
@@ -393,16 +396,16 @@ function renderUI(force=false){
  $('.shell').classList.toggle('at-front-menu',screen==='menu'&&menuPage==='title');
  $('.shell').classList.toggle('at-workshop',screen==='menu'&&menuPage==='workshop');
  $('.shell').classList.toggle('at-module-shop',screen==='menu'&&menuPage==='shop');
- $('.shell').classList.toggle('in-battle',battle);
+ $('.shell').classList.toggle('in-battle',battle||screen==='result');
  $('.shell').classList.toggle('at-run-result',screen==='result');
  $('.shell').classList.toggle('result-victory',screen==='result'&&state.result?.outcome==='victory');
- document.body.classList.toggle('battle-active',battle);
+ document.body.classList.toggle('battle-active',battle||screen==='result');
  $('#battle-hud').classList.toggle('hidden',!battle);
  $('#battle-notice').textContent=$('#notice').textContent;
  $('#battle-notice').classList.toggle('hidden',$('#notice').classList.contains('hidden'));
  $('#battle-menu-overlay').classList.toggle('hidden',!battle||!battleMenu.open);
  $('#battle-menu-toggle').setAttribute('aria-expanded',String(battleMenu.open));
- $('#battle-hud').inert=battleMenu.open;$('#upgrades').inert=battleMenu.open;$('.arena-wrap').inert=battleMenu.open;
+ $('#battle-hud').inert=battleMenu.open;$('#upgrades').inert=battleMenu.open;$('.arena-wrap').inert=battleMenu.open||screen==='result';
  if(battle&&run){
   $('#battle-wave').textContent=`${run.wave} / 30`;
   $('#battle-hp').textContent=`${Math.max(1,Math.ceil(run.hp-1e-9))} / ${fmt(stats.maxHp)}`;
@@ -439,12 +442,13 @@ function renderUI(force=false){
  btn.querySelector('.upgrade-cost')!.textContent=coins(price);
  btn.querySelector('.upgrade-sub')!.textContent=`Следующий: ${fmt(nextValue)} ${labels[stat].unit}`;
  }
- if(layoutChanged)scene?.resize();
+ if(layoutChanged){scene?.resize();startRunResult();}
 }
 function frameForScene(spawns: SceneSpawn[]):SceneFrame{
  const r=state.run,stats=getStats(state),target=r?.enemies.find(e=>e.id===r.targetId);
  return {range:stats.range,paused:pause.paused,pickups:r?.pickups,enemies:r?.enemies.map(e=>({...e,kind:e.kind==='ordinary'?'normal':e.kind}))??[],bullets:r?.bullets??[],enemyProjectiles:r?.enemyProjectiles??[],warnings:r?.warnings??[],spawns,target:target??null,turretHPfraction:r?r.hp/stats.maxHp:1,phase:screen==='menu'?menuPage:screen,elapsed:r?.time??0,shooting:state.events.some(e=>e.type==='shot')};
 }
+let battleBackdrop:SceneFrame|undefined;
 function animate(now:number){
  const spawns: SceneSpawn[] = [];
  const delta=Math.min((now-last)/1000,.15);last=now;
@@ -454,10 +458,13 @@ function animate(now:number){
    for(const ev of state.events){if(ev.type==='spawn'&&state.run)spawns.push({...ev,time:state.run.time});if(ev.type==='shot')sound.play('shot');if(ev.type==='kill'){sound.play('kill');toast(`+${ev.amount} золота`);}if(ev.type==='waveComplete'){sound.play('wave');toast(`Волна ${ev.wave} пройдена · +1 деталь`);}if(ev.type==='waveStart'&&ev.wave===30)toast('ВНИМАНИЕ: КОЛОСС · финальный босс');}
    if(state.events.some(e=>e.type==='kill'||e.type==='waveComplete'||e.type==='runEnded'))save();
   }
-  if(!state.run&&state.result){battleMenu.close();screen='result';pause.add('menu');save();renderUI(true);$('#run-result-title').focus({preventScroll:true});}
+  if(!state.run&&state.result){battleMenu.close();screen='result';pause.add('menu');save();renderUI(true);}
  }else accumulator=0;
  if(scene){
-  const frame=frameForScene(spawns);
+  const frame=screen==='result'
+   ? {...(battleBackdrop??frameForScene([])),phase:'combat',paused:true,spawns:[],pickups:[],turretHPfraction:state.result?.outcome==='defeat'?0:(battleBackdrop?.turretHPfraction??1)}
+   : frameForScene(spawns);
+  if(screen==='combat')battleBackdrop=frame;else if(screen==='menu')battleBackdrop=undefined;
   const animatePresentation=(frame.phase==='title'||frame.phase==='workshop'||frame.phase==='shop')&&!document.hidden&&!pause.reasons.has('focus')&&!pause.reasons.has('dialog');
   scene.render(frame,animatePresentation||!pause.paused?delta:0);
  }
@@ -551,7 +558,8 @@ async function init(){
   const enableInput=()=>{
    root.inert=false;
    const modalButton=$('#modal-root').querySelector('button');
-   if(modalButton)modalButton.focus();else if(screen==='result')$('#run-result-title')?.focus({preventScroll:true});
+   if(modalButton)modalButton.focus();
+   startRunResult();
   };
   if(startup){
    await startup.reveal(show,enableInput);
